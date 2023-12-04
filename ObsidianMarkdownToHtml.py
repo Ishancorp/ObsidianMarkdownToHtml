@@ -33,14 +33,14 @@ class ObsidianMarkdownToHtml:
         skip_beginning = -1
         extern_links = [-1, -1,-1]
         for i in range(0, len(line)):
-            if line[i] == '*' and line[i-1] == '\\':
+            if i > 0 and line[i] == '*' and line[i-1] == '\\':
                 ret_line = ret_line[:-1] + "*"
-            elif line[i] == '*' and line[i-1] == '*' and not in_bold:
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold:
                 in_bold = not in_bold
                 in_italics = False
                 ret_line = ret_line[:-4]
                 ret_line += "<strong>"
-            elif line[i] == '*' and line[i-1] == '*' and in_bold:
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and in_bold:
                 in_bold = not in_bold
                 in_italics = False
                 ret_line = ret_line[:-4]
@@ -51,15 +51,15 @@ class ObsidianMarkdownToHtml:
             elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics:
                 in_italics = not in_italics
                 ret_line += "</em>"
-            elif line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
+            elif i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
                 transclusion = True
                 skip_beginning = i+1
                 ret_line = ret_line[:-2]
-            elif line[i] == '[' and line[i-1] == '[' and not in_link:
+            elif i > 0 and line[i] == '[' and line[i-1] == '[' and not in_link:
                 in_link = True
                 skip_beginning = i+1
                 ret_line = ret_line[:-1]
-            elif line[i] == ']' and line[i-1] == ']' and in_link:
+            elif i > 0 and line[i] == ']' and line[i-1] == ']' and in_link:
                 in_link = False
                 mk_link = line[skip_beginning:i-1]
                 text = mk_link
@@ -73,7 +73,7 @@ class ObsidianMarkdownToHtml:
                 else:
                     link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                 ret_line += self.make_link(self.make_offset() + link[1:], text)
-            elif line[i] == ']' and line[i-1] == ']' and transclusion:
+            elif i > 0 and line[i] == ']' and line[i-1] == ']' and transclusion:
                 transclusion = False
                 mk_link = line[skip_beginning:i-1]
                 extension = mk_link.split(".")[-1]
@@ -150,6 +150,7 @@ class ObsidianMarkdownToHtml:
     def file_viewer(self, file_dir):
         if file_dir in (self.cached_pages).keys():
             return (self.cached_pages)[file_dir]
+        
         new_file = ""
         open_file = open(file_dir, "r", encoding="utf8")
         file_lines = open_file.readlines()
@@ -254,7 +255,7 @@ class ObsidianMarkdownToHtml:
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
                     new_file += "<" + indicer + " id=\""
-                    new_file += line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-") + "\">"
+                    new_file += line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "") + "\">"
                 else:
                     new_file += "<" + indicer + ">"
                 line_to_put = self.line_parser(line_to_put)
