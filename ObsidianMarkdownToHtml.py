@@ -72,7 +72,7 @@ class ObsidianMarkdownToHtml:
                     text = gen_link + " > " + head_link
                 else:
                     link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-                ret_line += self.make_link(self.make_offset() + link[1:], text)
+                ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), text)
             elif i > 0 and line[i] == ']' and line[i-1] == ']' and transclusion:
                 transclusion = False
                 mk_link = line[skip_beginning:i-1]
@@ -93,7 +93,7 @@ class ObsidianMarkdownToHtml:
                         link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
 
                         ret_line += "<div class=\"transclude-link\">"
-                        ret_line += self.make_link(self.make_offset() + link[1:], ">>")
+                        ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
                         ret_line += "</div>"
                         
                         aside_lines = seen_file.split("\n")
@@ -123,7 +123,7 @@ class ObsidianMarkdownToHtml:
                     else:
                         #entire article
                         link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-                        ret_line += self.make_link(self.make_offset() + link[1:], ">>")
+                        ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
                         ret_line += seen_file;
                     ret_line += "</aside>\n"
             elif line[i-1] == "[" and not in_link:
@@ -255,7 +255,7 @@ class ObsidianMarkdownToHtml:
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
                     new_file += "<" + indicer + " id=\""
-                    new_file += line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "") + "\">"
+                    new_file += line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","") + "\">"
                 else:
                     new_file += "<" + indicer + ">"
                 line_to_put = self.line_parser(line_to_put)
