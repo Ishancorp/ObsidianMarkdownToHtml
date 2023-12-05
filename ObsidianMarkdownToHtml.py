@@ -23,6 +23,9 @@ class ObsidianMarkdownToHtml:
             return '..'
         else:
             return ((self.offset-1) * "../") + ".."
+
+    def make_opening_tag(self, indicer):
+        return "<" + indicer + ">\n"
         
     def line_parser(self, line):
         ret_line = ""
@@ -82,7 +85,7 @@ class ObsidianMarkdownToHtml:
                     link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                     ret_line += "<img src=\"" + self.make_offset() + link[1:] + "\">"
                 else: #article transclusion
-                    ret_line += "<aside>\n"
+                    ret_line += self.make_opening_tag("aside")
                     link = (self.link_to_filepath)[mk_link.split("#")[0]]
                     file_paths = [k for k,v in (self.link_to_filepath).items() if v == link]
                     f_p = "\\" + file_paths[-1] + ".md"
@@ -92,7 +95,7 @@ class ObsidianMarkdownToHtml:
                         [gen_link, head_link] = mk_link.split("#")
                         link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
 
-                        ret_line += "<div class=\"transclude-link\">"
+                        ret_line += self.make_opening_tag("div class=\"transclude-link\"")
                         ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
                         ret_line += "</div>"
                         
@@ -157,11 +160,11 @@ class ObsidianMarkdownToHtml:
         file_lines = open_file.readlines()
         
         opening = 0
-        in_section = False
-        for i in range(2, 5):
-            if file_lines[i] == "---\n":
-                opening = i+1
-                break
+        if file_lines[0] == "---\n":
+            for i in range(1, len(file_lines)):
+                if file_lines[i] == "---\n":
+                    opening = i+1
+                    break
 
         i = opening
         in_section = False
@@ -202,7 +205,7 @@ class ObsidianMarkdownToHtml:
                     if line_to_put.count("|") > 2 and line_to_put.count("|") != file_lines[k].count("|"):
                         skip_ahead = k
                         break
-                    temp_string += "<tr>\n"
+                    temp_string += self.make_opening_tag("tr")
                     t_indicer = "td"
                     if i == k:
                         t_indicer = "th"
@@ -219,7 +222,7 @@ class ObsidianMarkdownToHtml:
                     temp_string = new_indice + temp_string
                     skip_ahead += 1
                 else:
-                    temp_string = "<table>\n" + temp_string
+                    temp_string = self.make_opening_tag("table") + temp_string
                 temp_string += "</table>\n"
                 new_file += temp_string
                 i = skip_ahead-1
@@ -237,7 +240,7 @@ class ObsidianMarkdownToHtml:
                     line_to_put = line_to_put.split(' ', 1)[1]
 
                 if indicer == "p" and not in_section:
-                    new_file += "<section>\n"
+                    new_file += self.make_opening_tag("section")
                     section_place = len(new_file) - 3
                     in_section = True
                 elif indicer.split(" ")[0] != "p" and in_section:
@@ -248,7 +251,7 @@ class ObsidianMarkdownToHtml:
                 if len(line_to_put) > 6 and line_to_put[-7] == "^" and in_section:
                     temp = " id=\"" + line_to_put[-7:] + "\""
                     new_file = new_file[:section_place] + temp + new_file[section_place:]
-                    new_file += "<" + indicer + ">"
+                    new_file += self.make_opening_tag(indicer)
                     line_to_put = line_to_put[:-7]
                 elif len(line_to_put) > 6 and line_to_put[-7] == "^":
                     new_file += "<" + indicer + " id=\""
@@ -258,7 +261,7 @@ class ObsidianMarkdownToHtml:
                     new_file += "<" + indicer + " id=\""
                     new_file += line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","") + "\">"
                 else:
-                    new_file += "<" + indicer + ">"
+                    new_file += self.make_opening_tag(indicer)
                 line_to_put = self.line_parser(line_to_put)
                 new_file += line_to_put + "</" + indicer + ">\n"
                 
@@ -268,7 +271,7 @@ class ObsidianMarkdownToHtml:
         return new_file
 
     def nav_bar(self):
-        ret_str = "<nav>\n"
+        ret_str = self.make_opening_tag("nav")
         ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"show\">"
         ret_str += """
                    <svg id="navicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
@@ -277,7 +280,7 @@ class ObsidianMarkdownToHtml:
                    """
         ret_str += "</button>"
         ret_str += "<div id=\"navbar\" popover><div id=\"idk\">"
-        ret_str += "<ul class=\"menu\">\n"
+        ret_str += self.make_opening_tag("ul class=\"menu\"")
         filepaths = list(self.link_to_filepath.values())
         filenames = list(self.link_to_filepath.keys())
         
@@ -297,7 +300,7 @@ class ObsidianMarkdownToHtml:
                     # add close uls corresp to slashes of i-1
                     if(i != 0):
                         if(fileprev != "." and fileprev != ""):
-                            ret_str += (fileprev.count("\\"))*"</ul>\n"
+                            ret_str += (fileprev.count("\\"))*"</ul>\n</li>\n"
                             
                         # add folders, open uls corresp to slashes of i
                         if(filecur != "."):
@@ -306,7 +309,7 @@ class ObsidianMarkdownToHtml:
                                 ret_str += "<li class=\"parent\">"
                                 ret_str += filecur_elems[j].title()
                                 ret_str += "<ul class=\"child\">\n"
-                                ret_str += "</li>\n"
+                                #ret_str += "</li>\n"
                 #remove indexed
                 ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), filenames[i].split("/")[-1]) + "</li>\n"
         return ret_str + "</ul>\n" + 3*"</br>\n" + "</div></div>\n</nav>\n"
@@ -327,7 +330,7 @@ class ObsidianMarkdownToHtml:
                     (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
 
     def footer(self):
-        ret_str = "<footer>\n"
+        ret_str = self.make_opening_tag("footer")
         ret_str += "<p>Generated with the Obsidian Markdown to HTML script</p>\n"
         ret_str += "<p>Last updated on " + datetime.datetime.now().strftime("%m/%d/%Y") + "</p>\n"
         ret_str += "</footer>\n"
@@ -363,8 +366,9 @@ class ObsidianMarkdownToHtml:
             file_dir = self.in_directory + file[1:]
             if extension == "md":
                 full_file_name = file_name[1:]
-                file_name = file_name.split("\\")[-1]        
-                new_file = "<html>\n<head>\n"
+                file_name = file_name.split("\\")[-1]
+                new_file = self.make_opening_tag("html")
+                new_file += self.make_opening_tag("head")
                 new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
                 new_file += "<title>" + file_name + "</title>\n"
                 new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/\">\n"
@@ -374,7 +378,7 @@ class ObsidianMarkdownToHtml:
                 new_file += "<body>\n"
                 new_file += self.nav_bar()
                 new_file += "<h1 class=\"file-title\">" + file_name + "</h1>\n"
-                new_file += "<article>\n"
+                new_file += self.make_opening_tag("article")
 
                 new_file += self.file_viewer(file_dir)
                 
