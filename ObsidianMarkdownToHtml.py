@@ -97,7 +97,7 @@ class ObsidianMarkdownToHtml:
                     link = (self.link_to_filepath)[mk_link.split("#")[0]]
                     file_paths = [k for k,v in (self.link_to_filepath).items() if v == link]
                     f_p = "\\" + file_paths[-1] + ".md"
-                    seen_file = self.file_viewer(self.in_directory+f_p)
+                    seen_file = self.file_viewer(self.in_directory+f_p, add_to_header_list=False)
                     if "#" in mk_link:
                         #section
                         [gen_link, head_link] = mk_link.split("#")
@@ -159,7 +159,7 @@ class ObsidianMarkdownToHtml:
             ret_line += "</strong>"
         return ret_line
 
-    def file_viewer(self, file_dir):
+    def file_viewer(self, file_dir, add_to_header_list=True):
         if file_dir in (self.cached_pages).keys():
             return (self.cached_pages)[file_dir]
         
@@ -268,7 +268,8 @@ class ObsidianMarkdownToHtml:
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
                     id_part = line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
-                    self.header_list.append((line_to_put, "#" + id_part))
+                    if add_to_header_list:
+                        self.header_list.append((line_to_put, "#" + id_part))
                     new_file += "<" + indicer + " id=\"" + id_part + "\">"
                 else:
                     new_file += self.make_opening_tag(indicer)
