@@ -254,8 +254,7 @@ class ObsidianMarkdownToHtml:
                     new_file += self.make_opening_tag(indicer)
                     line_to_put = line_to_put[:-7]
                 elif len(line_to_put) > 6 and line_to_put[-7] == "^":
-                    new_file += "<" + indicer + " id=\""
-                    new_file += line_to_put[-7:] + "\">"
+                    new_file += self.make_opening_tag(indicer + " id=\"" + line_to_put[-7:] + "\"")
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
                     new_file += "<" + indicer + " id=\""
