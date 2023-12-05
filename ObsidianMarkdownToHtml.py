@@ -11,6 +11,7 @@ class ObsidianMarkdownToHtml:
         self.files = []
         self.offset = 0
         self.cached_pages = {}
+        self.header_list = []
         
         self.add_dirs_to_dict("")
 
@@ -266,8 +267,9 @@ class ObsidianMarkdownToHtml:
                     new_file += self.make_opening_tag(indicer + " id=\"" + line_to_put[-7:] + "\"")
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
-                    new_file += "<" + indicer + " id=\""
-                    new_file += line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","") + "\">"
+                    id_part = line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
+                    self.header_list.append((line_to_put, "#" + id_part))
+                    new_file += "<" + indicer + " id=\"" + id_part + "\">"
                 else:
                     new_file += self.make_opening_tag(indicer)
                 line_to_put = self.line_parser(line_to_put)
@@ -284,7 +286,7 @@ class ObsidianMarkdownToHtml:
         ret_str += """
                    <svg id="navicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
                    <line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line>
-                   </svg>'
+                   </svg>
                    """
         ret_str += "</button>"
         ret_str += "<div id=\"navbar\" popover><div id=\"idk\">"
@@ -320,7 +322,23 @@ class ObsidianMarkdownToHtml:
                                 ret_str += "<ul class=\"child\">\n"
                 #remove indexed
                 ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + self.make_closing_tag("li")
-        return ret_str + self.make_closing_tag("ul") + 3*"</br>\n" + "</div>" + self.make_closing_tag("div") + self.make_closing_tag("nav")
+        ret_str += self.make_closing_tag("ul") + 3*"</br>\n" + "</div>" + self.make_closing_tag("div")
+
+        ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"show\">"
+        ret_str += """
+                   <svg id="navicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
+                   <line x1="4" y1="12" x2="5" y2="12"></line><line x1="4" y1="6" x2="5" y2="6"></line><line x1="4" y1="18" x2="5" y2="18"></line>
+                   <line x1="10" y1="12" x2="20" y2="12"></line><line x1="10" y1="6" x2="20" y2="6"></line><line x1="10" y1="18" x2="20" y2="18"></line>
+                   </svg>
+                   """
+        ret_str += "</button>"
+        ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
+        for header in (self.header_list):
+            ret_str += self.make_op_close_inline_tag("p", self.make_link(header[1], header[0]))
+        self.header_list = []
+        ret_str += self.make_closing_tag("div")
+        ret_str += self.make_closing_tag("div")
+        return ret_str + self.make_closing_tag("nav")
         
     def add_files_to_dict(self, sep_files, rel_dir):
         nu_rel_dir = "." + rel_dir + "\\"
@@ -384,13 +402,18 @@ class ObsidianMarkdownToHtml:
                 new_file += "<link rel=\"stylesheet\" href=\""+ self.make_offset() + "\\style.css\">\n"
                 new_file += self.make_closing_tag("head")
                 new_file += self.make_opening_tag("body")
+
+                scanned_file = self.file_viewer(file_dir)
+                
                 new_file += self.nav_bar()
+                
                 new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
                 new_file += self.make_opening_tag("article")
 
-                new_file += self.file_viewer(file_dir)
+                new_file += scanned_file
                 
                 new_file += self.make_closing_tag("article")
+                
                 new_file += self.footer()
                 new_file += self.make_closing_tag("body")
                 new_file += self.make_closing_tag("html")
