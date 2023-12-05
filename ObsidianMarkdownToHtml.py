@@ -114,6 +114,7 @@ class ObsidianMarkdownToHtml:
                                     ret_line += aside_lines[i] + "\n"
                                     for j in range(i+1, len(aside_lines)):
                                         if len(aside_lines[j]) > 5 and (aside_lines[j][:4] == "</ta" or aside_lines[j][:4] == "</se"):
+                                            ret_line += aside_lines[j] + "\n"
                                             break;
                                         elif len(aside_lines[j].strip()) == "":
                                             break;
@@ -125,7 +126,7 @@ class ObsidianMarkdownToHtml:
                         link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                         ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
                         ret_line += seen_file;
-                    ret_line += "</aside>\n"
+                ret_line += "</aside>\n"
             elif line[i-1] == "[" and not in_link:
                 extern_links[0] = i
                 extern_links[2] = len(ret_line)
