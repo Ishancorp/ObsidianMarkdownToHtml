@@ -172,7 +172,6 @@ svg#navicon {
 }
 
 nav {
-  background-color: #6086ED;
   position: -webkit-sticky; /* Safari */
   position: sticky;
   top: 0;
