@@ -282,7 +282,7 @@ class ObsidianMarkdownToHtml:
 
     def nav_bar(self):
         ret_str = self.make_opening_tag("nav")
-        ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"show\">"
+        ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"toggle\">"
         ret_str += """
                    <svg id="navicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
                    <line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line>
@@ -324,7 +324,7 @@ class ObsidianMarkdownToHtml:
                 ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + self.make_closing_tag("li")
         ret_str += self.make_closing_tag("ul") + 3*"</br>\n" + "</div>" + self.make_closing_tag("div")
 
-        ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"show\">"
+        ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
         ret_str += """
                    <svg id="navicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
                    <line x1="4" y1="12" x2="5" y2="12"></line><line x1="4" y1="6" x2="5" y2="6"></line><line x1="4" y1="18" x2="5" y2="18"></line>

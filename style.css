@@ -151,7 +151,7 @@ div#table-of-contents {
   border-radius: 1ch;
   max-width: 50vw;
   max-height: 100vh;
-  margin: auto 0;
+  margin: 2.5em 0;
   left: auto;
   right: 0;
 }
@@ -169,11 +169,6 @@ div.transclude-link {
 div#navbar::backdrop {
   background-color: rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(6px);
-}
-
-div#table-of-contents::backdrop {
-  background-color: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(1px);
 }
 
 button {
