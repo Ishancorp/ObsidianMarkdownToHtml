@@ -1,6 +1,7 @@
 import os
 import shutil
 import datetime
+from pathlib import Path
 
 class ObsidianMarkdownToHtml:
     def __init__(self, in_directory, out_directory):
@@ -26,6 +27,12 @@ class ObsidianMarkdownToHtml:
 
     def make_opening_tag(self, indicer):
         return "<" + indicer + ">\n"
+
+    def make_closing_tag(self, indicer):
+        return "</" + indicer + ">\n"
+
+    def make_op_close_inline_tag(self, indicer, inner):
+        return "<" + indicer + ">" + inner + "</" + indicer + ">\n"
         
     def line_parser(self, line):
         ret_line = ""
@@ -97,7 +104,7 @@ class ObsidianMarkdownToHtml:
 
                         ret_line += self.make_opening_tag("div class=\"transclude-link\"")
                         ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
-                        ret_line += "</div>"
+                        ret_line += self.make_closing_tag("div")
                         
                         aside_lines = seen_file.split("\n")
                         cue_text = mk_link.split("#")[-1].lower().replace(" ", "-")
@@ -180,11 +187,12 @@ class ObsidianMarkdownToHtml:
 
             if line_to_put.strip() == "":
                 if in_section:
-                    new_file += "</section>\n"
+                    new_file += self.make_closing_tag("section")
                     in_section = False
                     section_place = -1
                 if in_code:
-                    new_file += "</code></pre>\n"
+                    new_file += self.make_closing_tag("code")
+                    new_file += self.make_closing_tag("pre")
                     in_code = False
                 new_file += "<br>\n"
                 i += 1
@@ -194,7 +202,8 @@ class ObsidianMarkdownToHtml:
                 i += 1
                 continue
             elif not in_code and i >= 1 and line_to_put[0] == "	" and (file_lines[i-1].strip() == "" or file_lines[i-1][0] == "#"):
-                new_file += "<pre><code>\n"
+                new_file += self.make_opening_tag("pre")
+                new_file += self.make_opening_tag("code")
                 in_code = True
                 i -= 1
             elif(line_to_put[0] == "|" and line_to_put[-1] == "|"):
@@ -215,7 +224,7 @@ class ObsidianMarkdownToHtml:
                     for elem in table_line:
                         processed_elem = self.line_parser(elem.strip())
                         temp_string += "<" + t_indicer + ">" + processed_elem + "</" + t_indicer + ">\n"
-                    temp_string += "</tr>\n"
+                    temp_string += self.make_closing_tag("tr")
                 if skip_ahead < len(file_lines) and len(file_lines[skip_ahead]) > 3 and file_lines[skip_ahead][0] == "^":
                     new_indice = "<table id=\""
                     new_indice += file_lines[skip_ahead][-8:-1] + "\">"
@@ -223,7 +232,7 @@ class ObsidianMarkdownToHtml:
                     skip_ahead += 1
                 else:
                     temp_string = self.make_opening_tag("table") + temp_string
-                temp_string += "</table>\n"
+                temp_string += self.make_closing_tag("table")
                 new_file += temp_string
                 i = skip_ahead-1
             else:
@@ -244,7 +253,7 @@ class ObsidianMarkdownToHtml:
                     section_place = len(new_file) - 3
                     in_section = True
                 elif indicer.split(" ")[0] != "p" and in_section:
-                    new_file += "</section>\n"
+                    new_file += self.make_closing_tag("section")
                     in_section = False
                     section_place = -1
                     
@@ -280,16 +289,17 @@ class ObsidianMarkdownToHtml:
         ret_str += "</button>"
         ret_str += "<div id=\"navbar\" popover><div id=\"idk\">"
         ret_str += self.make_opening_tag("ul class=\"menu\"")
-        filepaths = list(self.link_to_filepath.values())
-        filenames = list(self.link_to_filepath.keys())
         
-        for i in range(0, len(filepaths)):
-            if i == 0 or (i > 0 and filepaths[i-1] != filepaths[i]):
-                link = self.make_offset()+filepaths[i][1:]
-                if filepaths[i].rsplit("\\", 1)[0] != filepaths[i-1].rsplit("\\", 1)[0]:
+        file_tuples = sorted(self.link_to_filepath.items(), key=lambda x: x[1].rsplit("\\", 1))
+        
+        for i in range(0, len(file_tuples)):
+            #print(file_tuples[i])
+            if i == 0 or (i > 0 and file_tuples[i-1][1] != file_tuples[i][1]):
+                link = self.make_offset()+file_tuples[i][1][1:]
+                if file_tuples[i][1].rsplit("\\", 1)[0] != file_tuples[i-1][1].rsplit("\\", 1)[0]:
                     # delete pre each slash till slashes are different
-                    fileprev = filepaths[i-1].rsplit("\\", 1)[0] + "\\"
-                    filecur = filepaths[i].rsplit("\\", 1)[0] + "\\"
+                    fileprev = file_tuples[i-1][1].rsplit("\\", 1)[0] + "\\"
+                    filecur = file_tuples[i][1].rsplit("\\", 1)[0] + "\\"
                     
                     while fileprev != "" and filecur != "":
                         if fileprev.split("\\",1)[0]  != filecur.split("\\",1)[0]:
@@ -299,7 +309,7 @@ class ObsidianMarkdownToHtml:
                     # add close uls corresp to slashes of i-1
                     if(i != 0):
                         if(fileprev != "." and fileprev != ""):
-                            ret_str += (fileprev.count("\\"))*"</ul>\n</li>\n"
+                            ret_str += (fileprev.count("\\"))*(self.make_closing_tag("ul")+self.make_closing_tag("li"))
                             
                         # add folders, open uls corresp to slashes of i
                         if(filecur != "."):
@@ -308,10 +318,9 @@ class ObsidianMarkdownToHtml:
                                 ret_str += "<li class=\"parent\">"
                                 ret_str += filecur_elems[j].title()
                                 ret_str += "<ul class=\"child\">\n"
-                                #ret_str += "</li>\n"
                 #remove indexed
-                ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), filenames[i].split("/")[-1]) + "</li>\n"
-        return ret_str + "</ul>\n" + 3*"</br>\n" + "</div></div>\n</nav>\n"
+                ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + self.make_closing_tag("li")
+        return ret_str + self.make_closing_tag("ul") + 3*"</br>\n" + "</div>" + self.make_closing_tag("div") + self.make_closing_tag("nav")
         
     def add_files_to_dict(self, sep_files, rel_dir):
         nu_rel_dir = "." + rel_dir + "\\"
@@ -330,9 +339,9 @@ class ObsidianMarkdownToHtml:
 
     def footer(self):
         ret_str = self.make_opening_tag("footer")
-        ret_str += "<p>Generated with the Obsidian Markdown to HTML script</p>\n"
-        ret_str += "<p>Last updated on " + datetime.datetime.now().strftime("%m/%d/%Y") + "</p>\n"
-        ret_str += "</footer>\n"
+        ret_str += self.make_op_close_inline_tag("p", "Generated with the Obsidian Markdown to HTML script")
+        ret_str += self.make_op_close_inline_tag("p", "Last updated on " + datetime.datetime.now().strftime("%m/%d/%Y"))
+        ret_str += self.make_closing_tag("footer")
         return ret_str
 
     def add_dirs_to_dict(self, path):
@@ -368,23 +377,23 @@ class ObsidianMarkdownToHtml:
                 file_name = file_name.split("\\")[-1]
                 new_file = self.make_opening_tag("html")
                 new_file += self.make_opening_tag("head")
-                new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
-                new_file += "<title>" + file_name + "</title>\n"
+                new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+                new_file += self.make_op_close_inline_tag("title", file_name)
                 new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/\">\n"
                 new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/inter/inter.css\">\n"
                 new_file += "<link rel=\"stylesheet\" href=\""+ self.make_offset() + "\\style.css\">\n"
-                new_file += "</head>\n"
-                new_file += "<body>\n"
+                new_file += self.make_closing_tag("head")
+                new_file += self.make_opening_tag("body")
                 new_file += self.nav_bar()
-                new_file += "<h1 class=\"file-title\">" + file_name + "</h1>\n"
+                new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
                 new_file += self.make_opening_tag("article")
 
                 new_file += self.file_viewer(file_dir)
                 
-                new_file += "</article>\n"
+                new_file += self.make_closing_tag("article")
                 new_file += self.footer()
-                new_file += "</body>\n"
-                new_file += "</html>\n"
+                new_file += self.make_closing_tag("body")
+                new_file += self.make_closing_tag("html")
                     
                 self.writeToFile(full_file_name, new_file)
                 # break
