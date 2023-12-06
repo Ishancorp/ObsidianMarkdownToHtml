@@ -27,7 +27,7 @@ om2html.compile_webpages()
 - [x] Add navbar
     - [ ] Make folders collapsible
 - [ ] Add back to top links
-- [ ] Add table of contents
+- [x] Add table of contents
 - [ ] Add interface
 
 ## License

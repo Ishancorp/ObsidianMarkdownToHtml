@@ -269,7 +269,7 @@ class ObsidianMarkdownToHtml:
                 elif add_tag:
                     id_part = line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
                     if add_to_header_list:
-                        self.header_list.append((line_to_put, "#" + id_part))
+                        self.header_list.append((line_to_put, "#" + id_part, int(indicer[1])))
                     new_file += "<" + indicer + " id=\"" + id_part + "\">"
                 else:
                     new_file += self.make_opening_tag(indicer)
@@ -334,8 +334,9 @@ class ObsidianMarkdownToHtml:
                    """
         ret_str += "</button>"
         ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
+        
         for header in (self.header_list):
-            ret_str += self.make_op_close_inline_tag("p", self.make_link(header[1], header[0]))
+            ret_str += self.make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", self.make_link(header[1], header[0]).replace("[[","").replace("]]",""))
         self.header_list = []
         ret_str += self.make_closing_tag("div")
         ret_str += self.make_closing_tag("div")

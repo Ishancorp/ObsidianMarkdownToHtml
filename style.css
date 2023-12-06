@@ -53,6 +53,21 @@ p.indent-3 {
   padding-left: 0.5em;
   border-left: 1px solid #393939;
 }
+p.indent-4 {
+  margin-left: 2em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+p.indent-5 {
+  margin-left: 2.5em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+p.indent-6 {
+  margin-left: 3em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
 aside {
   padding-left: 1em;
   border-left: 0.25em solid #6086ED;
