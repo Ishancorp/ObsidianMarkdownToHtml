@@ -237,12 +237,12 @@ class ObsidianMarkdownToHtml:
                 new_file += temp_string
                 i = skip_ahead-1
             else:
-                if not in_code and i >= 1 and line_to_put[0] == "	":
-                    indicer = "p class = \"indent-1\""
+                if not in_code and i >= 1 and line_to_put[:3] == "			":
+                    indicer = "p class = \"indent-3\""
                 elif not in_code and i >= 1 and line_to_put[:2] == "		":
                     indicer = "p class = \"indent-2\""
-                elif not in_code and i >= 1 and line_to_put[:3] == "			":
-                    indicer = "p class = \"indent-3\""
+                elif not in_code and i >= 1 and line_to_put[0] == "	":
+                    indicer = "p class = \"indent-1\""
                 top_part = line_to_put.split(' ', 1)[0]
                 if len(top_part) == top_part.count("#") and len(top_part) > 0:
                     indicer = "h" + str(len(top_part))
