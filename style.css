@@ -17,15 +17,16 @@ body {
   h5 { font-family: InterVariable, sans-serif; }
 }
 a {
-  text-decoration: none;
+  text-decoration: underline;
   color: #6086ED;
 }
 a:visited {
-  text-decoration: none;
+  text-decoration: underline;
   color: #6086ED;
 }
 a:hover {
   text-decoration: underline;
+  color: #87B6F6;
 }
 pre {
   background-color: #242424;
@@ -192,7 +193,7 @@ button {
 }
 
 button:hover {
-  background-color: #80A6FF;
+  background-color: #87B6F6;
 }
 
 svg#navicon {
@@ -243,10 +244,6 @@ footer {
     margin: auto;
     padding-left: 0.25em;
     padding-right: 0.25em;
-  }
-
-  li {
-    font-size: 1.5rem;
   }
 
   footer {
