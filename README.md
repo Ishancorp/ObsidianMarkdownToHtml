@@ -8,7 +8,7 @@ This is built exclusively with Python.
 
 ## Installation
 
-Install the module ObsidianMarkdownToHtml to Python, and keep style.css in the same directory.
+Install the module ObsidianMarkdownToHtml to Python.
 
 ## Usage
 

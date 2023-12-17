@@ -159,7 +159,7 @@ nav li {
 
 li ul {
   margin: 0;
-  padding-left: 1rem;
+  padding-left: 0.5rem;
   border-left: 1px solid #393939;
   margin-left: 0.3em;
 }
