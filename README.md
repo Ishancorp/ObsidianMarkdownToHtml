@@ -25,7 +25,7 @@ om2html.compile_webpages()
 ## Roadmap
 
 - [x] Add navbar
-    - [ ] Make folders collapsible
+    - [x] Make folders collapsible
 - [ ] Add back to top links
 - [x] Add table of contents
 - [ ] Add interface

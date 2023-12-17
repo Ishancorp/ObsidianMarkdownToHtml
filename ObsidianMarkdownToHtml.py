@@ -15,6 +15,304 @@ class ObsidianMarkdownToHtml:
         
         self.add_dirs_to_dict("")
 
+        self.stylesheet = """
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 
+    "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", 
+    "Fira Sans", "Droid Sans", "Helvetica Neue", 
+    sans-serif;
+  font-feature-settings: 'liga' 1, 'calt' 1; /* fix for Chrome */
+}
+body {
+  background-color: #1E1E1E;
+  color: #DADADA;
+}
+@supports (font-variation-settings: normal) {
+  h1 { font-family: InterVariable, sans-serif; }
+  h2 { font-family: InterVariable, sans-serif; }
+  h3 { font-family: InterVariable, sans-serif; }
+  h4 { font-family: InterVariable, sans-serif; }
+  h5 { font-family: InterVariable, sans-serif; }
+}
+a {
+  text-decoration: underline;
+  color: #6086ED;
+}
+a:visited {
+  text-decoration: underline;
+  color: #6086ED;
+}
+a:hover {
+  text-decoration: underline;
+  color: #87B6F6;
+}
+pre {
+  background-color: #242424;
+}
+img {
+  max-width: 100%;
+  object-fit: cover;
+}
+p {
+  margin: 0;
+  padding: 0;
+}
+p.indent-1 {
+  margin-left: 0.5em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+p.indent-2 {
+  margin-left: 1em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+p.indent-3 {
+  margin-left: 1.5em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+p.indent-4 {
+  margin-left: 2em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+p.indent-5 {
+  margin-left: 2.5em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+p.indent-6 {
+  margin-left: 3em;
+  padding-left: 0.5em;
+  border-left: 1px solid #393939;
+}
+aside {
+  padding-left: 1em;
+  border-left: 0.25em solid #6086ED;
+}
+
+h1 {
+  font-family: Inter, sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+}
+h2 {
+  font-family: Inter, sans-serif;
+  font-size: 1.6rem;
+  font-weight: 600;
+}
+h3 {
+  font-family: Inter, sans-serif;
+  font-size: 1.37rem;
+  font-weight: 600;
+}
+h4 {
+  font-family: Inter, sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+h5 {
+  font-family: Inter, sans-serif;
+  font-size: 1.12rem;
+  font-weight: 600;
+}
+h6 {
+  font-size: 1rem;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+h1.file-title {
+  text-align: center;
+}
+
+hr {
+  margin-bottom: 0;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #363636;
+}
+td, th {
+  text-align: left;
+  border: 1px solid #363636;
+  padding: 0.4em;
+}
+
+article {
+  max-width: 700px;
+  margin: auto;
+  padding-left: 0.5em;
+  padding-right: 0.5em;
+}
+
+nav li {
+  list-style-type: none;
+  padding: 0;
+  margin-left: 0.75rem;
+  width: 100%
+}
+
+li ul {
+  margin: 0;
+  padding-left: 1rem;
+  border-left: 1px solid #393939;
+  margin-left: 0.3em;
+}
+
+div#navbar {
+  border: 0;
+  padding: 2ch;
+  background-color: #242424;
+  color: #DADADA;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  border-radius: 1ch;
+  max-width: 50vw;
+  max-height: 100vh;
+  margin: 0 auto;
+  left: 0;
+  right: auto;
+  overflow-x: hidden;
+}
+
+div#table-of-contents {
+  border: 0;
+  padding: 2ch;
+  background-color: #242424;
+  color: #DADADA;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  border-radius: 1ch;
+  max-width: 50vw;
+  max-height: 100vh;
+  margin: 2.5em 0;
+  left: auto;
+  right: 0;
+}
+
+div.transclude-link {
+  text-align: right;
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+
+}
+
+#navbar:popover-open {
+  animation: fadeIn 150ms ease-in-out;
+}
+
+div#navbar::backdrop {
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(6px);
+}
+
+button {
+  background-color: #6086ED;
+  border: none;
+}
+
+button:hover {
+  background-color: #87B6F6;
+}
+
+svg#navicon {
+  height: 2em;
+  width: 2em;
+}
+
+svg#tocicon {
+  height: 2em;
+  width: 2em;
+}
+
+nav {
+  position: -webkit-sticky; /* Safari */
+  position: sticky;
+  top: 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+input[type='checkbox']:not(:checked) + label + ul {
+    display: none;
+    visibility:hidden;
+}
+
+input[type="checkbox"] {
+  appearance: none;
+  transform-origin: center;
+  margin: 0;
+  font: inherit;
+  width: 1.15em;
+  height: 1.15em;
+  border: 0;
+  border-radius: 0.15em;
+  color: #363636;
+  bottom: 0.1em;
+  position: relative;
+}
+
+input[type="checkbox"]::before {
+  content: ">";
+}
+
+input[type="checkbox"]:checked {
+  transform: rotate(90deg);
+  bottom: auto;
+  top: 0.4em;
+}
+
+footer {
+  background-color: #242424;
+  color: #484848;
+  font-size: 1em;
+  border-top: 1px solid #6086ED;
+  margin-top: 1em;
+  margin-left: 1em;
+  margin-right: 1em;
+  padding-top: 1em;
+  padding-bottom: 1em;
+}
+
+@media screen and (max-width: 768px) {
+  svg#tocicon {
+    height: 2rem;
+    width: 2rem;
+  }
+  svg#navicon {
+    height: 2rem;
+    width: 2rem;
+  }
+  div#navbar {
+    max-width: 100vw;
+    max-height: 90vh;
+    margin: 0 auto;
+    top: 10vh;
+  }
+  div#table-of-contents {
+    max-width: 100vw;
+    max-height: 90vh;
+    margin: 0 auto;
+    top: 10vh;
+  }
+
+  article {
+    width: 90%;
+    margin: auto;
+    padding-left: 0.25em;
+    padding-right: 0.25em;
+  }
+
+  footer {
+    margin-top: 4em;
+  }
+}
+
+"""
+
     def make_link(self, link, text, target="_self"):
         return "<a href=\"" + link +"\" target=\""+ target +"\">" + text + "</a>"
 
@@ -283,6 +581,8 @@ class ObsidianMarkdownToHtml:
         return new_file
 
     def nav_bar(self):
+        checkbox_prefix = 1
+        
         ret_str = self.make_opening_tag("nav")
         ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"toggle\">"
         ret_str += """
@@ -319,8 +619,11 @@ class ObsidianMarkdownToHtml:
                         if(filecur != "."):
                             filecur_elems = filecur.split("\\")
                             for j in range(0, len(filecur_elems)-1):
-                                ret_str += "<li class=\"parent\">"
-                                ret_str += filecur_elems[j].title()
+                                ret_str += "<li class=\"parent\">\n"
+                                checkbox_tag = str(checkbox_prefix) + "-" + filecur_elems[j].replace(" ", "-")
+                                checkbox_prefix += 1
+                                ret_str += "<input type=\"checkbox\" id=" + checkbox_tag + " name=" + checkbox_tag + ">\n"
+                                ret_str += "<label id=\"checkbox\" for=" + checkbox_tag + ">" + filecur_elems[j].title() + "</label>\n"
                                 ret_str += "<ul class=\"child\">\n"
                 #remove indexed
                 ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + self.make_closing_tag("li")
@@ -328,7 +631,7 @@ class ObsidianMarkdownToHtml:
 
         ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
         ret_str += """
-                   <svg id="navicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
+                   <svg id="tocicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
                    <line x1="4" y1="12" x2="5" y2="12"></line><line x1="4" y1="6" x2="5" y2="6"></line><line x1="4" y1="18" x2="5" y2="18"></line>
                    <line x1="10" y1="12" x2="20" y2="12"></line><line x1="10" y1="6" x2="20" y2="6"></line><line x1="10" y1="18" x2="20" y2="18"></line>
                    </svg>
@@ -432,261 +735,5 @@ class ObsidianMarkdownToHtml:
         print("Compiled")
         
         with open((self.out_directory) + "\\style.css", "w") as text_file:
-            stylesheet = """
-:root {
-  font-family: -apple-system, BlinkMacSystemFont, 
-    "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", 
-    "Fira Sans", "Droid Sans", "Helvetica Neue", 
-    sans-serif;
-  font-feature-settings: 'liga' 1, 'calt' 1; /* fix for Chrome */
-}
-body {
-  background-color: #1E1E1E;
-  color: #DADADA;
-}
-@supports (font-variation-settings: normal) {
-  h1 { font-family: InterVariable, sans-serif; }
-  h2 { font-family: InterVariable, sans-serif; }
-  h3 { font-family: InterVariable, sans-serif; }
-  h4 { font-family: InterVariable, sans-serif; }
-  h5 { font-family: InterVariable, sans-serif; }
-}
-a {
-  text-decoration: underline;
-  color: #6086ED;
-}
-a:visited {
-  text-decoration: underline;
-  color: #6086ED;
-}
-a:hover {
-  text-decoration: underline;
-  color: #87B6F6;
-}
-pre {
-  background-color: #242424;
-}
-img {
-  max-width: 100%;
-  object-fit: cover;
-}
-p {
-  margin: 0;
-  padding: 0;
-}
-p.indent-1 {
-  margin-left: 0.5em;
-  padding-left: 0.5em;
-  border-left: 1px solid #393939;
-}
-p.indent-2 {
-  margin-left: 1em;
-  padding-left: 0.5em;
-  border-left: 1px solid #393939;
-}
-p.indent-3 {
-  margin-left: 1.5em;
-  padding-left: 0.5em;
-  border-left: 1px solid #393939;
-}
-p.indent-4 {
-  margin-left: 2em;
-  padding-left: 0.5em;
-  border-left: 1px solid #393939;
-}
-p.indent-5 {
-  margin-left: 2.5em;
-  padding-left: 0.5em;
-  border-left: 1px solid #393939;
-}
-p.indent-6 {
-  margin-left: 3em;
-  padding-left: 0.5em;
-  border-left: 1px solid #393939;
-}
-aside {
-  padding-left: 1em;
-  border-left: 0.25em solid #6086ED;
-}
-
-h1 {
-  font-family: Inter, sans-serif;
-  font-size: 2rem;
-  font-weight: 700;
-}
-h2 {
-  font-family: Inter, sans-serif;
-  font-size: 1.6rem;
-  font-weight: 600;
-}
-h3 {
-  font-family: Inter, sans-serif;
-  font-size: 1.37rem;
-  font-weight: 600;
-}
-h4 {
-  font-family: Inter, sans-serif;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-h5 {
-  font-family: Inter, sans-serif;
-  font-size: 1.12rem;
-  font-weight: 600;
-}
-h6 {
-  font-size: 1rem;
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-  font-weight: 600;
-}
-
-h1.file-title {
-  text-align: center;
-}
-
-hr {
-  margin-bottom: 0;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-  border: 1px solid #363636;
-}
-td, th {
-  text-align: left;
-  border: 1px solid #363636;
-  padding: 0.4em;
-}
-
-article {
-  max-width: 700px;
-  margin: auto;
-  padding-left: 0.5em;
-  padding-right: 0.5em;
-}
-
-nav li {
-  list-style-type: none;
-  padding: 0
-  margin-left: 0.75rem;
-}
-
-li ul {
-  margin: 0;
-  padding-left: 0.75rem;
-  border-left: 1px solid #393939;
-}
-
-div#navbar {
-  border: 0;
-  padding: 2ch;
-  background-color: #242424;
-  color: #DADADA;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-  border-radius: 1ch;
-  max-width: 50vw;
-  max-height: 100vh;
-  margin: 0 auto;
-  left: 0;
-  right: auto;
-}
-
-div#table-of-contents {
-  border: 0;
-  padding: 2ch;
-  background-color: #242424;
-  color: #DADADA;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-  border-radius: 1ch;
-  max-width: 50vw;
-  max-height: 100vh;
-  margin: 2.5em 0;
-  left: auto;
-  right: 0;
-}
-
-div.transclude-link {
-  text-align: right;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-
-}
-
-#navbar:popover-open {
-  animation: fadeIn 150ms ease-in-out;
-}
-
-div#navbar::backdrop {
-  background-color: rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(6px);
-}
-
-button {
-  background-color: #6086ED;
-  border: none;
-}
-
-button:hover {
-  background-color: #87B6F6;
-}
-
-svg#navicon {
-  height: 2em;
-  width: 2em;
-}
-
-nav {
-  position: -webkit-sticky; /* Safari */
-  position: sticky;
-  top: 0;
-  display: flex;
-  justify-content: space-between;
-}
-
-footer {
-  background-color: #242424;
-  color: #484848;
-  font-size: 1em;
-  border-top: 1px solid #6086ED;
-  margin-top: 1em;
-  margin-left: 1em;
-  margin-right: 1em;
-  padding-top: 1em;
-  padding-bottom: 1em;
-}
-
-@media screen and (max-width: 768px) {
-  svg#navicon {
-    height: 2rem;
-    width: 2rem;
-  }
-  div#navbar {
-    max-width: 100vw;
-    max-height: 90vh;
-    margin: 0 auto;
-    top: 10vh;
-  }
-  div#table-of-contents {
-    max-width: 100vw;
-    max-height: 90vh;
-    margin: 0 auto;
-    top: 10vh;
-  }
-
-  article {
-    width: 90%;
-    margin: auto;
-    padding-left: 0.25em;
-    padding-right: 0.25em;
-  }
-
-  footer {
-    margin-top: 4em;
-  }
-}
-
-"""
-            text_file.write(stylesheet)
+            text_file.write(self.stylesheet)
 
