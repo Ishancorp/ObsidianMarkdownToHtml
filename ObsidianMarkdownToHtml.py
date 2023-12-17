@@ -79,10 +79,10 @@ class ObsidianMarkdownToHtml:
                     [mk_link, text] = mk_link.split("|")
                 if "#" in mk_link:
                     [gen_link, head_link] = mk_link.split("#")
-                    link = ((self.link_to_filepath)[gen_link.lower()] + "#" + head_link).lower().replace(" ", "-")
+                    link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
                     text = gen_link + " > " + head_link
                 else:
-                    link = (self.link_to_filepath)[mk_link.lower()].lower().replace(" ", "-")
+                    link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                 ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), text)
             elif i > 0 and line[i] == ']' and line[i-1] == ']' and transclusion:
                 transclusion = False
@@ -90,18 +90,18 @@ class ObsidianMarkdownToHtml:
                 extension = mk_link.split(".")[-1]
                 ret_line = ret_line[:-1]
                 if extension == "png" or extension == "svg":
-                    link = (self.link_to_filepath)[mk_link.lower()].lower().replace(" ", "-")
+                    link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                     ret_line += "<img src=\"" + self.make_offset() + link[1:] + "\">"
                 else: #article transclusion
                     ret_line += self.make_opening_tag("aside")
-                    link = (self.link_to_filepath)[mk_link.split("#")[0].lower()]
+                    link = (self.link_to_filepath)[mk_link.split("#")[0]]
                     file_paths = [k for k,v in (self.link_to_filepath).items() if v == link]
                     f_p = "\\" + file_paths[-1] + ".md"
                     seen_file = self.file_viewer(self.in_directory+f_p, add_to_header_list=False)
                     if "#" in mk_link:
                         #section
                         [gen_link, head_link] = mk_link.split("#")
-                        link = ((self.link_to_filepath)[gen_link.lower()] + "#" + head_link).lower().replace(" ", "-")
+                        link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
 
                         ret_line += self.make_opening_tag("div class=\"transclude-link\"")
                         ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
@@ -134,7 +134,7 @@ class ObsidianMarkdownToHtml:
                                     ret_line += aside_lines[i] + "\n"
                     else:
                         #entire article
-                        link = (self.link_to_filepath)[mk_link.lower()].lower().replace(" ", "-")
+                        link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                         ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
                         ret_line += seen_file;
                 ret_line += "</aside>\n"
@@ -348,14 +348,14 @@ class ObsidianMarkdownToHtml:
             if file.split('.')[-1] == "md":
                 name = file.split('.')[0]
                 html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
-                (self.link_to_filepath)[name.lower()] = html_pruned
+                (self.link_to_filepath)[name] = html_pruned
                 if(rel_dir != ""):
-                    (self.link_to_filepath)[(nu_rel_dir.replace("\\", "/")[2:]+name).lower()] = html_pruned
+                    (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
             else:
                 file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
-                (self.link_to_filepath)[file.lower()] = file_pruned
+                (self.link_to_filepath)[file] = file_pruned
                 if(rel_dir != ""):
-                    (self.link_to_filepath)[(nu_rel_dir.replace("\\", "/")[2:]+file).lower()] = file_pruned
+                    (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
 
     def footer(self):
         ret_str = self.make_opening_tag("footer")
@@ -380,7 +380,7 @@ class ObsidianMarkdownToHtml:
             self.add_dirs_to_dict(nu_dr)
 
     def writeToFile(self, file_name, new_file):
-        export_file = self.out_directory + self.link_to_filepath[file_name.lower().replace('\\', '/')].replace(" ", "-")
+        export_file = self.out_directory + self.link_to_filepath[file_name.replace('\\', '/')].replace(" ", "-")
         os.makedirs(os.path.dirname(export_file), exist_ok=True)
         
         exp_file = open(export_file, "w", encoding="utf-8")
