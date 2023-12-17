@@ -137,6 +137,7 @@ class ObsidianMarkdownToHtml:
                         link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                         ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
                         ret_line += seen_file;
+                ret_line += "<br>\n"
                 ret_line += "</aside>\n"
             elif line[i-1] == "[" and not in_link:
                 extern_links[0] = i
@@ -188,7 +189,7 @@ class ObsidianMarkdownToHtml:
 
             if line_to_put.strip() == "":
                 if in_section:
-                    new_file += self.make_closing_tag("section")
+                    new_file += self.make_closing_tag("section ")
                     in_section = False
                     section_place = -1
                 if in_code:
@@ -250,11 +251,11 @@ class ObsidianMarkdownToHtml:
                     line_to_put = line_to_put.split(' ', 1)[1]
 
                 if indicer == "p" and not in_section:
-                    new_file += self.make_opening_tag("section")
+                    new_file += self.make_opening_tag("section ")
                     section_place = len(new_file) - 3
                     in_section = True
                 elif indicer.split(" ")[0] != "p" and in_section:
-                    new_file += self.make_closing_tag("section")
+                    new_file += self.make_closing_tag("section ")
                     in_section = False
                     section_place = -1
                     
