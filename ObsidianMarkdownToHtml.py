@@ -459,8 +459,8 @@ footer {
         return ret_line
 
     def file_viewer(self, file_dir, add_to_header_list=True):
-        if file_dir in (self.cached_pages).keys():
-            return (self.cached_pages)[file_dir]
+        if file_dir.replace("/","\\") in (self.cached_pages).keys():
+            return (self.cached_pages)[file_dir.replace("/","\\")]
         
         new_file = ""
         open_file = open(file_dir, "r", encoding="utf8")
@@ -597,7 +597,6 @@ footer {
         file_tuples = sorted(self.link_to_filepath.items(), key=lambda x: x[1].rsplit("\\", 1))
         
         for i in range(0, len(file_tuples)):
-            #print(file_tuples[i])
             if i == 0 or (i > 0 and file_tuples[i-1][1] != file_tuples[i][1]):
                 link = self.make_offset()+file_tuples[i][1][1:]
                 if file_tuples[i][1].rsplit("\\", 1)[0] != file_tuples[i-1][1].rsplit("\\", 1)[0]:
