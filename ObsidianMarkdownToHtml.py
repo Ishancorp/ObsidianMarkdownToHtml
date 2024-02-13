@@ -344,20 +344,20 @@ footer {
         for i in range(0, len(line)):
             if i > 0 and line[i] == '*' and line[i-1] == '\\':
                 ret_line = ret_line[:-1] + "*"
-            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold:
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold and not in_link and not transclusion:
                 in_bold = not in_bold
                 in_italics = False
                 ret_line = ret_line[:-4]
                 ret_line += "<strong>"
-            elif i > 0 and line[i] == '*' and line[i-1] == '*' and in_bold:
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and in_bold and not in_link and not transclusion:
                 in_bold = not in_bold
                 in_italics = False
                 ret_line = ret_line[:-4]
                 ret_line += "</strong>"
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_italics:
+            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_italics and not in_link and not transclusion:
                 in_italics = not in_italics
                 ret_line += "<em>"
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics:
+            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics and not in_link and not transclusion:
                 in_italics = not in_italics
                 ret_line += "</em>"
             elif i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
