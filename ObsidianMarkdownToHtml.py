@@ -492,7 +492,7 @@ footer {
             indicer = "p"
             add_tag = False
 
-            if line_to_put.strip() == "":
+            if line_to_put.strip() == "" and not (len(line_to_put) > 0 and line_to_put[0] == "	"):
                 if in_section:
                     new_file += self.make_closing_tag("section ")
                     in_section = False
@@ -551,6 +551,10 @@ footer {
                     indicer = "p class = \"indent-1\""
                 top_part = line_to_put.split(' ', 1)[0]
                 if len(top_part) == top_part.count("#") and len(top_part) > 0:
+                    if in_code:
+                        new_file += self.make_closing_tag("code")
+                        new_file += self.make_closing_tag("pre")
+                        in_code = False
                     indicer = "h" + str(len(top_part))
                     add_tag = True
                     line_to_put = line_to_put.split(' ', 1)[1]
