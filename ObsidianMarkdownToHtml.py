@@ -333,7 +333,7 @@ footer {
     def make_op_close_inline_tag(self, indicer, inner):
         return "<" + indicer + ">" + inner + "</" + indicer + ">\n"
         
-    def line_parser(self, line):
+    def line_parser(self, line, in_code = False):
         ret_line = ""
         in_link = False
         transclusion = False
@@ -344,20 +344,27 @@ footer {
         for i in range(0, len(line)):
             if i > 0 and line[i] == '*' and line[i-1] == '\\':
                 ret_line = ret_line[:-1] + "*"
-            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold and not in_link and not transclusion:
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and in_bold and not in_link and not transclusion and not in_code:
+                in_italics = True
+                ret_line = ret_line[:-8]
+                ret_line += "<strong><em>"
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and not in_link and not transclusion and not in_code:
+                ret_line = ret_line[:-10]
+                ret_line += "</em></strong>"
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold and not in_link and not transclusion and not in_code:
                 in_bold = not in_bold
                 in_italics = False
                 ret_line = ret_line[:-4]
                 ret_line += "<strong>"
-            elif i > 0 and line[i] == '*' and line[i-1] == '*' and in_bold and not in_link and not transclusion:
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and in_bold and not in_link and not transclusion and not in_code:
                 in_bold = not in_bold
                 in_italics = False
                 ret_line = ret_line[:-4]
                 ret_line += "</strong>"
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_italics and not in_link and not transclusion:
+            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_italics and not in_link and not transclusion and not in_code:
                 in_italics = not in_italics
                 ret_line += "<em>"
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics and not in_link and not transclusion:
+            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics and not in_link and not transclusion and not in_code:
                 in_italics = not in_italics
                 ret_line += "</em>"
             elif i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
@@ -522,7 +529,7 @@ footer {
                         continue
                     table_line = file_lines[k][:-1].split("|")[1:-1]
                     for elem in table_line:
-                        processed_elem = self.line_parser(elem.strip())
+                        processed_elem = self.line_parser(elem.strip(), in_code)
                         temp_string += "<" + t_indicer + ">" + processed_elem + "</" + t_indicer + ">\n"
                     temp_string += self.make_closing_tag("tr")
                 if skip_ahead < len(file_lines) and len(file_lines[skip_ahead]) > 3 and file_lines[skip_ahead][0] == "^":
@@ -572,7 +579,7 @@ footer {
                     new_file += "<" + indicer + " id=\"" + id_part + "\">"
                 else:
                     new_file += self.make_opening_tag(indicer)
-                line_to_put = self.line_parser(line_to_put)
+                line_to_put = self.line_parser(line_to_put, in_code)
                 new_file += line_to_put + "</" + indicer + ">\n"
                 
             i += 1
