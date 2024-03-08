@@ -467,7 +467,7 @@ footer {
         file_lines = open_file.readlines()
         
         opening = 0
-        if file_lines[0] == "---\n":
+        if file_lines and file_lines[0] == "---\n":
             for i in range(1, len(file_lines)):
                 if file_lines[i] == "---\n":
                     opening = i+1
