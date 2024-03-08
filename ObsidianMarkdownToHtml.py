@@ -46,6 +46,18 @@ a:hover {
   text-decoration: underline;
   color: #87B6F6;
 }
+a.goto {
+  border-radius: 2px;
+  padding: 0.25em;
+  text-decoration: none;
+  color: #1E1E1E;
+  background-color: #6086ed;
+}
+a.goto:hover {
+  border: 1px solid #6086ed;
+  background-color: #1e1e1e;
+  color: #6086ed;
+}
 pre {
   background-color: #242424;
 }
@@ -313,8 +325,8 @@ footer {
 
 """
 
-    def make_link(self, link, text, target="_self"):
-        return "<a href=\"" + link +"\" target=\""+ target +"\">" + text + "</a>"
+    def make_link(self, link, text, target="_self", className=""):
+        return "<a class=\"" + className + "\" href=\"" + link +"\" target=\""+ target +"\">" + text + "</a>"
 
     def make_offset(self):
         if self.offset == 0:
@@ -409,7 +421,7 @@ footer {
                         link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
 
                         ret_line += self.make_opening_tag("div class=\"transclude-link\"")
-                        ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>")
+                        ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>", "_self", "goto")
                         ret_line += self.make_closing_tag("div")
                         
                         aside_lines = seen_file.split("\n")
