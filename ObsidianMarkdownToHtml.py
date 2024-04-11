@@ -99,6 +99,12 @@ p.indent-6 {
   padding-left: 0.5em;
   border-left: 1px solid #393939;
 }
+p.top-bar {
+  margin-left: 2.75em;
+}
+span.file-link {
+  color: #393939;
+}
 aside {
   padding-left: 1em;
   border-left: 0.25em solid #6086ED;
@@ -739,6 +745,8 @@ footer {
                 scanned_file = self.file_viewer(file_dir)
                 
                 new_file += self.nav_bar()
+
+                new_file += "<p class=\"top-bar\">" + file[2:].replace("\\", "<span class=\"file-link\"> > </span>") + "</p>\n"
                 
                 new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
                 new_file += self.make_opening_tag("article")
