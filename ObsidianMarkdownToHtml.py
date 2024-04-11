@@ -14,6 +14,7 @@ class ObsidianMarkdownToHtml:
         self.header_list = []
         
         self.add_dirs_to_dict("")
+        self.nuwa_file = ""
 
         self.stylesheet = """
 :root {
@@ -166,6 +167,11 @@ article {
   margin: auto;
   padding-left: 0.5em;
   padding-right: 0.5em;
+}
+
+nav {
+  background-color: #1E1E1E;
+  padding-top: 0.5em;
 }
 
 nav li {
@@ -661,6 +667,8 @@ footer {
                 #remove indexed
                 ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + self.make_closing_tag("li")
         ret_str += self.make_closing_tag("ul") + 3*"</br>\n" + "</div>" + self.make_closing_tag("div")
+        
+        ret_str += self.make_op_close_inline_tag("p class=\"top-bar\"", self.nuwa_file.replace("\\", "<span class=\"file-link\"> > </span>"))
 
         ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
         ret_str += """
@@ -743,10 +751,9 @@ footer {
                 new_file += self.make_opening_tag("body")
 
                 scanned_file = self.file_viewer(file_dir)
-                
-                new_file += self.nav_bar()
 
-                new_file += "<p class=\"top-bar\">" + file[2:].replace("\\", "<span class=\"file-link\"> > </span>") + "</p>\n"
+                self.nuwa_file = file[2:]
+                new_file += self.nav_bar()
                 
                 new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
                 new_file += self.make_opening_tag("article")
