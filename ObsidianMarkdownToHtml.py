@@ -569,7 +569,12 @@ footer {
                         in_code = False
                     indicer = "h" + str(len(top_part))
                     add_tag = True
-                    line_to_put = line_to_put.split(' ', 1)[1]
+                    #print(line_to_put)
+                    lines_to_add = line_to_put.split(' ', 1)
+                    if len(lines_to_add) > 1:
+                        line_to_put = lines_to_add[1]
+                    else:
+                        line_to_put = lines_to_add[0]
 
                 if indicer == "p" and not in_section:
                     new_file += self.make_opening_tag("section ")
