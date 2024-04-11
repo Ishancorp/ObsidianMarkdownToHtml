@@ -752,7 +752,7 @@ footer {
 
                 scanned_file = self.file_viewer(file_dir)
 
-                self.nuwa_file = file[2:]
+                self.nuwa_file = file[2:-3]
                 new_file += self.nav_bar()
                 
                 new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
