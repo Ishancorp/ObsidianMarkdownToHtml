@@ -587,6 +587,30 @@ footer {
                         line_to_put = lines_to_add[1]
                     else:
                         line_to_put = lines_to_add[0]
+                elif top_part == "-":
+                    cur_tabbing = 1
+                    new_file += self.make_opening_tag("ul")
+                    while i < len(file_lines):
+                        if i == len(file_lines)-1:
+                            line_to_put = file_lines[i]
+                        else:
+                            line_to_put = file_lines[i][:-1]
+
+                        tabs = line_to_put.split('-', 1)[0]
+                        if tabs.count("\t") == len(tabs):
+                            if (tabs.count("\t")+1) > cur_tabbing:
+                                new_file += self.make_opening_tag("ul")*(tabs.count("\t")+1-cur_tabbing)
+                            elif (tabs.count("\t")+1) < cur_tabbing:
+                                new_file += self.make_closing_tag("ul")*(cur_tabbing-tabs.count("\t")-1)
+                            cur_tabbing = tabs.count("\t")+1
+                            new_file += "<li>"
+                            new_file += self.line_parser(line_to_put[2:], in_code)
+                            new_file += self.make_closing_tag("li")
+                        else:
+                            break
+                        i += 1
+                    new_file += self.make_closing_tag("ul")
+                    continue
 
                 if indicer == "p" and not in_section:
                     new_file += self.make_opening_tag("section ")
