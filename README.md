@@ -28,7 +28,8 @@ om2html.compile_webpages()
     - [x] Make folders collapsible
 - [ ] Add back to top links
 - [x] Add table of contents
-- [x] Add bullet points
+- [ ] Add ordered list
+- [x] Add unordered list
 - [ ] Add interface
 
 ## License
