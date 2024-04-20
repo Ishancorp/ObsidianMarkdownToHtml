@@ -587,7 +587,7 @@ footer {
                         line_to_put = lines_to_add[1]
                     else:
                         line_to_put = lines_to_add[0]
-                elif top_part == "-":
+                elif top_part == "-" or top_part == "*":
                     cur_tabbing = 1
                     new_file += self.make_opening_tag("ul")
                     while i < len(file_lines):
@@ -596,13 +596,23 @@ footer {
                         else:
                             line_to_put = file_lines[i][:-1]
 
-                        tabs = line_to_put.split('-', 1)[0]
+                        tabs = line_to_put.split('- ', 1)[0]
+                        tabs_ast = line_to_put.split('* ', 1)[0]
                         if tabs.count("\t") == len(tabs):
                             if (tabs.count("\t")+1) > cur_tabbing:
                                 new_file += self.make_opening_tag("ul")*(tabs.count("\t")+1-cur_tabbing)
                             elif (tabs.count("\t")+1) < cur_tabbing:
                                 new_file += self.make_closing_tag("ul")*(cur_tabbing-tabs.count("\t")-1)
                             cur_tabbing = tabs.count("\t")+1
+                            new_file += "<li>"
+                            new_file += self.line_parser(line_to_put[2:], in_code)
+                            new_file += self.make_closing_tag("li")
+                        elif tabs_ast.count("\t") == len(tabs_ast):
+                            if (tabs_ast.count("\t")+1) > cur_tabbing:
+                                new_file += self.make_opening_tag("ul")*(tabs_ast.count("\t")+1-cur_tabbing)
+                            elif (tabs_ast.count("\t")+1) < cur_tabbing:
+                                new_file += self.make_closing_tag("ul")*(cur_tabbing-tabs_ast.count("\t")-1)
+                            cur_tabbing = tabs_ast.count("\t")+1
                             new_file += "<li>"
                             new_file += self.line_parser(line_to_put[2:], in_code)
                             new_file += self.make_closing_tag("li")
