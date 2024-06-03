@@ -738,7 +738,7 @@ footer {
 
     def footer(self):
         ret_str = self.make_opening_tag("footer")
-        ret_str += self.make_op_close_inline_tag("p", "Generated with the Obsidian Markdown to HTML script")
+        ret_str += self.make_op_close_inline_tag("p", "Generated with the <a target=\"_blank\" href=\"https://github.com/Ishancorp/ObsidianMarkdownToHtml\">Obsidian Markdown to HTML script</a>")
         ret_str += self.make_op_close_inline_tag("p", "Last updated on " + datetime.datetime.now().strftime("%m/%d/%Y"))
         ret_str += self.make_closing_tag("footer")
         return ret_str
