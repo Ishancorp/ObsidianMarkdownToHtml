@@ -260,6 +260,12 @@ nav {
   justify-content: space-between;
 }
 
+span.anchor {
+  height: 30px;
+  margin-top: -30px;
+  position: absolute;
+}
+
 input[type='checkbox']:not(:checked) + label + ul {
     display: none;
     visibility:hidden;
@@ -557,8 +563,8 @@ footer {
                         temp_string += "<" + t_indicer + ">" + processed_elem + "</" + t_indicer + ">\n"
                     temp_string += self.make_closing_tag("tr")
                 if skip_ahead < len(file_lines) and len(file_lines[skip_ahead]) > 3 and file_lines[skip_ahead][0] == "^":
-                    new_indice = "<table id=\""
-                    new_indice += file_lines[skip_ahead][-8:-1] + "\">"
+                    new_indice = "<span class=\"anchor\" id=\"" + file_lines[skip_ahead][-8:-1] + "\"></span>\n"
+                    new_indice += self.make_opening_tag("table")
                     temp_string = new_indice + temp_string
                     skip_ahead += 1
                 else:
@@ -637,13 +643,15 @@ footer {
                     new_file += self.make_opening_tag(indicer)
                     line_to_put = line_to_put[:-7]
                 elif len(line_to_put) > 6 and line_to_put[-7] == "^":
-                    new_file += self.make_opening_tag(indicer + " id=\"" + line_to_put[-7:] + "\"")
+                    new_file += "<span class=\"anchor\" id=\"" + line_to_put[-7:] + "\"></span>\n"
+                    new_file += self.make_opening_tag(indicer)
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
                     id_part = line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
                     if add_to_header_list:
                         self.header_list.append((line_to_put, "#" + id_part, int(indicer[1])))
-                    new_file += "<" + indicer + " id=\"" + id_part + "\">"
+                    new_file += "<span class=\"anchor\" id=\"" + id_part + "\"></span>\n"
+                    new_file += "<" + indicer + ">"
                 else:
                     new_file += self.make_opening_tag(indicer)
                 line_to_put = self.line_parser(line_to_put, in_code)
