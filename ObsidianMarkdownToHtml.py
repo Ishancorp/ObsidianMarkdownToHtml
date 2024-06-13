@@ -446,6 +446,9 @@ footer {
                         cue_text = mk_link.split("#")[-1].lower().replace(" ", "-")
                         for i in range (0, len(aside_lines)):
                             if cue_text in aside_lines[i] and "id" in aside_lines[i]:
+                                if aside_lines[i][:5] == "<span":
+                                    i += 1
+                                    
                                 if aside_lines[i][:2] == "<h":
                                     #read to next h or eod
                                     ret_line += aside_lines[i] + "\n"
