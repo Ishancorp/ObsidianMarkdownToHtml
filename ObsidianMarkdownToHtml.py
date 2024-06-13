@@ -108,7 +108,7 @@ span.file-link {
 }
 aside {
   padding-left: 1em;
-  border-left: 0.25em solid #6086ED;
+  border-left: 0.1em solid #6086ED;
 }
 
 h1 {
