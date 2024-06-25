@@ -596,7 +596,7 @@ footer {
                         line_to_put = lines_to_add[1]
                     else:
                         line_to_put = lines_to_add[0]
-                elif top_part == "-" or top_part == "*":
+                elif (top_part == "-" or top_part == "*") and len(file_lines[i]) > 2:
                     cur_tabbing = 1
                     new_file += self.make_opening_tag("ul")
                     while i < len(file_lines):
