@@ -728,6 +728,7 @@ footer {
         for header in (self.header_list):
             ret_str += self.make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", self.make_link(header[1], header[0]).replace("[[","").replace("]]",""))
         self.header_list = []
+        ret_str += 3*"<br/>\n"
         ret_str += self.make_closing_tag("div")
         ret_str += self.make_closing_tag("div")
         return ret_str + self.make_closing_tag("nav")
