@@ -758,8 +758,8 @@ footer {
     def add_dirs_to_dict(self, path):
         nu_dir = self.in_directory + "\\" + path
         files_and_dirs = os.listdir(nu_dir)
-        sep_files = [f for f in files_and_dirs if os.path.isfile(nu_dir+'/'+f)]
-        dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.')]
+        sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
+        dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
         
         self.add_files_to_dict(sep_files, path)
         for file in sep_files:
