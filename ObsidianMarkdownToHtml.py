@@ -424,7 +424,7 @@ footer {
                 mk_link = line[skip_beginning:i-1]
                 extension = mk_link.split(".")[-1]
                 ret_line = ret_line[:-1]
-                if extension == "png" or extension == "svg":
+                if extension == "png" or extension == "svg" or extension == "jpg":
                     link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
                     ret_line += "<img src=\"" + self.make_offset() + link[1:] + "\">"
                 else: #article transclusion
