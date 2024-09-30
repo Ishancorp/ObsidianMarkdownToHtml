@@ -12,6 +12,7 @@ class ObsidianMarkdownToHtml:
         self.offset = 0
         self.cached_pages = {}
         self.header_list = []
+        self.in_table = False
         
         self.add_dirs_to_dict("")
         self.nuwa_file = ""
@@ -378,9 +379,17 @@ footer {
                 in_italics = True
                 ret_line = ret_line[:-8]
                 ret_line += "<strong><em>"
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and not in_link and not transclusion and not in_code and self.in_table:
+                ret_line = ret_line[:-10]
+                ret_line += "<strong>"
             elif i > 0 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and not in_link and not transclusion and not in_code:
                 ret_line = ret_line[:-10]
                 ret_line += "</em></strong>"
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold and not in_link and not transclusion and not in_code and self.in_table:
+                in_bold = not in_bold
+                in_italics = False
+                ret_line = ret_line[:-5]
+                ret_line += "</strong>"
             elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold and not in_link and not transclusion and not in_code:
                 in_bold = not in_bold
                 in_italics = False
@@ -547,6 +556,7 @@ footer {
                 in_code = True
                 i -= 1
             elif(line_to_put[0] == "|" and line_to_put[-1] == "|"):
+                self.in_table = True
                 end_point = 0
                 temp_string = ""
                 skip_ahead = len(file_lines)
@@ -572,6 +582,7 @@ footer {
                     skip_ahead += 1
                 else:
                     temp_string = self.make_opening_tag("table") + temp_string
+                self.in_table = False
                 temp_string += self.make_closing_tag("table")
                 new_file += temp_string
                 i = skip_ahead-1
