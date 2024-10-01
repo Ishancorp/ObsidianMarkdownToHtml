@@ -355,8 +355,8 @@ footer {
         else:
             return ((self.offset-1) * "../") + ".."
 
-    def make_opening_tag(self, indicer):
-        return "<" + indicer + ">\n"
+    def make_opening_tag(self, indicer, newline_end = True):
+        return "<" + indicer + ">" + (newline_end * "\n")
 
     def make_closing_tag(self, indicer):
         return "</" + indicer + ">\n"
@@ -654,11 +654,11 @@ footer {
                 if len(line_to_put) > 6 and line_to_put[-7] == "^" and in_section:
                     temp = " id=\"" + line_to_put[-7:] + "\""
                     new_file = new_file[:section_place] + temp + new_file[section_place:]
-                    new_file += self.make_opening_tag(indicer)
+                    new_file += self.make_opening_tag(indicer, False)
                     line_to_put = line_to_put[:-7]
                 elif len(line_to_put) > 6 and line_to_put[-7] == "^":
                     new_file += "<span class=\"anchor\" id=\"" + line_to_put[-7:] + "\"></span>\n"
-                    new_file += self.make_opening_tag(indicer)
+                    new_file += self.make_opening_tag(indicer, False)
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
                     id_part = line_to_put.lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
@@ -667,7 +667,7 @@ footer {
                     new_file += "<span class=\"anchor\" id=\"" + id_part + "\"></span>\n"
                     new_file += "<" + indicer + ">"
                 else:
-                    new_file += self.make_opening_tag(indicer)
+                    new_file += self.make_opening_tag(indicer, False)
                 line_to_put = self.line_parser(line_to_put, in_code)
                 new_file += line_to_put + "</" + indicer + ">\n"
                 
