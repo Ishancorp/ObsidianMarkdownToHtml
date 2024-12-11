@@ -2,20 +2,30 @@ div#outer-box {
       margin: auto;
       padding: 0;
       border-width: 0;
-      overflow-x: scroll;
-      overflow-y: scroll;
+      overflow: scroll;
       position: relative;
       box-sizing: border-box;
       width: 90vw;
       height: 70vh;
-      border: 3px solid #73AD21;
+      border: 3px solid #6086ED;
+      border-radius: 10px;
 }
+div#outer-box {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+}
+div#outer-box::-webkit-scrollbar {
+      display: none;
+  }
 div.general-boxes {
-      border: 3px solid #7E7E7E;
+      border: 2px solid #7E7E7E;
       position: absolute;
       box-sizing: border-box;
       align-content: center;
       padding-left: 15px;
       border-radius: 10px;
 }
-  
+div.color-5 {
+      background-color: #262C2C;
+      border: 3px solid #6FA4A3;
+}
