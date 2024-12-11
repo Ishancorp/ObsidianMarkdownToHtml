@@ -31,6 +31,9 @@ om2html.compile_webpages()
 - [ ] Add ordered list
 - [x] Add unordered list
 - [ ] Add interface
+- [-] Work on canvas
+    - [x] Make nodes work
+    - [ ] Make edges work
 
 ## License
 

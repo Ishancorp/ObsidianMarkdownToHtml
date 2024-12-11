@@ -2,3 +2,4 @@ ish*.py
 __pycache__
 timeline_notes_manufacture_ish.py
 *.canvas
+*.html
