@@ -183,28 +183,15 @@ class ObsidianMarkdownToHtml:
         if in_bold:
             ret_line += "</strong>"
         return ret_line
-
-    def file_viewer(self, file_dir, add_to_header_list=True):
-        if file_dir.replace("/","\\") in (self.cached_pages).keys():
-            return (self.cached_pages)[file_dir.replace("/","\\")]
-        
-        new_file = ""
-        open_file = open(file_dir, "r", encoding="utf8")
-        file_lines = open_file.readlines()
-        
-        opening = 0
-        if file_lines and file_lines[0] == "---\n":
-            for i in range(1, len(file_lines)):
-                if file_lines[i] == "---\n":
-                    opening = i+1
-                    break
-
+    
+    def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
         i = opening
         in_section = False
         section_place = -1
         in_code = False
+        new_file = ""
         while i < len(file_lines):
-            if i == len(file_lines)-1:
+            if i == len(file_lines)-1 or canvas:
                 line_to_put = file_lines[i]
             else:
                 line_to_put = file_lines[i][:-1]
@@ -288,7 +275,7 @@ class ObsidianMarkdownToHtml:
                     cur_tabbing = 1
                     new_file += self.make_opening_tag("ul")
                     while i < len(file_lines):
-                        if i == len(file_lines)-1:
+                        if i == len(file_lines)-1 or canvas:
                             line_to_put = file_lines[i]
                         else:
                             line_to_put = file_lines[i][:-1]
@@ -349,6 +336,24 @@ class ObsidianMarkdownToHtml:
                 new_file += line_to_put + "</" + indicer + ">\n"
                 
             i += 1
+        return new_file
+
+    def file_viewer(self, file_dir, add_to_header_list=True):
+        if file_dir.replace("/","\\") in (self.cached_pages).keys():
+            return (self.cached_pages)[file_dir.replace("/","\\")]
+        
+        open_file = open(file_dir, "r", encoding="utf8")
+        file_lines = open_file.readlines()
+        
+        opening = 0
+        if file_lines and file_lines[0] == "---\n":
+            for i in range(1, len(file_lines)):
+                if file_lines[i] == "---\n":
+                    opening = i+1
+                    break
+        
+        new_file = self.read_lines(file_lines, opening, add_to_header_list=add_to_header_list)
+
         open_file.close()
         (self.cached_pages)[file_dir] = new_file
         return new_file
@@ -483,7 +488,8 @@ class ObsidianMarkdownToHtml:
             middle += "px;height:"
             middle += str(node["height"])
             middle += "px\">\n"
-            middle += self.line_parser(node["text"])
+            read_lines = node["text"].splitlines()
+            middle += self.read_lines(read_lines, 0, add_to_header_list=False, canvas=True)
             middle += "\n</div>\n"
         middle += "</div>\n"
         return middle
