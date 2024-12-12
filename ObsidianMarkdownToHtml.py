@@ -20,6 +20,9 @@ class ObsidianMarkdownToHtml:
         with open("styles/omth.css") as stylesheet:
             self.stylesheet = stylesheet.read()
 
+        with open("scripts/json_canvas.js") as script:
+            self.script = script.read()
+
     def make_link(self, link, text, target="_self", className=""):
         return "<a class=\"" + className + "\" href=\"" + link +"\" target=\""+ target +"\">" + text + "</a>"
 
@@ -256,7 +259,6 @@ class ObsidianMarkdownToHtml:
                         in_code = False
                     indicer = "h" + str(len(top_part))
                     add_tag = True
-                    #print(line_to_put)
                     lines_to_add = line_to_put.split(' ', 1)
                     if len(lines_to_add) > 1:
                         line_to_put = lines_to_add[1]
@@ -295,6 +297,25 @@ class ObsidianMarkdownToHtml:
                             break
                         i += 1
                     new_file += self.make_closing_tag("ul")
+                    continue
+                elif top_part == "1." and len(file_lines[i]) > 2:
+                    new_file += self.make_opening_tag("ol")
+                    cur_num = 1
+                    while i < len(file_lines):
+                        if i == len(file_lines)-1 or canvas:
+                            line_to_put = file_lines[i]
+                        else:
+                            line_to_put = file_lines[i][:-1]
+                        cur_prefix = str(cur_num) + ". "
+                        if line_to_put[:len(cur_prefix)] == cur_prefix:
+                            new_file += "<li>"
+                            new_file += self.line_parser(line_to_put[len(cur_prefix):], in_code, canvas)
+                            new_file += self.make_closing_tag("li")
+                        else:
+                            break
+                        cur_num += 1
+                        i += 1
+                    new_file += self.make_closing_tag("ol")
                     continue
 
                 if indicer == "p" and not in_section:
@@ -353,12 +374,9 @@ class ObsidianMarkdownToHtml:
         checkbox_prefix = 1
         
         ret_str = self.make_opening_tag("nav")
-        ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"toggle\">"
-        ret_str += """
-                   <svg id="navicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
-                   <line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="18" x2="20" y2="18"></line>
-                   </svg>
-                   """
+        ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"toggle\">\n"
+        with open("svg/other_pages.html", encoding='utf-8') as other_pages:
+            ret_str += other_pages.read()
         ret_str += "</button>"
         ret_str += "<div id=\"navbar\" popover><div id=\"idk\">"
         ret_str += self.make_opening_tag("ul class=\"menu\"")
@@ -400,12 +418,8 @@ class ObsidianMarkdownToHtml:
         ret_str += self.make_op_close_inline_tag("p class=\"top-bar\"", self.nuwa_file.replace("\\", "<span class=\"file-link\"> > </span>"))
 
         ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
-        ret_str += """
-                   <svg id="tocicon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" icon-name="menu" class="lucide lucide-menu svg-navicon">
-                   <line x1="4" y1="12" x2="5" y2="12"></line><line x1="4" y1="6" x2="5" y2="6"></line><line x1="4" y1="18" x2="5" y2="18"></line>
-                   <line x1="10" y1="12" x2="20" y2="12"></line><line x1="10" y1="6" x2="20" y2="6"></line><line x1="10" y1="18" x2="20" y2="18"></line>
-                   </svg>
-                   """
+        with open("svg/other_headers.html", encoding='utf-8') as other_headers:
+            ret_str += other_headers.read()
         ret_str += "</button>"
         ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
         
@@ -466,17 +480,40 @@ class ObsidianMarkdownToHtml:
             return json.load(json_data)
   
     def json_viewer(self, data):
-        middle = "<div id=\"outer-box\">\n"
+        canvas_bar = "<p class=\"canvas-bar\">&nbsp;&nbsp;<strong><span class=\"canvas-button\" onClick=\"zoom_in()\">+</span>&nbsp;&nbsp;<span class=\"canvas-button\" onClick=\"reset_zoom()\">↻</span>&nbsp;&nbsp;<span class=\"canvas-button\" onClick=\"zoom_out()\">-</span></strong>&nbsp;&nbsp;</p>\n"
+        nodes_by_id = {}
+        max_x = 0
+        max_y = 0
+        div_part = ""
+        arrow_part = ""
         for node in data["nodes"]:
-            middle += f"<div class=\"general-boxes"
+            div_part += f"<div class=\"general-boxes"
             if "color" in node:
-                middle += f" color-{node["color"]}"
-            middle += f"\" id=\"{node["id"]}\" style=\"left:{str(node["x"]+750)}px;top:{str(node["y"]+400)}px;width:{str(node["width"])}px;height:{str(node["height"])}px\">\n"
+                div_part += f" color-{node["color"]}"
+            div_part += f"\" id=\"{node["id"]}\" style=\"left:{str(node["x"]+750)}px;top:{str(node["y"]+400)}px;width:{str(node["width"])}px;height:{str(node["height"])}px\">\n"
             read_lines = node["text"].splitlines()
-            middle += self.read_lines(read_lines, 0, add_to_header_list=False, canvas=True)
-            middle += "\n</div>\n"
-        middle += "</div>\n"
-        return middle
+            div_part += self.read_lines(read_lines, 0, add_to_header_list=False, canvas=True)
+            nodes_by_id[node["id"]] = {
+                "left": (node["x"], node["y"]+(node["height"]/2)),
+                "right": (node["x"]+node["width"], node["y"]+(node["height"]/2)),
+                "top": (node["x"]+(node["width"]/2), node["y"]),
+                "bottom": (node["x"]+(node["width"]/2), node["y"]+node["height"]),
+            }
+            max_x = max(max_x, node["x"])
+            max_y = max(max_y, node["y"])
+            div_part += "\n</div>\n"
+        svg_part = f"<svg id=\"svg\" width=\"{max_x+1000}\" height=\"{max_y+1000}\">\n"
+        for edge in data["edges"]:
+            node_from = nodes_by_id[edge["fromNode"]]
+            node_to = nodes_by_id[edge["toNode"]]
+            svg_part += f"<line class=\"line\" x1=\"{node_from[edge["fromSide"]][0]+750}\" y1=\"{node_from[edge["fromSide"]][1]+400}\" x2=\"{node_to[edge["toSide"]][0]+750}\" y2=\"{node_to[edge["toSide"]][1]+400}\"/>\n"
+            arrow_side = edge["toSide"]
+            if arrow_side == "left":
+              arrow_part += f"<i class=\"arrow {arrow_side}\" style=\"left:{node_to[arrow_side][0]+740}px;top:{node_to[arrow_side][1]+395}px;\"></i>\n"
+            else:
+              arrow_part += f"<i class=\"arrow {arrow_side}\" style=\"left:{node_to[arrow_side][0]+745}px;top:{node_to[arrow_side][1]+390}px;\"></i>\n"
+        svg_part += "</svg>\n"
+        return "<div id=\"outer-box\">\n" + "<div id=\"scrollable-box\">\n" + "<div id=\"innard\">" + arrow_part + svg_part + div_part + (2 * "</div>\n") + canvas_bar + "</div>\n"
 
     def writeToFile(self, file_name, new_file):
         export_file = self.out_directory + self.link_to_filepath[file_name.replace('\\', '/')].replace(" ", "-")
@@ -485,6 +522,16 @@ class ObsidianMarkdownToHtml:
         exp_file = open(export_file, "w", encoding="utf-8")
         exp_file.write(new_file)
         exp_file.close()
+      
+    def top_part(self, file_name):
+        new_file = self.make_opening_tag("html")
+        new_file += self.make_opening_tag("head")
+        new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+        new_file += self.make_op_close_inline_tag("title", file_name)
+        new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/\">\n"
+        new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/inter/inter.css\">\n"
+        new_file += "<link rel=\"stylesheet\" href=\""+ self.make_offset() + "\\style.css\">\n"
+        return new_file
         
     def compile_webpages(self):
         for file in self.files:
@@ -494,17 +541,11 @@ class ObsidianMarkdownToHtml:
             if extension == "md":
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
-                new_file = self.make_opening_tag("html")
-                new_file += self.make_opening_tag("head")
-                new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-                new_file += self.make_op_close_inline_tag("title", file_name)
-                new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/\">\n"
-                new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/inter/inter.css\">\n"
-                new_file += "<link rel=\"stylesheet\" href=\""+ self.make_offset() + "\\style.css\">\n"
+                new_file = self.top_part(file_name)
                 new_file += self.make_closing_tag("head")
                 new_file += self.make_opening_tag("body")
 
-                scanned_file = self.file_viewer(file_dir)
+                viewed_file = self.file_viewer(file_dir)
 
                 self.nuwa_file = file[2:-3]
                 new_file += self.nav_bar()
@@ -512,7 +553,7 @@ class ObsidianMarkdownToHtml:
                 new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
                 new_file += self.make_opening_tag("article")
 
-                new_file += scanned_file
+                new_file += viewed_file
                 
                 new_file += self.make_closing_tag("article")
                 
@@ -525,33 +566,26 @@ class ObsidianMarkdownToHtml:
             elif extension == "canvas":
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
-                new_file = self.make_opening_tag("html")
-                new_file += self.make_opening_tag("head")
-                new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-                new_file += self.make_op_close_inline_tag("title", file_name)
-                new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/\">\n"
-                new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/inter/inter.css\">\n"
-                new_file += "<link rel=\"stylesheet\" href=\""+ self.make_offset() + "\\style.css\">\n"
+                new_file = self.top_part(file_name)
 
                 new_file += self.make_opening_tag("style")
                 with open("styles/json_canvas.css") as stylesheet:
                     new_file += stylesheet.read()
                 new_file += self.make_closing_tag("style")
-                canvas_dict = self.read_json(file_dir)
 
                 new_file += self.make_closing_tag("head")
                 new_file += self.make_opening_tag("body")
-
-                scanned_file = self.json_viewer(canvas_dict)
 
                 self.nuwa_file = file[2:] + ".html"
                 new_file += self.nav_bar()
                 
                 new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name + ".CANVAS")
 
-                new_file += scanned_file
+                canvas_dict = self.read_json(file_dir)
+                new_file += self.json_viewer(canvas_dict)
                 
                 new_file += self.footer()
+                new_file += "<script src=\""+ self.make_offset() + "\\canvas.js\"></script>\n"
                 new_file += self.make_closing_tag("body")
                 new_file += self.make_closing_tag("html")
                     
@@ -566,4 +600,7 @@ class ObsidianMarkdownToHtml:
         
         with open((self.out_directory) + "\\style.css", "w") as text_file:
             text_file.write(self.stylesheet)
+        
+        with open((self.out_directory) + "\\canvas.js", "w") as text_file:
+            text_file.write(self.script)
 
