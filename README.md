@@ -28,12 +28,14 @@ om2html.compile_webpages()
     - [x] Make folders collapsible
 - [ ] Add back to top links
 - [x] Add table of contents
-- [ ] Add ordered list
+- [x] Add ordered list
 - [x] Add unordered list
+- [x] Add footnotes
 - [ ] Add interface
 - [-] Work on canvas
     - [x] Make nodes work
-    - [ ] Make edges work
+    - [x] Make edges work
+    - [-] Work on zoom
 
 ## License
 

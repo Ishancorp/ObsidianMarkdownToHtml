@@ -20,6 +20,9 @@ a {
     text-decoration: underline;
     color: #6086ED;
 }
+strong {
+    font-weight: 600;
+}
 a:visited {
     text-decoration: underline;
     color: #6086ED;
@@ -29,14 +32,14 @@ a:hover {
     color: #87B6F6;
 }
 a.goto {
-    border-radius: 2px;
+    border-radius: 5px;
     padding: 0.25em;
     text-decoration: none;
     color: #1E1E1E;
     background-color: #6086ed;
+    border: 1px solid #6086ed;
 }
 a.goto:hover {
-    border: 1px solid #6086ed;
     background-color: #1e1e1e;
     color: #6086ed;
 }
@@ -90,6 +93,7 @@ span.file-link {
 aside {
     padding-left: 1em;
     border-left: 0.1em solid #6086ED;
+    display: flex;
 }
   
 h1 {
@@ -202,7 +206,11 @@ div.transclude-link {
     text-align: right;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
-  
+    padding-left: 1em;
+}
+
+div.transclsec {
+    width: 100%;
 }
   
 #navbar:popover-open {
@@ -215,12 +223,14 @@ div#navbar::backdrop {
 }
   
 button {
+    border-radius: 5px;
     background-color: #6086ED;
-    border: none;
+    border: 1px solid #6086ed;
 }
   
 button:hover {
-    background-color: #87B6F6;
+    border: 1px solid #6086ed;
+    background-color: #1e1e1e;
 }
   
 svg#navicon {
@@ -228,9 +238,17 @@ svg#navicon {
     width: 2em;
 }
   
+svg#navicon:hover {
+    stroke: #6086ed;
+}
+
 svg#tocicon {
     height: 2em;
     width: 2em;
+}
+
+svg#tocicon:hover {
+    stroke: #6086ed;
 }
   
 nav {
@@ -286,6 +304,53 @@ footer {
     margin-right: 1em;
     padding-top: 1em;
     padding-bottom: 1em;
+}
+
+.footnotes {
+    font-size: smaller;
+}
+
+.fn {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
+}
+
+.fn .fn-tooltip {
+    max-height: 360px;
+    overflow: auto;
+    font-size: smaller;
+}
+
+.fn .fn-tooltip {
+    visibility: hidden;
+    width: 300px;
+    top: 100%;
+    left: 50%;
+    margin-left: 5px;
+    margin-top: 5px;
+    background-color: #1E1E1E;
+    color: #DADADA;
+    border-radius: 6px;
+    border-color: #363636;
+    border-style: solid;
+    border-width: 2px;
+    padding: 1em;
+  
+    /* Position the tooltip */
+    position: absolute;
+    z-index: 1;
+}
+.fn:hover .fn-tooltip {
+    visibility: visible;
+}
+
+.fn-link {
+    text-decoration: none;
+}
+
+.fn-link:hover {
+    text-decoration: none;
 }
   
 @media screen and (max-width: 768px) {
