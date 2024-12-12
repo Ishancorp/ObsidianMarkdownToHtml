@@ -19,13 +19,42 @@ div#outer-box::-webkit-scrollbar {
   }
 div.general-boxes {
       border: 2px solid #7E7E7E;
+      background-color: #1E1E1E;
       position: absolute;
       box-sizing: border-box;
       align-content: center;
       padding-left: 15px;
+      padding-right: 15px;
       border-radius: 10px;
 }
 div.color-5 {
       background-color: #262C2C;
       border: 3px solid #6FA4A3;
+}
+.line {
+      stroke: #7E7E7E;
+      stroke-width: 3;
+}
+.arrow {
+      position: absolute;
+      border: solid #7E7E7E;
+      border-width: 0 3px 3px 0;
+      display: inline-block;
+      padding: 3px;
+}
+.left {
+      transform: rotate(-45deg);
+      -webkit-transform: rotate(-45deg);
+}
+.right {
+      transform: rotate(135deg);
+      -webkit-transform: rotate(135deg);
+}
+.bottom {
+      transform: rotate(-135deg);
+      -webkit-transform: rotate(-135deg);
+}
+.top {
+      transform: rotate(45deg);
+      -webkit-transform: rotate(45deg);
 }
