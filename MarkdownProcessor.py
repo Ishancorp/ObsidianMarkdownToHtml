@@ -34,11 +34,29 @@ class IndentedParagraphProcessor(BlockProcessor):
         para.text = '\n'.join(stripped_lines)
 
 class WikiLinkInlineProcessor(InlineProcessor):
-    def handleMatch(self, m, data):
+    def __init__(self, pattern, md, link_dict, offset):
+        super().__init__(pattern, md)
+        self.link_dict = link_dict
+        self.offset = offset
+
+    def handleMatch(self, m, matcher):
         link_text = m.group(1).strip()
 
+        if '|' in link_text:
+            page_name, alias = map(str.strip, link_text.split('|', 1))
+        else:
+            page_name = link_text
+            alias = link_text
+            alias = alias.replace('#', '&nbsp;>&nbsp;')
+        
+        if '#' in page_name:
+            page_name, next_part = map(str.strip, link_text.split('#', 1))
+            href = self.link_dict[page_name] + "#" + next_part
+        else:        
+            href = self.link_dict[page_name]
+
         el = etree.Element('a')
-        el.set('href', f'/notes/{link_text.replace(" ", "_")}')
+        el.set('href', self.offset + href[1:].replace(" ", "-").lower())
         el.set('class', 'wikilink')
-        el.text = link_text
+        el.text = alias
         return el, m.start(0), m.end(0)

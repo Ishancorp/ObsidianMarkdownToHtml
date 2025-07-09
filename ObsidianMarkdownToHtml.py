@@ -5,6 +5,7 @@ import json
 import re
 import markdown
 from MarkdownProcessor import *
+from markdown.extensions import Extension
 
 CLEANR = re.compile('<.*?>') 
 external_link = ""
@@ -14,6 +15,7 @@ with open("svg/other_extern.html", encoding='utf-8') as other_pages: external_li
 md = markdown.Markdown(extensions=[])
 md.parser.blockprocessors.deregister('code')
 md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
+
 
 def make_opening_tag(indicer, newline_end = True):
     return "<" + indicer + ">" + (newline_end * "\n")
@@ -62,6 +64,18 @@ class ObsidianMarkdownToHtml:
         with open("svg/other_pages.html", encoding='utf-8') as other_pages: self.other_pages = other_pages.read()
         with open("svg/other_headers.html", encoding='utf-8') as other_headers: self.other_headers = other_headers.read()
         with open("styles/json_canvas.css") as json_stylesheet: self.json_stylesheet = json_stylesheet.read()
+
+    class CustomMarkdownExtension(Extension):
+        def __init__(self, link_dict, offset, **kwargs):
+            self.link_dict = link_dict
+            self.offset = offset
+            super().__init__(**kwargs)
+
+        def extendMarkdown(self, md):
+            md.parser.blockprocessors.deregister('code')
+            md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
+            WIKILINK_RE = r'\[\[([^\]]+)\]\]'
+            md.inlinePatterns.register(WikiLinkInlineProcessor(WIKILINK_RE, md, self.link_dict, self.offset), 'wikilink', 175)
     
     def transclude_article(self, mk_link):
         ret_line = make_opening_tag("aside")
@@ -160,24 +174,6 @@ class ObsidianMarkdownToHtml:
                 ret_line += "<br>\n"
                 ret_line += "</aside>\n"
                 i = j
-            elif i > 0 and line[i] == '[' and line[i-1] == '[':
-                ret_line = ret_line[:-1]
-                j = i+1
-                while not (line[j] == ']' and line[j-1] == ']'):
-                    j += 1
-                mk_link = line[i+1:j-1]
-                text = mk_link
-                link = ""
-                if "|" in mk_link:
-                    [mk_link, text] = mk_link.split("|")
-                if "#" in mk_link:
-                    [gen_link, head_link] = mk_link.split("#")
-                    link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
-                    text = gen_link + " > " + head_link
-                else:
-                    link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-                ret_line += make_link(make_offset(self.offset) + link[1:].replace("*",""), text)
-                i = j
             elif line[i-1] == "[" and line[i] == "^":
                 footnote = i
                 ret_line += line[i]
@@ -201,7 +197,7 @@ class ObsidianMarkdownToHtml:
             elem = style_stack.pop()
             if elem == 'i': ret_line += "</em>"
             elif elem == 'b': ret_line += "</strong>"
-        ret_line = md.convert(ret_line)
+        ret_line = markdown.markdown(ret_line, extensions=[self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset))])
         return ret_line
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
