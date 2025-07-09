@@ -3,10 +3,17 @@ import shutil
 import datetime
 import json
 import re
+import markdown
+from MarkdownProcessor import *
 
 CLEANR = re.compile('<.*?>') 
 external_link = ""
 with open("svg/other_extern.html", encoding='utf-8') as other_pages: external_link = " " + other_pages.read()
+
+
+md = markdown.Markdown(extensions=[])
+md.parser.blockprocessors.deregister('code')
+md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
 
 def make_opening_tag(indicer, newline_end = True):
     return "<" + indicer + ">" + (newline_end * "\n")
@@ -134,46 +141,9 @@ class ObsidianMarkdownToHtml:
         extern_links = [-1, -1,-1]
         style_stack = []
         i = 0
+
         while i < len(line):
-            if i > 0 and line[i-1] == '\\':
-                if line[i] == '*': ret_line = ret_line[:-1] + "&#42;"
-                elif line[i] == '_': ret_line = ret_line[:-1] + "&#95;"
-                elif line[i] == '[': ret_line = ret_line[:-1] + "&#91;"
-                elif line[i] == ']': ret_line = ret_line[:-1] + "&#93;"
-                elif line[i] == '\\': ret_line = ret_line[:-1] + "&#92;"
-                elif line[i] == '|': ret_line = ret_line[:-1] + "&#124;"
-                else: ret_line += line[i]
-                line = line[:i] + ' ' + line[i+1:]
-            elif i > 1 and (i+3 <= len(line)) and line[i] == '*' and line[i+1] == '*' and line[i+2] == '*'  and not in_code:
-                i += 2
-                if not style_stack:
-                    ret_line = ret_line + "<strong><em>"
-                    style_stack.append('b')
-                    style_stack.append('i')
-                    print(style_stack)
-                    print(ret_line)
-                else:
-                    ret_line = ret_line + "</em></strong>"
-                    print(ret_line)
-                    print(style_stack)
-                    style_stack.pop()
-                    style_stack.pop()
-            elif i > 0 and (i+2 <= len(line)) and line[i] == '*' and line[i+1] == '*' and not in_code:
-                i += 1
-                if not style_stack:
-                    ret_line = ret_line + "<strong>"
-                    style_stack.append('b')
-                else:
-                    ret_line = ret_line + "</strong>"
-                    style_stack.pop()
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_code:
-                if not style_stack:
-                    ret_line += "<em>"
-                    style_stack.append('i')
-                else:
-                    ret_line += "</em>"
-                    style_stack.pop()
-            elif i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
+            if i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
                 skip_beginning = i+1
                 ret_line = ret_line[:-2]
                 j = i+1
@@ -211,12 +181,6 @@ class ObsidianMarkdownToHtml:
             elif line[i-1] == "[" and line[i] == "^":
                 footnote = i
                 ret_line += line[i]
-            elif line[i-1] == "[":
-                extern_links[0] = i
-                extern_links[2] = len(ret_line)
-                ret_line += line[i]
-            elif line[i] == "(" and line[i-1] == "]" and extern_links[0] != -1:
-                extern_links[1] = i
             elif line[i] == "]" and footnote != -1:
                 footnote_num = ret_line[footnote+1:]
                 footnote_tag = make_op_close_inline_tag(
@@ -228,13 +192,6 @@ class ObsidianMarkdownToHtml:
                 )
                 ret_line = ret_line[:footnote-1] + footnote_tag
                 footnote = -1
-            elif line[i-1] == "]" and extern_links[0] != -1:
-                extern_links = [-1,-1,-1]
-            elif line[i] == ")" and extern_links[1] != -1:
-                # make external links
-                ret_line = ret_line[:extern_links[2]-1]
-                ret_line += make_link(line[extern_links[1]+1:i], line[extern_links[0]:extern_links[1]-1], target="_blank", extern=True)
-                extern_links = [-1,-1,-1]
             else:
                 ret_line += line[i]
             
@@ -244,6 +201,7 @@ class ObsidianMarkdownToHtml:
             elem = style_stack.pop()
             if elem == 'i': ret_line += "</em>"
             elif elem == 'b': ret_line += "</strong>"
+        ret_line = md.convert(ret_line)
         return ret_line
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
