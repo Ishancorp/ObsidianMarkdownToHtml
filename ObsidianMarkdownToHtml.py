@@ -142,6 +142,7 @@ class ObsidianMarkdownToHtml:
                 elif line[i] == ']': ret_line = ret_line[:-1] + "&#93;"
                 elif line[i] == '\\': ret_line = ret_line[:-1] + "&#92;"
                 elif line[i] == '|': ret_line = ret_line[:-1] + "&#124;"
+                else: ret_line += line[i]
                 line = line[:i] + ' ' + line[i+1:]
             elif i > 1 and (i+3 <= len(line)) and line[i] == '*' and line[i+1] == '*' and line[i+2] == '*'  and not in_code:
                 i += 2
