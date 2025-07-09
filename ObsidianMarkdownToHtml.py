@@ -4,6 +4,36 @@ import datetime
 import json
 import re
 
+CLEANR = re.compile('<.*?>') 
+external_link = ""
+with open("svg/other_extern.html", encoding='utf-8') as other_pages: external_link = " " + other_pages.read()
+
+def make_opening_tag(indicer, newline_end = True):
+    return "<" + indicer + ">" + (newline_end * "\n")
+
+def make_closing_tag(indicer):
+    return "</" + indicer + ">\n"
+
+def make_op_close_inline_tag(indicer, inner):
+    return "<" + indicer + ">" + inner + "</" + indicer + ">\n"
+    
+def remove_from_id_part(id):
+    return re.sub(CLEANR, '', id).lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
+
+def make_offset(offset):
+    if offset == 0:
+        return '.'
+    elif offset == 1:
+        return '..'
+    else:
+        return ((offset-1) * "../") + ".."
+
+def make_link(link, text, target="_self", className="", extern=False):
+    ret_str = "<a class=\"" + className + "\" href=\"" + link +"\" target=\""+ target +"\">" + text + "</a>"
+    if extern:
+        ret_str += " " + external_link
+    return ret_str
+
 class ObsidianMarkdownToHtml:
     def __init__(self, in_directory, out_directory):
         self.in_directory = in_directory
@@ -22,43 +52,16 @@ class ObsidianMarkdownToHtml:
         with open("styles/omth.css") as stylesheet: self.stylesheet = stylesheet.read()
         with open("scripts/json_canvas.js") as script: self.script = script.read()
         with open("svg/canvas_bar.html", encoding='utf-8') as canv_bar: self.canvas_bar = " " + canv_bar.read()
-        with open("svg/other_extern.html", encoding='utf-8') as other_pages: self.external_link = " " + other_pages.read()
         with open("svg/other_pages.html", encoding='utf-8') as other_pages: self.other_pages = other_pages.read()
         with open("svg/other_headers.html", encoding='utf-8') as other_headers: self.other_headers = other_headers.read()
         with open("styles/json_canvas.css") as json_stylesheet: self.json_stylesheet = json_stylesheet.read()
-
-    def make_link(self, link, text, target="_self", className="", extern=False):
-        ret_str = "<a class=\"" + className + "\" href=\"" + link +"\" target=\""+ target +"\">" + text + "</a>"
-        if extern:
-            ret_str += " " + self.external_link
-        return ret_str
-
-    def make_offset(self):
-        if self.offset == 0:
-            return '.'
-        elif self.offset == 1:
-            return '..'
-        else:
-            return ((self.offset-1) * "../") + ".."
-
-    def make_opening_tag(self, indicer, newline_end = True):
-        return "<" + indicer + ">" + (newline_end * "\n")
-
-    def make_closing_tag(self, indicer):
-        return "</" + indicer + ">\n"
-
-    def make_op_close_inline_tag(self, indicer, inner):
-        return "<" + indicer + ">" + inner + "</" + indicer + ">\n"
-    
-    def remove_from_id_part(self, id, lower=True, spacerep=True):
-        return re.sub(self.CLEANR, '', id).lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
     
     def transclude_article(self, mk_link):
-        ret_line = self.make_opening_tag("aside")
+        ret_line = make_opening_tag("aside")
         link = (self.link_to_filepath)[mk_link.split("#")[0]]
         file_paths = [k for k,v in (self.link_to_filepath).items() if v == link]
         f_p = "\\" + file_paths[-1] + ".md"
-        ret_line += self.make_opening_tag("div class=\"transclsec\"")
+        ret_line += make_opening_tag("div class=\"transclsec\"")
         if "#" in mk_link:
             #section
             transcl_sec = ""
@@ -113,58 +116,85 @@ class ObsidianMarkdownToHtml:
         else:
             #entire article
             link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-            ret_line += self.make_op_close_inline_tag("p", self.make_op_close_inline_tag("strong", mk_link.split('/')[-1]))
+            ret_line += make_op_close_inline_tag("p", make_op_close_inline_tag("strong", mk_link.split('/')[-1]))
             ret_line += "<br>\n"
             ret_line += self.file_viewer(self.in_directory+f_p, add_to_header_list=False)
 
-        ret_line += self.make_closing_tag("div")
+        ret_line += make_closing_tag("div")
 
-        ret_line += self.make_opening_tag("div class=\"transclude-link\"")
-        ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), ">>", "_self", "goto")
-        ret_line += self.make_closing_tag("div")
+        ret_line += make_opening_tag("div class=\"transclude-link\"")
+        ret_line += make_link(make_offset(self.offset) + link[1:].replace("*",""), ">>", "_self", "goto")
+        ret_line += make_closing_tag("div")
         return ret_line
         
     def line_parser(self, line, in_code = False, canvas=False):
         ret_line = ""
-        in_link = False
-        transclusion = False
         in_bold = False
         in_italics = False
         footnote = -1
         skip_beginning = -1
         extern_links = [-1, -1,-1]
-        for i in range(0, len(line)):
-            if i > 0 and line[i] == '*' and line[i-1] == '\\':
-                ret_line = ret_line[:-1] + "*"
-            elif i > 1 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and in_bold and not in_link and not transclusion and not in_code:
-                in_italics = True
-                ret_line = ret_line[:-8] + "<strong><em>"
-            elif i > 1 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and not in_link and not transclusion and not in_code:
-                in_italics = False
-                ret_line = ret_line[:-10] + "</em></strong>"
-            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_bold and not in_link and not transclusion and not in_code:
-                in_bold, in_italics = True, False
-                ret_line = ret_line[:-4] + "<strong>"
-            elif i > 0 and line[i] == '*' and line[i-1] == '*' and in_bold and not in_link and not transclusion and not in_code:
-                in_bold, in_italics = False, False
-                ret_line = ret_line[:-4] + "</strong>"
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_italics and not in_link and not transclusion and not in_code:
+        style_stack = []
+        i = 0
+        while i < len(line):
+            if i > 0 and line[i-1] == '\\':
+                if line[i] == '*': ret_line = ret_line[:-1] + "&#42;"
+                elif line[i] == '_': ret_line = ret_line[:-1] + "&#95;"
+                elif line[i] == '[': ret_line = ret_line[:-1] + "&#91;"
+                elif line[i] == ']': ret_line = ret_line[:-1] + "&#93;"
+                elif line[i] == '\\': ret_line = ret_line[:-1] + "&#92;"
+                elif line[i] == '|': ret_line = ret_line[:-1] + "&#124;"
+            elif i > 1 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and not in_code:
+                if in_bold:
+                    in_italics = True
+                    ret_line = ret_line[:-8] + "<strong><em>"
+                    style_stack.append('b')
+                    style_stack.append('i')
+                else:
+                    in_italics = False
+                    ret_line = ret_line[:-10] + "</em></strong>"
+                    style_stack.pop()
+                    style_stack.pop()
+            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_code:
+                if in_bold:
+                    in_bold, in_italics = False, False
+                    ret_line = ret_line[:-4] + "</strong>"
+                    style_stack.pop()
+                else:
+                    in_bold, in_italics = True, False
+                    ret_line = ret_line[:-4] + "<strong>"
+                    style_stack.append('b')
+            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_italics and not in_code:
                 in_italics = True
                 ret_line += "<em>"
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics and not in_link and not transclusion and not in_code:
+                style_stack.append('i')
+            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics and not in_code:
                 in_italics = False
                 ret_line += "</em>"
+                style_stack.pop()
             elif i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
-                transclusion = True
                 skip_beginning = i+1
                 ret_line = ret_line[:-2]
-            elif i > 0 and line[i] == '[' and line[i-1] == '[' and not in_link:
-                in_link = True
-                skip_beginning = i+1
+                j = i+1
+                while not (line[j] == ']' and line[j-1] == ']'):
+                    j += 1
+                mk_link = line[skip_beginning:j-1]
+                extension = mk_link.split(".")[-1]
                 ret_line = ret_line[:-1]
-            elif i > 0 and line[i] == ']' and line[i-1] == ']' and in_link:
-                in_link = False
-                mk_link = line[skip_beginning:i-1]
+                if extension == "png" or extension == "svg" or extension == "jpg":
+                    link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
+                    ret_line += "<img src=\"" + make_offset(self.offset) + link[1:] + "\">"
+                else:
+                    ret_line += self.transclude_article(mk_link)
+                ret_line += "<br>\n"
+                ret_line += "</aside>\n"
+                i = j
+            elif i > 0 and line[i] == '[' and line[i-1] == '[':
+                ret_line = ret_line[:-1]
+                j = i+1
+                while not (line[j] == ']' and line[j-1] == ']'):
+                    j += 1
+                mk_link = line[i+1:j-1]
                 text = mk_link
                 link = ""
                 if "|" in mk_link:
@@ -175,23 +205,12 @@ class ObsidianMarkdownToHtml:
                     text = gen_link + " > " + head_link
                 else:
                     link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-                ret_line += self.make_link(self.make_offset() + link[1:].replace("*",""), text)
-            elif i > 0 and line[i] == ']' and line[i-1] == ']' and transclusion:
-                transclusion = False
-                mk_link = line[skip_beginning:i-1]
-                extension = mk_link.split(".")[-1]
-                ret_line = ret_line[:-1]
-                if extension == "png" or extension == "svg" or extension == "jpg":
-                    link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-                    ret_line += "<img src=\"" + self.make_offset() + link[1:] + "\">"
-                else:
-                    ret_line += self.transclude_article(mk_link)
-                ret_line += "<br>\n"
-                ret_line += "</aside>\n"
-            elif line[i-1] == "[" and line[i] == "^" and not in_link:
+                ret_line += make_link(make_offset(self.offset) + link[1:].replace("*",""), text)
+                i = j
+            elif line[i-1] == "[" and line[i] == "^":
                 footnote = i
                 ret_line += line[i]
-            elif line[i-1] == "[" and not in_link:
+            elif line[i-1] == "[":
                 extern_links[0] = i
                 extern_links[2] = len(ret_line)
                 ret_line += line[i]
@@ -199,12 +218,12 @@ class ObsidianMarkdownToHtml:
                 extern_links[1] = i
             elif line[i] == "]" and footnote != -1:
                 footnote_num = ret_line[footnote+1:]
-                footnote_tag = self.make_op_close_inline_tag(
+                footnote_tag = make_op_close_inline_tag(
                     f"span id=\"fn-{footnote_num}\" class=\"fn fn-{footnote_num}\"", 
-                    self.make_op_close_inline_tag(
+                    make_op_close_inline_tag(
                         f"a class=\"fn-link\" href=\"#fn-index-{footnote_num}\"",
-                        self.make_op_close_inline_tag("sup", f"[{footnote_num}]")
-                    ) + self.make_op_close_inline_tag("span class=\"fn-tooltip\"", f"include-fn-[{footnote_num}]")
+                        make_op_close_inline_tag("sup", f"[{footnote_num}]")
+                    ) + make_op_close_inline_tag("span class=\"fn-tooltip\"", f"include-fn-[{footnote_num}]")
                 )
                 ret_line = ret_line[:footnote-1] + footnote_tag
                 footnote = -1
@@ -213,15 +232,17 @@ class ObsidianMarkdownToHtml:
             elif line[i] == ")" and extern_links[1] != -1:
                 # make external links
                 ret_line = ret_line[:extern_links[2]-1]
-                ret_line += self.make_link(line[extern_links[1]+1:i], line[extern_links[0]:extern_links[1]-1], target="_blank", extern=True)
+                ret_line += make_link(line[extern_links[1]+1:i], line[extern_links[0]:extern_links[1]-1], target="_blank", extern=True)
                 extern_links = [-1,-1,-1]
-            elif not in_link and not transclusion:
+            else:
                 ret_line += line[i]
-
-        if in_italics:
-            ret_line += "</em>"
-        if in_bold:
-            ret_line += "</strong>"
+            
+            i += 1
+        
+        while style_stack:
+            elem = style_stack.pop()
+            if elem == 'i': ret_line += "</em>"
+            elif elem == 'b': ret_line += "</strong>"
         return ret_line
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
@@ -241,12 +262,12 @@ class ObsidianMarkdownToHtml:
 
             if line_to_put.strip() == "" and not (len(line_to_put) > 0 and line_to_put[0] == "	"):
                 if in_section:
-                    new_file += self.make_closing_tag("section ")
+                    new_file += make_closing_tag("section ")
                     in_section = False
                     section_place = -1
                 if in_code:
-                    new_file += self.make_closing_tag("code")
-                    new_file += self.make_closing_tag("pre")
+                    new_file += make_closing_tag("code")
+                    new_file += make_closing_tag("pre")
                     in_code = False
                 new_file += "<br>\n"
                 i += 1
@@ -256,8 +277,8 @@ class ObsidianMarkdownToHtml:
                 i += 1
                 continue
             elif not in_code and i >= 1 and line_to_put[0] == "	" and (file_lines[i-1].strip() == "" or file_lines[i-1][0] == "#"):
-                new_file += self.make_opening_tag("pre")
-                new_file += self.make_opening_tag("code")
+                new_file += make_opening_tag("pre")
+                new_file += make_opening_tag("code")
                 in_code = True
                 i -= 1
             elif(line_to_put[0] == "|" and line_to_put[-1] == "|"):
@@ -269,7 +290,7 @@ class ObsidianMarkdownToHtml:
                     if line_to_put.count("|") > 2 and line_to_put.count("|") != file_lines[k].count("|"):
                         skip_ahead = k
                         break
-                    temp_string += self.make_opening_tag("tr")
+                    temp_string += make_opening_tag("tr")
                     t_indicer = "td"
                     if i == k:
                         t_indicer = "th"
@@ -279,16 +300,16 @@ class ObsidianMarkdownToHtml:
                     for elem in table_line:
                         processed_elem = self.line_parser(elem.strip(), in_code, canvas)
                         temp_string += "<" + t_indicer + ">" + processed_elem + "</" + t_indicer + ">\n"
-                    temp_string += self.make_closing_tag("tr")
+                    temp_string += make_closing_tag("tr")
                 if skip_ahead < len(file_lines) and len(file_lines[skip_ahead]) > 3 and file_lines[skip_ahead][0] == "^":
                     new_indice = "<span class=\"anchor\" id=\"" + file_lines[skip_ahead][-8:-1] + "\"></span>\n"
-                    new_indice += self.make_opening_tag("table")
+                    new_indice += make_opening_tag("table")
                     temp_string = new_indice + temp_string
                     skip_ahead += 1
                 else:
-                    temp_string = self.make_opening_tag("table") + temp_string
+                    temp_string = make_opening_tag("table") + temp_string
                 self.in_table = False
-                temp_string += self.make_closing_tag("table")
+                temp_string += make_closing_tag("table")
                 new_file += temp_string
                 i = skip_ahead-1
             else:
@@ -301,8 +322,8 @@ class ObsidianMarkdownToHtml:
                 top_part = line_to_put.split(' ', 1)[0]
                 if len(top_part) == top_part.count("#") and len(top_part) > 0:
                     if in_code:
-                        new_file += self.make_closing_tag("code")
-                        new_file += self.make_closing_tag("pre")
+                        new_file += make_closing_tag("code")
+                        new_file += make_closing_tag("pre")
                         in_code = False
                     indicer = "h" + str(len(top_part))
                     add_tag = True
@@ -313,7 +334,7 @@ class ObsidianMarkdownToHtml:
                         line_to_put = lines_to_add[0]
                 elif (top_part == "-" or top_part == "*") and len(file_lines[i]) > 2:
                     cur_tabbing = 1
-                    new_file += self.make_opening_tag("ul")
+                    new_file += make_opening_tag("ul")
                     while i < len(file_lines):
                         if i == len(file_lines)-1 or canvas:
                             line_to_put = file_lines[i]
@@ -324,29 +345,29 @@ class ObsidianMarkdownToHtml:
                         tabs_ast = line_to_put.split('* ', 1)[0]
                         if tabs.count("\t") == len(tabs):
                             if (tabs.count("\t")+1) > cur_tabbing:
-                                new_file += self.make_opening_tag("ul")*(tabs.count("\t")+1-cur_tabbing)
+                                new_file += make_opening_tag("ul")*(tabs.count("\t")+1-cur_tabbing)
                             elif (tabs.count("\t")+1) < cur_tabbing:
-                                new_file += self.make_closing_tag("ul")*(cur_tabbing-tabs.count("\t")-1)
+                                new_file += make_closing_tag("ul")*(cur_tabbing-tabs.count("\t")-1)
                             cur_tabbing = tabs.count("\t")+1
                             new_file += "<li>"
                             new_file += self.line_parser(line_to_put[2:], in_code, canvas)
-                            new_file += self.make_closing_tag("li")
+                            new_file += make_closing_tag("li")
                         elif tabs_ast.count("\t") == len(tabs_ast):
                             if (tabs_ast.count("\t")+1) > cur_tabbing:
-                                new_file += self.make_opening_tag("ul")*(tabs_ast.count("\t")+1-cur_tabbing)
+                                new_file += make_opening_tag("ul")*(tabs_ast.count("\t")+1-cur_tabbing)
                             elif (tabs_ast.count("\t")+1) < cur_tabbing:
-                                new_file += self.make_closing_tag("ul")*(cur_tabbing-tabs_ast.count("\t")-1)
+                                new_file += make_closing_tag("ul")*(cur_tabbing-tabs_ast.count("\t")-1)
                             cur_tabbing = tabs_ast.count("\t")+1
                             new_file += "<li>"
                             new_file += self.line_parser(line_to_put[2:], in_code, canvas)
-                            new_file += self.make_closing_tag("li")
+                            new_file += make_closing_tag("li")
                         else:
                             break
                         i += 1
-                    new_file += self.make_closing_tag("ul")
+                    new_file += make_closing_tag("ul")
                     continue
                 elif top_part == "1." and len(file_lines[i]) > 2:
-                    new_file += self.make_opening_tag("ol")
+                    new_file += make_opening_tag("ol")
                     cur_num = 1
                     while i < len(file_lines):
                         if i == len(file_lines)-1 or canvas:
@@ -357,12 +378,12 @@ class ObsidianMarkdownToHtml:
                         if line_to_put[:len(cur_prefix)] == cur_prefix:
                             new_file += "<li>"
                             new_file += self.line_parser(line_to_put[len(cur_prefix):], in_code, canvas)
-                            new_file += self.make_closing_tag("li")
+                            new_file += make_closing_tag("li")
                         else:
                             break
                         cur_num += 1
                         i += 1
-                    new_file += self.make_closing_tag("ol")
+                    new_file += make_closing_tag("ol")
                     continue
                 elif len(top_part) > 4 and top_part[:2] == "[^" and top_part[-2:] == "]:":
                     footnote_part = top_part[2:-3]
@@ -372,31 +393,31 @@ class ObsidianMarkdownToHtml:
                     continue
 
                 if indicer == "p" and not in_section:
-                    new_file += self.make_opening_tag("section ")
+                    new_file += make_opening_tag("section ")
                     section_place = len(new_file) - 3
                     in_section = True
                 elif indicer.split(" ")[0] != "p" and in_section:
-                    new_file += self.make_closing_tag("section ")
+                    new_file += make_closing_tag("section ")
                     in_section = False
                     section_place = -1
                     
                 if len(line_to_put) > 6 and line_to_put[-7] == "^" and in_section:
                     temp = " id=\"" + line_to_put[-7:] + "\""
                     new_file = new_file[:section_place] + temp + new_file[section_place:]
-                    new_file += self.make_opening_tag(indicer, False)
+                    new_file += make_opening_tag(indicer, False)
                     line_to_put = line_to_put[:-7]
                 elif len(line_to_put) > 6 and line_to_put[-7] == "^":
                     new_file += "<span class=\"anchor\" id=\"" + line_to_put[-7:] + "\"></span>\n"
-                    new_file += self.make_opening_tag(indicer, False)
+                    new_file += make_opening_tag(indicer, False)
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
-                    id_part = self.remove_from_id_part(line_to_put)
+                    id_part = remove_from_id_part(line_to_put)
                     if add_to_header_list:
                         self.header_list.append((re.sub(self.CLEANR, '', line_to_put), "#" + id_part, int(indicer[1])))
                     new_file += "<span class=\"anchor\" id=\"" + id_part + "\"></span>\n"
                     new_file += "<" + indicer + ">"
                 else:
-                    new_file += self.make_opening_tag(indicer, False)
+                    new_file += make_opening_tag(indicer, False)
                 line_to_put = self.line_parser(line_to_put, in_code, canvas)
                 new_file += line_to_put + "</" + indicer + ">\n"
                 
@@ -404,16 +425,16 @@ class ObsidianMarkdownToHtml:
         
         if len(footnotes) > 0:
             new_file += "<br>\n<hr>\n<br>\n"
-            new_file += self.make_opening_tag("ol class=\"footnotes\"")
+            new_file += make_opening_tag("ol class=\"footnotes\"")
             fn_index = 1
             for footnote in footnotes:
                 new_file = new_file.replace(f"include-fn-[{fn_index}]", footnote[1])
                 new_file += f"<li id=\"fn-index-{fn_index}\">"
                 new_file += footnote[1] + " "
-                new_file += self.make_op_close_inline_tag(f"a class=\"fn-link\" href=\"#fn-{fn_index}\"", "⮐")
-                new_file += self.make_closing_tag("li")
+                new_file += make_op_close_inline_tag(f"a class=\"fn-link\" href=\"#fn-{fn_index}\"", "⮐")
+                new_file += make_closing_tag("li")
                 fn_index += 1
-            new_file += self.make_closing_tag("ol")
+            new_file += make_closing_tag("ol")
 
         return new_file
     
@@ -443,18 +464,18 @@ class ObsidianMarkdownToHtml:
     def nav_bar(self):
         checkbox_prefix = 1
         
-        ret_str = self.make_opening_tag("nav")
+        ret_str = make_opening_tag("nav")
         ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"toggle\">\n"
         ret_str += self.other_pages
         ret_str += "</button>"
         ret_str += "<div id=\"navbar\" popover><div id=\"idk\">"
-        ret_str += self.make_opening_tag("ul class=\"menu\"")
+        ret_str += make_opening_tag("ul class=\"menu\"")
         
         file_tuples = sorted(self.link_to_filepath.items(), key=lambda x: x[1].rsplit("\\", 1))
         
         for i in range(0, len(file_tuples)):
             if i == 0 or (i > 0 and file_tuples[i-1][1] != file_tuples[i][1]):
-                link = self.make_offset()+file_tuples[i][1][1:]
+                link = make_offset(self.offset)+file_tuples[i][1][1:]
                 if file_tuples[i][1].rsplit("\\", 1)[0] != file_tuples[i-1][1].rsplit("\\", 1)[0]:
                     # delete pre each slash till slashes are different
                     fileprev = file_tuples[i-1][1].rsplit("\\", 1)[0] + "\\"
@@ -468,7 +489,7 @@ class ObsidianMarkdownToHtml:
                     # add close uls corresp to slashes of i-1
                     if(i != 0):
                         if(fileprev != "." and fileprev != ""):
-                            ret_str += (fileprev.count("\\"))*(self.make_closing_tag("ul")+self.make_closing_tag("li"))
+                            ret_str += (fileprev.count("\\"))*(make_closing_tag("ul")+make_closing_tag("li"))
                             
                         # add folders, open uls corresp to slashes of i
                         if(filecur != "."):
@@ -481,10 +502,10 @@ class ObsidianMarkdownToHtml:
                                 ret_str += "<label id=\"checkbox\" for=" + checkbox_tag + ">" + filecur_elems[j].title() + "</label>\n"
                                 ret_str += "<ul class=\"child\">\n"
                 #remove indexed
-                ret_str += "<li>" + self.make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + self.make_closing_tag("li")
-        ret_str += self.make_closing_tag("ul") + 3*"</br>\n" + "</div>" + self.make_closing_tag("div")
+                ret_str += "<li>" + make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + make_closing_tag("li")
+        ret_str += make_closing_tag("ul") + 3*"</br>\n" + "</div>" + make_closing_tag("div")
 
-        ret_str += self.make_op_close_inline_tag("p class=\"top-bar\"", self.nuwa_file.replace("\\", "<span class=\"file-link\"> > </span>"))
+        ret_str += make_op_close_inline_tag("p class=\"top-bar\"", self.nuwa_file.replace("\\", "<span class=\"file-link\"> > </span>"))
 
         ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
         ret_str += self.other_headers
@@ -492,12 +513,12 @@ class ObsidianMarkdownToHtml:
         ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
         
         for header in (self.header_list):
-            ret_str += self.make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", self.make_link(header[1], header[0]).replace("[[","").replace("]]",""))
+            ret_str += make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", make_link(header[1], header[0]).replace("[[","").replace("]]",""))
         self.header_list = []
         ret_str += 3*"<br/>\n"
-        ret_str += self.make_closing_tag("div")
-        ret_str += self.make_closing_tag("div")
-        ret_str += self.make_closing_tag("nav")
+        ret_str += make_closing_tag("div")
+        ret_str += make_closing_tag("div")
+        ret_str += make_closing_tag("nav")
         return ret_str
         
     def add_files_to_dict(self, sep_files, rel_dir):
@@ -523,10 +544,10 @@ class ObsidianMarkdownToHtml:
                     (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
 
     def footer(self):
-        ret_str = self.make_opening_tag("footer")
-        ret_str += self.make_op_close_inline_tag("p", "Generated with the <a target=\"_blank\" href=\"https://github.com/Ishancorp/ObsidianMarkdownToHtml\">Obsidian Markdown to HTML script</a>")
-        ret_str += self.make_op_close_inline_tag("p", "Last updated on " + datetime.datetime.now().strftime("%m/%d/%Y"))
-        ret_str += self.make_closing_tag("footer")
+        ret_str = make_opening_tag("footer")
+        ret_str += make_op_close_inline_tag("p", "Generated with the <a target=\"_blank\" href=\"https://github.com/Ishancorp/ObsidianMarkdownToHtml\">Obsidian Markdown to HTML script</a>")
+        ret_str += make_op_close_inline_tag("p", "Last updated on " + datetime.datetime.now().strftime("%m/%d/%Y"))
+        ret_str += make_closing_tag("footer")
         return ret_str
 
     def add_dirs_to_dict(self, path):
@@ -547,7 +568,7 @@ class ObsidianMarkdownToHtml:
     def read_json(self, file_name):
         with open(file_name, encoding='utf-8') as json_data:
             return json.load(json_data)
-  
+    
     def json_viewer(self, data):
         nodes_by_id = {}
         max_x = 0
@@ -577,9 +598,9 @@ class ObsidianMarkdownToHtml:
             svg_part += f"<line class=\"line\" x1=\"{node_from[edge["fromSide"]][0]+750}\" y1=\"{node_from[edge["fromSide"]][1]+400}\" x2=\"{node_to[edge["toSide"]][0]+750}\" y2=\"{node_to[edge["toSide"]][1]+400}\"/>\n"
             arrow_side = edge["toSide"]
             if arrow_side == "left":
-              arrow_part += f"<i class=\"arrow {arrow_side}\" style=\"left:{node_to[arrow_side][0]+740}px;top:{node_to[arrow_side][1]+395}px;\"></i>\n"
+                arrow_part += f"<i class=\"arrow {arrow_side}\" style=\"left:{node_to[arrow_side][0]+740}px;top:{node_to[arrow_side][1]+395}px;\"></i>\n"
             else:
-              arrow_part += f"<i class=\"arrow {arrow_side}\" style=\"left:{node_to[arrow_side][0]+745}px;top:{node_to[arrow_side][1]+390}px;\"></i>\n"
+                arrow_part += f"<i class=\"arrow {arrow_side}\" style=\"left:{node_to[arrow_side][0]+745}px;top:{node_to[arrow_side][1]+390}px;\"></i>\n"
         svg_part += "</svg>\n"
         return "<div id=\"outer-box\">\n" + "<div id=\"scrollable-box\">\n" + "<div id=\"innard\">" + arrow_part + svg_part + div_part + (2 * "</div>\n") + self.canvas_bar + "</div>\n"
 
@@ -590,15 +611,15 @@ class ObsidianMarkdownToHtml:
         exp_file = open(export_file, "w", encoding="utf-8")
         exp_file.write(new_file)
         exp_file.close()
-      
+
     def top_part(self, file_name):
-        new_file = self.make_opening_tag("html")
-        new_file += self.make_opening_tag("head")
+        new_file = make_opening_tag("html")
+        new_file += make_opening_tag("head")
         new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-        new_file += self.make_op_close_inline_tag("title", file_name)
+        new_file += make_op_close_inline_tag("title", file_name)
         new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/\">\n"
         new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/inter/inter.css\">\n"
-        new_file += "<link rel=\"stylesheet\" href=\""+ self.make_offset() + "\\style.css\">\n"
+        new_file += "<link rel=\"stylesheet\" href=\""+ make_offset(self.offset) + "\\style.css\">\n"
         return new_file
         
     def compile_webpages(self):
@@ -610,24 +631,24 @@ class ObsidianMarkdownToHtml:
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
                 new_file = self.top_part(file_name)
-                new_file += self.make_closing_tag("head")
-                new_file += self.make_opening_tag("body")
+                new_file += make_closing_tag("head")
+                new_file += make_opening_tag("body")
 
                 viewed_file = self.file_viewer(file_dir)
 
                 self.nuwa_file = file[2:-3]
                 new_file += self.nav_bar()
                 
-                new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
-                new_file += self.make_opening_tag("article")
+                new_file += make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
+                new_file += make_opening_tag("article")
 
                 new_file += viewed_file
                 
-                new_file += self.make_closing_tag("article")
+                new_file += make_closing_tag("article")
                 
                 new_file += self.footer()
-                new_file += self.make_closing_tag("body")
-                new_file += self.make_closing_tag("html")
+                new_file += make_closing_tag("body")
+                new_file += make_closing_tag("html")
                     
                 self.writeToFile(full_file_name, new_file)
                 # break
@@ -636,25 +657,25 @@ class ObsidianMarkdownToHtml:
                 file_name = file_name.split("\\")[-1]
                 new_file = self.top_part(file_name)
 
-                new_file += self.make_opening_tag("style")
+                new_file += make_opening_tag("style")
                 new_file += self.json_stylesheet
-                new_file += self.make_closing_tag("style")
+                new_file += make_closing_tag("style")
 
-                new_file += self.make_closing_tag("head")
-                new_file += self.make_opening_tag("body")
+                new_file += make_closing_tag("head")
+                new_file += make_opening_tag("body")
 
                 self.nuwa_file = file[2:] + ".html"
                 new_file += self.nav_bar()
                 
-                new_file += self.make_op_close_inline_tag("h1 class=\"file-title\"", file_name + ".CANVAS")
+                new_file += make_op_close_inline_tag("h1 class=\"file-title\"", file_name + ".CANVAS")
 
                 canvas_dict = self.read_json(file_dir)
                 new_file += self.json_viewer(canvas_dict)
                 
                 new_file += self.footer()
-                new_file += "<script src=\""+ self.make_offset() + "\\canvas.js\"></script>\n"
-                new_file += self.make_closing_tag("body")
-                new_file += self.make_closing_tag("html")
+                new_file += "<script src=\""+ make_offset(self.offset) + "\\canvas.js\"></script>\n"
+                new_file += make_closing_tag("body")
+                new_file += make_closing_tag("html")
                     
                 self.writeToFile(full_file_name + ".canvas", new_file)
             else:
