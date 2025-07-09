@@ -129,8 +129,6 @@ class ObsidianMarkdownToHtml:
         
     def line_parser(self, line, in_code = False, canvas=False):
         ret_line = ""
-        in_bold = False
-        in_italics = False
         footnote = -1
         skip_beginning = -1
         extern_links = [-1, -1,-1]
@@ -144,34 +142,36 @@ class ObsidianMarkdownToHtml:
                 elif line[i] == ']': ret_line = ret_line[:-1] + "&#93;"
                 elif line[i] == '\\': ret_line = ret_line[:-1] + "&#92;"
                 elif line[i] == '|': ret_line = ret_line[:-1] + "&#124;"
-            elif i > 1 and line[i] == '*' and line[i-1] == '*' and line[i-2] == '*' and not in_code:
-                if in_bold:
-                    in_italics = True
-                    ret_line = ret_line[:-8] + "<strong><em>"
+                line = line[:i] + ' ' + line[i+1:]
+            elif i > 1 and (i+3 <= len(line)) and line[i] == '*' and line[i+1] == '*' and line[i+2] == '*'  and not in_code:
+                i += 2
+                if not style_stack:
+                    ret_line = ret_line + "<strong><em>"
                     style_stack.append('b')
                     style_stack.append('i')
+                    print(style_stack)
+                    print(ret_line)
                 else:
-                    in_italics = False
-                    ret_line = ret_line[:-10] + "</em></strong>"
+                    ret_line = ret_line + "</em></strong>"
+                    print(ret_line)
+                    print(style_stack)
                     style_stack.pop()
                     style_stack.pop()
-            elif i > 0 and line[i] == '*' and line[i-1] == '*' and not in_code:
-                if in_bold:
-                    in_bold, in_italics = False, False
-                    ret_line = ret_line[:-4] + "</strong>"
-                    style_stack.pop()
-                else:
-                    in_bold, in_italics = True, False
-                    ret_line = ret_line[:-4] + "<strong>"
+            elif i > 0 and (i+2 <= len(line)) and line[i] == '*' and line[i+1] == '*' and not in_code:
+                i += 1
+                if not style_stack:
+                    ret_line = ret_line + "<strong>"
                     style_stack.append('b')
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_italics and not in_code:
-                in_italics = True
-                ret_line += "<em>"
-                style_stack.append('i')
-            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and in_italics and not in_code:
-                in_italics = False
-                ret_line += "</em>"
-                style_stack.pop()
+                else:
+                    ret_line = ret_line + "</strong>"
+                    style_stack.pop()
+            elif (line[i] == '*' or line[i] == '_') and line[i-1] != '\\' and not in_code:
+                if not style_stack:
+                    ret_line += "<em>"
+                    style_stack.append('i')
+                else:
+                    ret_line += "</em>"
+                    style_stack.pop()
             elif i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
                 skip_beginning = i+1
                 ret_line = ret_line[:-2]
