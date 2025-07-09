@@ -152,8 +152,6 @@ class ObsidianMarkdownToHtml:
         ret_line = ""
         footnote = -1
         skip_beginning = -1
-        extern_links = [-1, -1,-1]
-        style_stack = []
         i = 0
 
         while i < len(line):
@@ -192,11 +190,6 @@ class ObsidianMarkdownToHtml:
                 ret_line += line[i]
             
             i += 1
-        
-        while style_stack:
-            elem = style_stack.pop()
-            if elem == 'i': ret_line += "</em>"
-            elif elem == 'b': ret_line += "</strong>"
         ret_line = markdown.markdown(ret_line, extensions=[self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset))])
         return ret_line
     
