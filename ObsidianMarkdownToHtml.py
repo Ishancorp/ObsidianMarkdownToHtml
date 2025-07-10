@@ -11,12 +11,6 @@ CLEANR = re.compile('<.*?>')
 external_link = ""
 with open("svg/other_extern.html", encoding='utf-8') as other_pages: external_link = " " + other_pages.read()
 
-
-md = markdown.Markdown(extensions=[])
-md.parser.blockprocessors.deregister('code')
-md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
-
-
 def make_opening_tag(indicer, newline_end = True):
     return "<" + indicer + ">" + (newline_end * "\n")
 
@@ -92,12 +86,12 @@ class ObsidianMarkdownToHtml:
                         
             cue_text = mk_link.split("#")[-1].lower().replace(" ", "-")
             examined_lines = self.readlines_raw(self.in_directory+f_p)
-            footnotes = []
+            
             if cue_text[0] == '^':
                 new_lines = []
                 for i in range(len(examined_lines) - 1, -1, -1):
                     if examined_lines[i].split("\n")[0][-7:] == cue_text:
-                        new_lines = [self.line_parser(examined_lines[i].split("\n")[0][:-7])]
+                        new_lines = [examined_lines[i].split("\n")[0][:-7]]
                         for j in range(i-1,  -1, -1):
                             if examined_lines[j][:2] == "# " or examined_lines[j][:3] == "## " \
                                 or examined_lines[j][:4] == "### " or examined_lines[j][:5] == "#### " \
@@ -106,10 +100,6 @@ class ObsidianMarkdownToHtml:
                                 break
                             new_lines.insert(0, examined_lines[j])
                         break
-                    top_part = examined_lines[i].split(' ', 1)[0]
-                    if len(top_part) > 4 and top_part[:2] == "[^" and top_part[-2:] == "]:":
-                        parsed_line = self.line_parser(examined_lines[i][len(top_part)+1:], in_code=False, canvas=False)
-                        footnotes.insert(0, parsed_line)
                 transcl_sec += self.read_lines(new_lines, 0, add_to_header_list=False)
             else:
                 new_lines = []
@@ -123,16 +113,7 @@ class ObsidianMarkdownToHtml:
                                 break
                             new_lines.append(examined_lines[j])
                         break
-                    top_part = examined_lines[i].split(' ', 1)[0]
-                    if len(top_part) > 4 and top_part[:2] == "[^" and top_part[-2:] == "]:":
-                        parsed_line = self.line_parser(examined_lines[i][len(top_part)+1:], in_code=False, canvas=False)
-                        footnotes.append(parsed_line)
                 transcl_sec += self.read_lines(new_lines, 0, add_to_header_list=False)
-            
-            fn_index = 1
-            for footnote in footnotes:
-                transcl_sec = transcl_sec.replace(f"include-fn-[{fn_index}]", footnote)
-                fn_index += 1
 
             ret_line += transcl_sec
         else:
@@ -150,11 +131,18 @@ class ObsidianMarkdownToHtml:
         return ret_line
     
     def process_markdown(self, text):
-        return markdown.markdown(text, extensions=[self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset)), "sane_lists"])
+        # Create markdown instance with footnote extension and tables
+        extensions = [
+            self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset)),
+            ObsidianFootnoteExtension(),
+            "sane_lists",
+            "tables"  # Add tables extension
+        ]
+        return markdown.markdown(text, extensions=extensions)
         
     def line_parser(self, line, in_code = False, canvas=False):
+        """Simplified line parser - footnotes are now handled by processors"""
         ret_line = ""
-        footnote = -1
         skip_beginning = -1
         i = 0
 
@@ -176,160 +164,66 @@ class ObsidianMarkdownToHtml:
                 ret_line += "<br>\n"
                 ret_line += "</aside>\n"
                 i = j
-            elif line[i-1] == "[" and line[i] == "^":
-                footnote = i
-                ret_line += line[i]
-            elif line[i] == "]" and footnote != -1:
-                footnote_num = ret_line[footnote+1:]
-                footnote_tag = make_op_close_inline_tag(
-                    f"span id=\"fn-{footnote_num}\" class=\"fn fn-{footnote_num}\"", 
-                    make_op_close_inline_tag(
-                        f"a class=\"fn-link\" href=\"#fn-index-{footnote_num}\"",
-                        make_op_close_inline_tag("sup", f"[{footnote_num}]")
-                    ) + make_op_close_inline_tag("span class=\"fn-tooltip\"", f"include-fn-[{footnote_num}]")
-                )
-                ret_line = ret_line[:footnote-1] + footnote_tag
-                footnote = -1
             else:
                 ret_line += line[i]
             
             i += 1
+        
+        # Process through markdown (which will handle footnotes)
         ret_line = self.process_markdown(ret_line)
         return ret_line
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
+        """Process lines with proper table handling"""
         i = opening
-        in_section = False
-        section_place = -1
-        in_code = False
         new_file = ""
-        footnotes = []
+        
+        # Process lines in chunks to handle tables properly
+        current_chunk = []
+        in_table = False
+        
         while i < len(file_lines):
             if i == len(file_lines)-1 or canvas:
                 line_to_put = file_lines[i]
             else:
                 line_to_put = file_lines[i][:-1]
-            indicer = "p"
-            add_tag = False
-
-            if line_to_put.strip() == "" and not (len(line_to_put) > 0 and line_to_put[0] == "	"):
-                if in_section:
-                    new_file += make_closing_tag("section ")
-                    in_section = False
-                    section_place = -1
-                if in_code:
-                    new_file += make_closing_tag("code")
-                    new_file += make_closing_tag("pre")
-                    in_code = False
-                new_file += "<br>\n"
-                i += 1
-                continue
-            elif(line_to_put[0] == "|" and line_to_put[-1] == "|"):
-                self.in_table = True
-                temp_string = ""
-                skip_ahead = len(file_lines)
-                for k in range (i,len(file_lines)):
-                    if line_to_put.count("|") > 2 and line_to_put.count("|") != file_lines[k].count("|"):
-                        skip_ahead = k
-                        break
-                    temp_string += make_opening_tag("tr")
-                    t_indicer = "td"
-                    if i == k:
-                        t_indicer = "th"
-                    elif i+1 == k:
-                        continue
-                    table_line = file_lines[k][:-1].split("|")[1:-1]
-                    for elem in table_line:
-                        processed_elem = self.line_parser(elem.strip(), in_code, canvas)
-                        temp_string += "<" + t_indicer + ">" + processed_elem + "</" + t_indicer + ">\n"
-                    temp_string += make_closing_tag("tr")
-                if skip_ahead < len(file_lines) and len(file_lines[skip_ahead]) > 3 and file_lines[skip_ahead][0] == "^":
-                    new_indice = "<span class=\"anchor\" id=\"" + file_lines[skip_ahead][-8:-1] + "\"></span>\n"
-                    new_indice += make_opening_tag("table")
-                    temp_string = new_indice + temp_string
-                    skip_ahead += 1
-                else:
-                    temp_string = make_opening_tag("table") + temp_string
-                self.in_table = False
-                temp_string += make_closing_tag("table")
-                new_file += temp_string
-                i = skip_ahead-1
+            
+            # Check if this line could be part of a table
+            is_table_line = '|' in line_to_put and line_to_put.strip()
+            is_table_separator = re.match(r'^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', line_to_put)
+            
+            if is_table_line or is_table_separator:
+                if not in_table:
+                    # Process any accumulated non-table content
+                    if current_chunk:
+                        content_text = '\n'.join(current_chunk)
+                        processed_content = self.process_markdown(content_text)
+                        new_file += processed_content
+                        current_chunk = []
+                    in_table = True
+                current_chunk.append(line_to_put)
             else:
-                top_part = line_to_put.split(' ', 1)[0]
-                if (top_part == "-" or top_part == "*") and len(file_lines[i]) > 2:
-                    new_stuff = ""
-                    new_file += make_opening_tag("ul")
-                    while i < len(file_lines):
-                        tabs = file_lines[i].split('- ', 1)[0]
-                        tabs_ast = file_lines[i].split('* ', 1)[0]
-                        tabs_plu = file_lines[i].split('+ ', 1)[0]
-                        if tabs.count("\t") == len(tabs) or tabs_ast.count("\t") == len(tabs_ast) or tabs_plu.count("\t") == len(tabs_ast):
-                            new_stuff += file_lines[i]
-                        else:
-                            break
-                        i += 1
-                    new_file += self.process_markdown(new_stuff)
-                    continue
-                elif top_part == "1." and len(file_lines[i]) > 2:
-                    new_stuff = ""
-                    cur_num = 1
-                    while i < len(file_lines):
-                        cur_prefix = str(cur_num) + ". "
-                        if file_lines[i][:len(cur_prefix)] == cur_prefix:
-                            new_stuff += file_lines[i] + "\n"
-                        else:
-                            break
-                        cur_num += 1
-                        i += 1
-                    new_file += self.process_markdown(new_stuff)
-                    continue
-                elif len(top_part) > 4 and top_part[:2] == "[^" and top_part[-2:] == "]:":
-                    footnote_part = top_part[2:-3]
-                    parsed_line = self.line_parser(file_lines[i][len(top_part)+1:], in_code, canvas)
-                    footnotes.append([footnote_part, parsed_line])
-                    i += 1
-                    continue
-
-                if indicer == "p" and not in_section:
-                    new_file += make_opening_tag("section ")
-                    section_place = len(new_file) - 3
-                    in_section = True
-                elif indicer.split(" ")[0] != "p" and in_section:
-                    new_file += make_closing_tag("section ")
-                    in_section = False
-                    section_place = -1
-                    
-                if len(line_to_put) > 6 and line_to_put[-7] == "^" and in_section:
-                    temp = " id=\"" + line_to_put[-7:] + "\""
-                    new_file = new_file[:section_place] + temp + new_file[section_place:]
-                    line_to_put = line_to_put[:-7]
-                elif len(line_to_put) > 6 and line_to_put[-7] == "^":
-                    new_file += "<span class=\"anchor\" id=\"" + line_to_put[-7:] + "\"></span>\n"
-                    line_to_put = line_to_put[:-7]
-                elif add_tag:
-                    id_part = remove_from_id_part(line_to_put)
-                    if add_to_header_list:
-                        self.header_list.append((re.sub(self.CLEANR, '', line_to_put), "#" + id_part, int(indicer[1])))
-                    new_file += "<span class=\"anchor\" id=\"" + id_part + "\"></span>\n"
-                line_to_put = self.line_parser(line_to_put, in_code, canvas)
-                new_file += line_to_put
+                if in_table:
+                    # End of table - process the table chunk
+                    if current_chunk:
+                        content_text = '\n'.join(current_chunk)
+                        processed_content = self.process_markdown(content_text)
+                        new_file += processed_content
+                        current_chunk = []
+                    in_table = False
                 
+                # Add non-table line to current chunk
+                current_chunk.append(line_to_put)
+            
             i += 1
         
-        if len(footnotes) > 0:
-            new_file += "<br>\n<hr>\n<br>\n"
-            new_file += make_opening_tag("ol class=\"footnotes\"")
-            fn_index = 1
-            for footnote in footnotes:
-                new_file = new_file.replace(f"include-fn-[{fn_index}]", footnote[1])
-                new_file += f"<li id=\"fn-index-{fn_index}\">"
-                new_file += footnote[1] + " "
-                new_file += make_op_close_inline_tag(f"a class=\"fn-link\" href=\"#fn-{fn_index}\"", "⮐")
-                new_file += make_closing_tag("li")
-                fn_index += 1
-            new_file += make_closing_tag("ol")
-
-        return new_file
+        # Process any remaining content
+        if current_chunk:
+            content_text = '\n'.join(current_chunk)
+            processed_content = self.process_markdown(content_text)
+            new_file += processed_content
+        
+        return new_file    
     
     def readlines_raw(self, file_dir):
         open_file = open(file_dir, "r", encoding="utf8")
@@ -584,4 +478,3 @@ class ObsidianMarkdownToHtml:
         
         with open((self.out_directory) + "\\canvas.js", "w") as text_file:
             text_file.write(self.script)
-

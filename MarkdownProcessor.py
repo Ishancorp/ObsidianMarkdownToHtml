@@ -1,7 +1,9 @@
 from markdown.blockprocessors import BlockProcessor
 from markdown.treeprocessors import Treeprocessor
-import xml.etree.ElementTree as etree
 from markdown.inlinepatterns import InlineProcessor
+from markdown.extensions.footnotes import FootnoteExtension, FootnoteInlineProcessor, FootnoteBlockProcessor
+from markdown.extensions import Extension
+import xml.etree.ElementTree as etree
 import re
 
 def slugify(text):
@@ -39,61 +41,106 @@ class IndentedParagraphProcessor(BlockProcessor):
 
         para.text = '\n'.join(stripped_lines)
 
-class SectionBlockProcessor(BlockProcessor):
-    HEADER_RE = re.compile(r'^(#{1,6})\s+(.*)')  # Header regex (for markdown headers)
-    BLANK_LINE_RE = re.compile(r'^\s*$')  # Blank line regex
+class ObsidianFootnoteInlineProcessor(InlineProcessor):
+    """Process Obsidian-style footnotes [^1] and convert them to standard markdown footnotes"""
+    
+    def __init__(self, pattern, md):
+        super().__init__(pattern, md)
+        self.RE = re.compile(r'\[\^([^\]]+)\]')
+    
+    def handleMatch(self, m, matcher):
+        footnote_id = m.group(1)
+        
+        # Create footnote reference in standard markdown format
+        el = etree.Element('sup')
+        link = etree.SubElement(el, 'a')
+        link.set('href', f'#fn:{footnote_id}')
+        link.set('class', 'footnote-ref')
+        link.set('id', f'fnref:{footnote_id}')
+        link.text = f'[{footnote_id}]'
+        
+        return el, m.start(0), m.end(0)
 
+class ObsidianFootnoteBlockProcessor(BlockProcessor):
+    """Process Obsidian-style footnote definitions [^1]: content"""
+    
+    def __init__(self, parser):
+        super().__init__(parser)
+        self.RE = re.compile(r'^\[\^([^\]]+)\]:\s*(.*)')
+        self.footnotes = {}
+    
     def test(self, parent, block):
-        # Process any block
+        return bool(self.RE.match(block))
+    
+    def run(self, parent, blocks):
+        block = blocks.pop(0)
+        lines = block.split('\n')
+        
+        # Parse the first line
+        match = self.RE.match(lines[0])
+        if not match:
+            return
+        
+        # Process continuation lines
+        for line in lines:
+            if line.strip():  # Non-empty line
+                #footnote_content.append(line)
+                match = self.RE.match(line)
+                if not match:
+                    return
+                footnote_id = match.group(1)
+                line_content = match.group(2)
+                self.footnotes[footnote_id] = line_content
+            else:
+                break
         return True
 
-    def run(self, parent, blocks):
-        section = None  # Will hold the current section
-        buffer = []  # Will accumulate blocks (paragraphs, lists, etc.)
-
-        # Deregister to prevent recursion during block processing
-        self.parser.blockprocessors.deregister('section_block')
-
-        try:
-            while blocks:
-                block = blocks.pop(0)
-
-                # Handle header (new section)
-                if self.HEADER_RE.match(block):
-                    # If we have accumulated blocks in the previous section, append it
-                    if section is not None:
-                        parent.append(section)
-                        section = None  # Start a new section
-
-                    # Process the header and create the corresponding HTML header
-                    header_match = self.HEADER_RE.match(block)
-                    header_level = len(header_match.group(1))
-                    header_text = header_match.group(2)
-                    header = etree.SubElement(parent, f'h{header_level}')
-                    header.text = header_text
-                    continue  # Skip to the next block
-
-                # Handle blank line (this ends the current section)
-                if self.BLANK_LINE_RE.match(block):
-                    if section is not None:
-                        parent.append(section)  # Finalize the current section
-                        section = None  # Start a new section
-                    continue  # Skip to the next block
-
-                # If we haven't started a section yet, create one
-                if section is None:
-                    section = etree.Element('section')
-
-                # Add the block (could be a paragraph, list, etc.) to the current section
-                self.parser.parseBlocks(section, [block])
-
-            # Add any remaining section to the parent if exists
-            if section is not None:
-                parent.append(section)
-
-        finally:
-            # Re-register the processor to avoid recursion issues
-            self.parser.blockprocessors.register(self, 'section_block', 76)
+class FootnoteTreeProcessor(Treeprocessor):
+    """Process stored footnotes and add them to the document"""
+    
+    def __init__(self, md, footnote_processor):
+        super().__init__(md)
+        self.footnote_processor = footnote_processor
+    
+    def run(self, root):
+        if not hasattr(self.footnote_processor, 'footnotes') or not self.footnote_processor.footnotes:
+            return
+        
+        # Create a copy of the footnotes dictionary to avoid modification during iteration
+        footnotes_copy = dict(self.footnote_processor.footnotes)
+        
+        # Create footnotes section
+        footnotes_div = etree.Element('div')
+        footnotes_div.set('class', 'footnotes')
+        
+        # Add horizontal rule
+        hr = etree.SubElement(footnotes_div, 'hr')
+        
+        # Create ordered list for footnotes
+        ol = etree.SubElement(footnotes_div, 'ol')
+        
+        # Iterate over the copy instead of the original
+        for footnote_id, content in footnotes_copy.items():
+            # Create list item
+            li = etree.SubElement(ol, 'li')
+            li.set('id', f'fn:{footnote_id}')
+            
+            # Process footnote content through markdown
+            footnote_root = etree.Element('div')
+            self.md.parser.parseChunk(footnote_root, content)
+            
+            # Move processed content to list item
+            for child in footnote_root:
+                li.append(child)
+            
+            # Add back-reference link
+            backref = etree.SubElement(li, 'a')
+            backref.set('href', f'#fnref:{footnote_id}')
+            backref.set('class', 'footnote-backref')
+            backref.text = '↩'
+        
+        # Add footnotes section to the end of the document
+        root.append(footnotes_div)
 
 class WikiLinkInlineProcessor(InlineProcessor):
     def __init__(self, pattern, md, link_dict, offset):
@@ -139,8 +186,6 @@ class AnchorSpanTreeProcessor(Treeprocessor):
                     span = etree.Element('span')
                     span.set('class', 'anchor')
                     span.set('id', header_id)
-                    #print(header_id)
-                    #print(span)
 
                     # Insert span before header
                     parent.insert(i, span)
@@ -151,3 +196,15 @@ class AnchorSpanTreeProcessor(Treeprocessor):
                 i += 1
 
         process_element(root)
+
+class ObsidianFootnoteExtension(Extension):
+    """Extension to handle Obsidian-style footnotes"""
+    
+    def extendMarkdown(self, md):
+        # Create footnote processor instance
+        footnote_processor = ObsidianFootnoteBlockProcessor(md.parser)
+        
+        # Register processors
+        md.parser.blockprocessors.register(footnote_processor, 'obsidian_footnote', 80)
+        md.inlinePatterns.register(ObsidianFootnoteInlineProcessor(r'\[\^([^\]]+)\]', md), 'obsidian_footnote_ref', 180)
+        md.treeprocessors.register(FootnoteTreeProcessor(md, footnote_processor), 'footnote_tree', 10)
