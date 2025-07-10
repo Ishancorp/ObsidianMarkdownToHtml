@@ -73,6 +73,7 @@ class ObsidianMarkdownToHtml:
 
         def extendMarkdown(self, md):
             md.parser.blockprocessors.deregister('code')
+            md.treeprocessors.register(AnchorSpanTreeProcessor(md), 'anchor_span', 15)
             md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
             WIKILINK_RE = r'\[\[([^\]]+)\]\]'
             md.inlinePatterns.register(WikiLinkInlineProcessor(WIKILINK_RE, md, self.link_dict, self.offset), 'wikilink', 175)
@@ -147,6 +148,9 @@ class ObsidianMarkdownToHtml:
         ret_line += make_link(make_offset(self.offset) + link[1:].replace("*",""), ">>", "_self", "goto")
         ret_line += make_closing_tag("div")
         return ret_line
+    
+    def process_markdown(self, text):
+        return markdown.markdown(text, extensions=[self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset)), "sane_lists"])
         
     def line_parser(self, line, in_code = False, canvas=False):
         ret_line = ""
@@ -190,7 +194,7 @@ class ObsidianMarkdownToHtml:
                 ret_line += line[i]
             
             i += 1
-        ret_line = markdown.markdown(ret_line, extensions=[self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset))])
+        ret_line = self.process_markdown(ret_line)
         return ret_line
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
@@ -220,18 +224,8 @@ class ObsidianMarkdownToHtml:
                 new_file += "<br>\n"
                 i += 1
                 continue
-            elif len(line_to_put) >= 3 and len(line_to_put) == line_to_put.count("-"):
-                new_file += "<hr>\n<br>\n"
-                i += 1
-                continue
-            elif not in_code and i >= 1 and line_to_put[0] == "	" and (file_lines[i-1].strip() == "" or file_lines[i-1][0] == "#"):
-                new_file += make_opening_tag("pre")
-                new_file += make_opening_tag("code")
-                in_code = True
-                i -= 1
             elif(line_to_put[0] == "|" and line_to_put[-1] == "|"):
                 self.in_table = True
-                end_point = 0
                 temp_string = ""
                 skip_ahead = len(file_lines)
                 for k in range (i,len(file_lines)):
@@ -261,77 +255,33 @@ class ObsidianMarkdownToHtml:
                 new_file += temp_string
                 i = skip_ahead-1
             else:
-                if not in_code and i >= 1 and line_to_put[:3] == "			":
-                    indicer = "p class = \"indent-3\""
-                elif not in_code and i >= 1 and line_to_put[:2] == "		":
-                    indicer = "p class = \"indent-2\""
-                elif not in_code and i >= 1 and line_to_put[0] == "	":
-                    indicer = "p class = \"indent-1\""
                 top_part = line_to_put.split(' ', 1)[0]
-                if len(top_part) == top_part.count("#") and len(top_part) > 0:
-                    if in_code:
-                        new_file += make_closing_tag("code")
-                        new_file += make_closing_tag("pre")
-                        in_code = False
-                    indicer = "h" + str(len(top_part))
-                    add_tag = True
-                    lines_to_add = line_to_put.split(' ', 1)
-                    if len(lines_to_add) > 1:
-                        line_to_put = lines_to_add[1]
-                    else:
-                        line_to_put = lines_to_add[0]
-                elif (top_part == "-" or top_part == "*") and len(file_lines[i]) > 2:
-                    cur_tabbing = 1
+                if (top_part == "-" or top_part == "*") and len(file_lines[i]) > 2:
+                    new_stuff = ""
                     new_file += make_opening_tag("ul")
                     while i < len(file_lines):
-                        if i == len(file_lines)-1 or canvas:
-                            line_to_put = file_lines[i]
-                        else:
-                            line_to_put = file_lines[i][:-1]
-
-                        tabs = line_to_put.split('- ', 1)[0]
-                        tabs_ast = line_to_put.split('* ', 1)[0]
-                        if tabs.count("\t") == len(tabs):
-                            if (tabs.count("\t")+1) > cur_tabbing:
-                                new_file += make_opening_tag("ul")*(tabs.count("\t")+1-cur_tabbing)
-                            elif (tabs.count("\t")+1) < cur_tabbing:
-                                new_file += make_closing_tag("ul")*(cur_tabbing-tabs.count("\t")-1)
-                            cur_tabbing = tabs.count("\t")+1
-                            new_file += "<li>"
-                            new_file += self.line_parser(line_to_put[2:], in_code, canvas)
-                            new_file += make_closing_tag("li")
-                        elif tabs_ast.count("\t") == len(tabs_ast):
-                            if (tabs_ast.count("\t")+1) > cur_tabbing:
-                                new_file += make_opening_tag("ul")*(tabs_ast.count("\t")+1-cur_tabbing)
-                            elif (tabs_ast.count("\t")+1) < cur_tabbing:
-                                new_file += make_closing_tag("ul")*(cur_tabbing-tabs_ast.count("\t")-1)
-                            cur_tabbing = tabs_ast.count("\t")+1
-                            new_file += "<li>"
-                            new_file += self.line_parser(line_to_put[2:], in_code, canvas)
-                            new_file += make_closing_tag("li")
+                        tabs = file_lines[i].split('- ', 1)[0]
+                        tabs_ast = file_lines[i].split('* ', 1)[0]
+                        tabs_plu = file_lines[i].split('+ ', 1)[0]
+                        if tabs.count("\t") == len(tabs) or tabs_ast.count("\t") == len(tabs_ast) or tabs_plu.count("\t") == len(tabs_ast):
+                            new_stuff += file_lines[i]
                         else:
                             break
                         i += 1
-                    new_file += make_closing_tag("ul")
+                    new_file += self.process_markdown(new_stuff)
                     continue
                 elif top_part == "1." and len(file_lines[i]) > 2:
-                    new_file += make_opening_tag("ol")
+                    new_stuff = ""
                     cur_num = 1
                     while i < len(file_lines):
-                        if i == len(file_lines)-1 or canvas:
-                            line_to_put = file_lines[i]
-                        else:
-                            line_to_put = file_lines[i][:-1]
                         cur_prefix = str(cur_num) + ". "
-                        if line_to_put[:len(cur_prefix)] == cur_prefix:
-                            new_file += "<li>"
-                            new_file += self.line_parser(line_to_put[len(cur_prefix):], in_code, canvas)
-                            new_file += make_closing_tag("li")
+                        if file_lines[i][:len(cur_prefix)] == cur_prefix:
+                            new_stuff += file_lines[i] + "\n"
                         else:
                             break
                         cur_num += 1
                         i += 1
-                    new_file += make_closing_tag("ol")
+                    new_file += self.process_markdown(new_stuff)
                     continue
                 elif len(top_part) > 4 and top_part[:2] == "[^" and top_part[-2:] == "]:":
                     footnote_part = top_part[2:-3]
@@ -352,22 +302,17 @@ class ObsidianMarkdownToHtml:
                 if len(line_to_put) > 6 and line_to_put[-7] == "^" and in_section:
                     temp = " id=\"" + line_to_put[-7:] + "\""
                     new_file = new_file[:section_place] + temp + new_file[section_place:]
-                    new_file += make_opening_tag(indicer, False)
                     line_to_put = line_to_put[:-7]
                 elif len(line_to_put) > 6 and line_to_put[-7] == "^":
                     new_file += "<span class=\"anchor\" id=\"" + line_to_put[-7:] + "\"></span>\n"
-                    new_file += make_opening_tag(indicer, False)
                     line_to_put = line_to_put[:-7]
                 elif add_tag:
                     id_part = remove_from_id_part(line_to_put)
                     if add_to_header_list:
                         self.header_list.append((re.sub(self.CLEANR, '', line_to_put), "#" + id_part, int(indicer[1])))
                     new_file += "<span class=\"anchor\" id=\"" + id_part + "\"></span>\n"
-                    new_file += "<" + indicer + ">"
-                else:
-                    new_file += make_opening_tag(indicer, False)
                 line_to_put = self.line_parser(line_to_put, in_code, canvas)
-                new_file += line_to_put + "</" + indicer + ">\n"
+                new_file += line_to_put
                 
             i += 1
         
