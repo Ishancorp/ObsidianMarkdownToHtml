@@ -262,3 +262,165 @@ class ObsidianFootnoteExtension(Extension):
         md.parser.blockprocessors.register(footnote_processor, 'obsidian_footnote', 80)
         md.inlinePatterns.register(ObsidianFootnoteInlineProcessor(r'\[\^([^\]]+)\]', md), 'obsidian_footnote_ref', 180)
         md.treeprocessors.register(FootnoteTreeProcessor(md, footnote_processor), 'footnote_tree', 10)
+
+# Add this to MarkdownProcessor.py (paste-2.txt)
+
+class TransclusionInlineProcessor(InlineProcessor):
+    """Process Obsidian-style transclusion ![[page]] or ![[page#section]]"""
+    
+    def __init__(self, pattern, md, parent_instance):
+        super().__init__(pattern, md)
+        self.parent_instance = parent_instance
+
+    def handleMatch(self, m, matcher):
+        link_text = m.group(1).strip()
+        
+        # Check if this is an image by extension
+        extension = link_text.split(".")[-1].lower()
+        if extension in ["png", "svg", "jpg", "jpeg", "gif", "webp"]:
+            return self.handle_image_transclusion(link_text, m)
+        else:
+            return self.handle_content_transclusion(link_text, m)
+    
+    def handle_image_transclusion(self, link_text, match):
+        """Handle image transclusion"""
+        if link_text in self.parent_instance.link_to_filepath:
+            link = self.parent_instance.link_to_filepath[link_text].lower().replace(" ", "-")
+            
+            # Create image element
+            img = etree.Element('img')
+            img.set('src', self.parent_instance.make_offset(self.parent_instance.offset) + link[1:])
+            img.set('alt', link_text)
+            
+            return img, match.start(0), match.end(0)
+        else:
+            # If image not found, return broken link indicator
+            span = etree.Element('span')
+            span.set('class', 'broken-link')
+            span.text = f'![[{link_text}]]'
+            return span, match.start(0), match.end(0)
+    
+    def handle_content_transclusion(self, link_text, match):
+        """Handle content transclusion (articles/sections)"""
+        if link_text.split("#")[0] not in self.parent_instance.link_to_filepath:
+            # If page not found, return broken link indicator
+            span = etree.Element('span')
+            span.set('class', 'broken-link')
+            span.text = f'![[{link_text}]]'
+            return span, match.start(0), match.end(0)
+        
+        # Create aside element for transclusion
+        aside = etree.Element('aside')
+        
+        # Create transclude section div
+        transcl_div = etree.Element('div')
+        transcl_div.set('class', 'transclsec')
+        
+        # Get the transcluded content
+        transcluded_content = self.get_transcluded_content(link_text)
+        
+        if transcluded_content:
+            # Parse the transcluded content as markdown
+            temp_root = etree.Element('div')
+            self.md.parser.parseChunk(temp_root, transcluded_content)
+            
+            # Move all parsed content to transclude div
+            for child in temp_root:
+                transcl_div.append(child)
+        else:
+            # Add error message if content not found
+            p = etree.SubElement(transcl_div, 'p')
+            p.text = f"Content not found: {link_text}"
+        
+        aside.append(transcl_div)
+        
+        # Add link to original
+        link_div = etree.Element('div')
+        link_div.set('class', 'transclude-link')
+        
+        if "#" in link_text:
+            gen_link, head_link = link_text.split("#", 1)
+            href = self.parent_instance.link_to_filepath[gen_link] + "#" + head_link.lower().replace(" ", "-")
+        else:
+            href = self.parent_instance.link_to_filepath[link_text]
+        
+        link_a = etree.SubElement(link_div, 'a')
+        link_a.set('href', self.parent_instance.make_offset(self.parent_instance.offset) + href[1:].replace("*", "").replace(" ", "-"))
+        link_a.set('class', 'goto')
+        link_a.set('target', '_self')
+        link_a.text = '>>'
+        
+        aside.append(link_div)
+        
+        return aside, match.start(0), match.end(0)
+    
+    def get_transcluded_content(self, mk_link):
+        """Get content for transclusion"""
+        link = self.parent_instance.link_to_filepath[mk_link.split("#")[0]]
+        file_paths = [k for k, v in self.parent_instance.link_to_filepath.items() if v == link]
+        f_p = "\\" + file_paths[-1] + ".md"
+        
+        if "#" in mk_link:
+            # Handle section transclusion
+            gen_link, head_link = mk_link.split("#", 1)
+            
+            if head_link.startswith('^'):
+                # Block reference
+                return self.parent_instance.get_block_reference_content(gen_link, head_link)
+            else:
+                # Section reference
+                return self.get_section_content(f_p, head_link)
+        else:
+            # Entire article transclusion
+            return self.get_full_article_content(f_p, mk_link)
+    
+    def get_section_content(self, file_path, section_name):
+        """Get content of a specific section"""
+        try:
+            examined_lines = self.parent_instance.readlines_raw(self.parent_instance.in_directory + file_path)
+            
+            cue_text = section_name.lower().replace(" ", "-")
+            new_lines = []
+            
+            for i in range(len(examined_lines)):
+                line = examined_lines[i]
+                if (line.startswith('#') and 
+                    section_name in re.sub(self.parent_instance.CLEANR, '', line).replace("[[","").replace("]]","").replace(":","").replace("*", "")):
+                    
+                    header_size = len(line.split("# ", 1)[0]) + 1
+                    new_lines.append(line)
+                    
+                    # Collect lines until next header of same or higher level
+                    for j in range(i + 1, len(examined_lines)):
+                        next_line = examined_lines[j]
+                        if (next_line.startswith('#') and 
+                            len(next_line.split("# ", 1)[0]) > 0 and
+                            len(next_line.split("# ", 1)[0]) + 1 <= header_size):
+                            break
+                        new_lines.append(next_line)
+                    break
+            
+            return ''.join(new_lines)
+        except (IOError, IndexError):
+            return None
+    
+    def get_full_article_content(self, file_path, page_name):
+        """Get content of entire article"""
+        try:
+            examined_lines = self.parent_instance.readlines_raw(self.parent_instance.in_directory + file_path)
+            
+            # Add title
+            title_line = f"**{page_name.split('/')[-1]}**\n\n"
+            
+            # Skip frontmatter if present
+            start_idx = 0
+            if examined_lines and examined_lines[0].strip() == "---":
+                for i in range(1, len(examined_lines)):
+                    if examined_lines[i].strip() == "---":
+                        start_idx = i + 1
+                        break
+            
+            content = ''.join(examined_lines[start_idx:])
+            return title_line + content
+        except (IOError, IndexError):
+            return None

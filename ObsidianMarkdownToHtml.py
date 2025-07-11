@@ -158,57 +158,12 @@ class ObsidianMarkdownToHtml:
             WIKILINK_RE = r'\[\[([^\]]+)\]\]'
             md.inlinePatterns.register(WikiLinkInlineProcessor(WIKILINK_RE, md, self.link_dict, self.offset), 'wikilink', 175)
             
-            # Block reference links - register with higher priority
-            BLOCK_REF_RE = r'\[\[([^#\]]+)#(\^[^\]]+)\]\]'
+            # Transclusion links - register with higher priority than wiki links
+            TRANSCLUSION_RE = r'!\[\[([^\]]+)\]\]'
+            md.inlinePatterns.register(TransclusionInlineProcessor(TRANSCLUSION_RE, md, self.parent_instance), 'transclusion', 180)
     
-    def transclude_article(self, mk_link):
-        ret_line = make_opening_tag("aside")
-        link = (self.link_to_filepath)[mk_link.split("#")[0]]
-        file_paths = [k for k,v in (self.link_to_filepath).items() if v == link]
-        f_p = "\\" + file_paths[-1] + ".md"
-        ret_line += make_opening_tag("div class=\"transclsec\"")
-        
-        if "#" in mk_link:
-            # Handle section transclusion
-            [gen_link, head_link] = mk_link.split("#")
-            link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
-            
-            if head_link.startswith('^'):
-                # Use the new block reference method
-                transcl_sec = self.get_block_reference_content(gen_link, head_link)
-                if transcl_sec:
-                    ret_line += self.process_markdown(transcl_sec)
-                else:
-                    ret_line += f"<p>Block reference {head_link} not found</p>"
-            else:
-                # Existing section logic
-                cue_text = mk_link.split("#")[-1].lower().replace(" ", "-")
-                examined_lines = self.readlines_raw(self.in_directory+f_p)
-                
-                new_lines = []
-                for i in range(0, len(examined_lines)):
-                    if examined_lines[i][0] == '#' and head_link in re.sub(self.CLEANR, '', examined_lines[i]).replace("[[","").replace("]]","").replace(":","").replace("*", ""):
-                        header_size = len(examined_lines[i].split("# ", 1)[0]) + 1
-                        new_lines.append(examined_lines[i])
-                        for j in range(i+1, len(examined_lines)):
-                            if examined_lines[j][0] == '#' and len(examined_lines[j].split("# ", 1)[0]) > 0 \
-                                and len(examined_lines[j].split("# ", 1)[0]) + 1 <= header_size:
-                                break
-                            new_lines.append(examined_lines[j])
-                        break
-                ret_line += self.read_lines(new_lines, 0, add_to_header_list=False)
-        else:
-            # Entire article transclusion
-            link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-            ret_line += make_op_close_inline_tag("p", make_op_close_inline_tag("strong", mk_link.split('/')[-1]))
-            ret_line += "<br>\n"
-            ret_line += self.file_viewer(self.in_directory+f_p, add_to_header_list=False)
-
-        ret_line += make_closing_tag("div")
-        ret_line += make_opening_tag("div class=\"transclude-link\"")
-        ret_line += make_link(make_offset(self.offset) + link[1:].replace("*",""), ">>", "_self", "goto")
-        ret_line += make_closing_tag("div")
-        return ret_line
+    def make_offset(self, offset):
+        return make_offset(offset)
     
     def process_markdown(self, text):
         # Create markdown instance with all extensions
@@ -224,31 +179,6 @@ class ObsidianMarkdownToHtml:
     def line_parser(self, line, in_code = False, canvas=False):
         """Simplified line parser - footnotes are now handled by processors"""
         ret_line = ""
-        skip_beginning = -1
-        i = 0
-
-        while i < len(line):
-            if i > 1 and line[i] == '[' and line[i-1] == '[' and line[i-2] == '!':
-                skip_beginning = i+1
-                ret_line = ret_line[:-2]
-                j = i+1
-                while not (line[j] == ']' and line[j-1] == ']'):
-                    j += 1
-                mk_link = line[skip_beginning:j-1]
-                extension = mk_link.split(".")[-1]
-                ret_line = ret_line[:-1]
-                if extension == "png" or extension == "svg" or extension == "jpg":
-                    link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
-                    ret_line += "<img src=\"" + make_offset(self.offset) + link[1:] + "\">"
-                else:
-                    ret_line += self.transclude_article(mk_link)
-                ret_line += "<br>\n"
-                ret_line += "</aside>\n"
-                i = j
-            else:
-                ret_line += line[i]
-            
-            i += 1
         
         # Process through markdown (which will handle footnotes)
         ret_line = self.process_markdown(ret_line)
@@ -263,7 +193,6 @@ class ObsidianMarkdownToHtml:
         while i < len(file_lines):
             line = file_lines[i]
             # Keep the line as-is, removing only the trailing newline character
-            # so that we can control where newlines are placed
             content_lines.append(line.rstrip('\n'))
             i += 1
         
@@ -271,7 +200,7 @@ class ObsidianMarkdownToHtml:
         content_text = '\n'.join(content_lines)
         
         # Process the entire content through markdown at once
-        # The nl2br extension will convert single newlines to <br> tags
+        # The transclusion processor will handle ![[]] patterns
         processed_content = self.process_markdown(content_text)
         
         return processed_content
