@@ -77,12 +77,17 @@ class ObsidianFootnoteInlineProcessor(InlineProcessor):
         footnote_id = m.group(1)
         
         # Create footnote reference in standard markdown format
-        el = etree.Element('sup')
+        el = etree.Element('span')
+        el.set('id', f'fn-{footnote_id}')
+        el.set('class', f'fn fn-{footnote_id}')
         link = etree.SubElement(el, 'a')
         link.set('href', f'#fn:{footnote_id}')
-        link.set('class', 'footnote-ref')
+        link.set('class', 'fn-link')
         link.set('id', f'fnref:{footnote_id}')
-        link.text = f'[{footnote_id}]'
+        link.text = f'<sup>[{footnote_id}]</sup>'
+        tooltip = etree.SubElement(el, 'span')
+        tooltip.set('class', 'fn-tooltip')
+        tooltip.text = f'fn-tooltip-{footnote_id}'
         
         return el, m.start(0), m.end(0)
 
@@ -133,6 +138,8 @@ class FootnoteTreeProcessor(Treeprocessor):
         
         # Create a copy of the footnotes dictionary to avoid modification during iteration
         footnotes_copy = dict(self.footnote_processor.footnotes)
+
+        self.set_placeholders(root)
         
         # Create footnotes section
         footnotes_div = etree.Element('div')
@@ -166,6 +173,15 @@ class FootnoteTreeProcessor(Treeprocessor):
         
         # Add footnotes section to the end of the document
         root.append(footnotes_div)
+    
+    def set_placeholders(self, parent):
+        for child in parent:
+            self.set_placeholders(child)
+        
+        if parent.text and 'fn-tooltip-' in parent.text:
+            snip_stuff = parent.text.split('-')[-1]
+            if snip_stuff in self.footnote_processor.footnotes.keys():
+                parent.text = self.footnote_processor.footnotes[snip_stuff]
 
 class WikiLinkInlineProcessor(InlineProcessor):
     def __init__(self, pattern, md, link_dict, offset):
