@@ -152,6 +152,7 @@ class ObsidianMarkdownToHtml:
         def extendMarkdown(self, md):
             md.parser.blockprocessors.deregister('code')
             md.treeprocessors.register(AnchorSpanTreeProcessor(md), 'anchor_span', 15)
+            md.treeprocessors.register(BlockReferenceProcessor(md), 'block_reference', 12)  # Add this line
             md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
             
             # Regular wiki links
@@ -174,34 +175,16 @@ class ObsidianMarkdownToHtml:
             "tables", 
             "nl2br"
         ]
-        return markdown.markdown(text, extensions=extensions)
-
-    def line_parser(self, line, in_code = False, canvas=False):
-        """Simplified line parser - footnotes are now handled by processors"""
-        ret_line = ""
+        processed_html = markdown.markdown(text, extensions=extensions)
         
-        # Process through markdown (which will handle footnotes)
-        ret_line = self.process_markdown(ret_line)
-        return ret_line
+        # Add newlines between adjacent paragraph tags
+        processed_html = re.sub(r'</p>\s*<p', '</p>\n<br>\n<p', processed_html)
+        
+        return processed_html
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
         """Process lines while preserving line breaks"""
-        i = opening
-        content_lines = []
-        
-        # Collect all lines, preserving their original content including newlines
-        while i < len(file_lines):
-            line = file_lines[i]
-            # Keep the line as-is, removing only the trailing newline character
-            content_lines.append(line.rstrip('\n'))
-            i += 1
-        
-        # Join all lines with newlines - this is crucial for nl2br to work
-        content_text = '\n'.join(content_lines)
-        
-        # Process the entire content through markdown at once
-        # The transclusion processor will handle ![[]] patterns
-        processed_content = self.process_markdown(content_text)
+        processed_content = self.process_markdown("".join(file_lines[opening:]))
         
         return processed_content
     

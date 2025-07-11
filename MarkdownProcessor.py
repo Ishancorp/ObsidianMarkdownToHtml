@@ -226,13 +226,7 @@ class AnchorSpanTreeProcessor(Treeprocessor):
                     # Extract text content for slug
                     text = get_text_content(elem)
                     
-                    # Debug: print what text we're getting
-                    #print(f"Header text extracted: '{text}'")
-                    
                     header_id = slugify(text)
-                    
-                    # Debug: print the resulting ID
-                    #print(f"Generated ID: '{header_id}'")
                     
                     # Only create anchor if we have a valid ID
                     if header_id:
@@ -424,3 +418,86 @@ class TransclusionInlineProcessor(InlineProcessor):
             return title_line + content
         except (IOError, IndexError):
             return None
+
+class BlockReferenceProcessor(Treeprocessor):
+    """Process block references and attach them as IDs to paragraphs"""
+    
+    def __init__(self, md):
+        super().__init__(md)
+        self.block_ref_pattern = re.compile(r'\s*\^([a-zA-Z0-9]{6})\s*$')
+    
+    def run(self, root):
+        def process_element(parent):
+            i = 0
+            while i < len(parent):
+                elem = parent[i]
+                
+                # Check if this is a paragraph element
+                if elem.tag == 'p':
+                    # Get the text content of the paragraph
+                    text_content = self.get_full_text(elem)
+                    
+                    # Check if it ends with a block reference
+                    match = self.block_ref_pattern.search(text_content)
+                    if match:
+                        block_id = match.group(1)
+                        
+                        # Remove the block reference from the text
+                        self.remove_block_reference(elem, match.group(0))
+
+                        anchor_span = etree.Element('span')
+                        anchor_span.set('class', 'anchor')
+                        anchor_span.set('id', f'^{block_id}')
+                        parent.insert(i, anchor_span)
+                        i += 1
+                
+                # Recurse into children
+                process_element(elem)
+                i += 1
+        
+        process_element(root)
+    
+    def get_full_text(self, elem):
+        """Get the full text content of an element including children"""
+        text_parts = []
+        
+        if elem.text:
+            text_parts.append(elem.text)
+        
+        for child in elem:
+            child_text = self.get_full_text(child)
+            if child_text:
+                text_parts.append(child_text)
+            
+            if child.tail:
+                text_parts.append(child.tail)
+        
+        return ''.join(text_parts)
+    
+    def remove_block_reference(self, elem, block_ref_text):
+        """Remove the block reference text from the element"""
+        # Check if it's in the direct text
+        if elem.text and block_ref_text in elem.text:
+            elem.text = elem.text.replace(block_ref_text, '').rstrip()
+            return
+        
+        # Check children and their tails
+        for child in elem:
+            if child.tail and block_ref_text in child.tail:
+                child.tail = child.tail.replace(block_ref_text, '').rstrip()
+                return
+            
+            # Recursively check child elements
+            self.remove_block_reference_from_child(child, block_ref_text)
+    
+    def remove_block_reference_from_child(self, elem, block_ref_text):
+        """Recursively remove block reference from child elements"""
+        if elem.text and block_ref_text in elem.text:
+            elem.text = elem.text.replace(block_ref_text, '').rstrip()
+            return
+        
+        for child in elem:
+            if child.tail and block_ref_text in child.tail:
+                child.tail = child.tail.replace(block_ref_text, '').rstrip()
+                return
+            self.remove_block_reference_from_child(child, block_ref_text)
