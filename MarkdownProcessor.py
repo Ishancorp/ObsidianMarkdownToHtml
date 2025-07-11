@@ -1,3 +1,4 @@
+import unicodedata
 from markdown.blockprocessors import BlockProcessor
 from markdown.treeprocessors import Treeprocessor
 from markdown.inlinepatterns import InlineProcessor
@@ -6,9 +7,31 @@ from markdown.extensions import Extension
 import xml.etree.ElementTree as etree
 import re
 
+def clean_input(text):
+    # Remove control characters and non-printables
+    return ''.join(ch for ch in text if unicodedata.category(ch)[0] != 'C')
+
 def slugify(text):
-    text = re.sub(r'\s+', '-', text.strip().lower())   # Replace spaces with hyphens
-    text = re.sub(r'[^\w,\-\[\]\(\)]', '', text)                # Remove special characters
+    """Convert text to a URL-friendly slug"""
+    if not text:
+        return ""
+    
+    text = clean_input(text)
+
+    text = re.sub(r'\x02?wzxhzdk:\d+', '', text)
+    
+    # Convert to lowercase and strip whitespace
+    text = text.strip().lower()
+    
+    # Replace spaces and multiple whitespace with single hyphens
+    text = re.sub(r'\s+', '-', text)
+    
+    # Remove special characters but keep alphanumeric, hyphens, and some safe chars
+    text = re.sub(r'[^\w\-\[\]\(\)]', '', text)
+    
+    # Remove multiple consecutive hyphens
+    text = re.sub(r'-+', '-', text)
+    
     return text
 
 class IndentedParagraphProcessor(BlockProcessor):
@@ -20,26 +43,28 @@ class IndentedParagraphProcessor(BlockProcessor):
     def run(self, parent, blocks):
         block = blocks.pop(0)
         lines = block.split('\n')
+        
+        section = etree.SubElement(parent, 'section')
 
-        # Determine indent level from the first indented line
-        match = self.INDENT_RE.match(lines[0])
-        if not match:
-            return
-
-        indent_raw = match.group(1)
-        level = indent_raw.count('    ') + indent_raw.count('\t')
-
-        # Create paragraph with class "indent-{level}"
-        para = etree.SubElement(parent, 'p')
-        para.set('class', f'indent-{level}')
-
-        # Remove leading indentation for each line
-        stripped_lines = []
         for line in lines:
+            # Determine indent level from the first indented line
+            match = self.INDENT_RE.match(line)
+            if not match:
+                continue
+
+            indent_raw = match.group(1)
+            level = indent_raw.count('    ') + indent_raw.count('\t')
+
+            # Create paragraph with class "indent-{level}"
+            para = etree.SubElement(section, 'p')
+            para.set('class', f'indent-{level}')
+
+            # Remove leading indentation for each line
+            stripped_lines = []
             stripped = re.sub(rf'^(?: {{4}}|\t){{{level}}}', '', line)
             stripped_lines.append(stripped)
 
-        para.text = '\n'.join(stripped_lines)
+            para.text = '\n'.join(stripped_lines)
 
 class ObsidianFootnoteInlineProcessor(InlineProcessor):
     """Process Obsidian-style footnotes [^1] and convert them to standard markdown footnotes"""
@@ -172,6 +197,26 @@ class WikiLinkInlineProcessor(InlineProcessor):
 
 class AnchorSpanTreeProcessor(Treeprocessor):
     def run(self, root):
+        def get_text_content(elem):
+            """Extract clean text content from an element"""
+            text_parts = []
+            
+            # Get direct text content
+            if elem.text:
+                text_parts.append(elem.text.strip())
+            
+            # Get text from child elements
+            for child in elem:
+                child_text = get_text_content(child)
+                if child_text:
+                    text_parts.append(child_text)
+                
+                # Get tail text after child elements
+                if child.tail:
+                    text_parts.append(child.tail.strip())
+            
+            return ' '.join(text_parts).strip()
+        
         def process_element(parent):
             i = 0
             while i < len(parent):
@@ -179,17 +224,26 @@ class AnchorSpanTreeProcessor(Treeprocessor):
                 # Check for headers
                 if elem.tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
                     # Extract text content for slug
-                    text = ''.join(elem.itertext())
+                    text = get_text_content(elem)
+                    
+                    # Debug: print what text we're getting
+                    #print(f"Header text extracted: '{text}'")
+                    
                     header_id = slugify(text)
+                    
+                    # Debug: print the resulting ID
+                    #print(f"Generated ID: '{header_id}'")
+                    
+                    # Only create anchor if we have a valid ID
+                    if header_id:
+                        # Create <span class="anchor" id="...">
+                        span = etree.Element('span')
+                        span.set('class', 'anchor')
+                        span.set('id', header_id)
 
-                    # Create <span class="anchor" id="...">
-                    span = etree.Element('span')
-                    span.set('class', 'anchor')
-                    span.set('id', header_id)
-
-                    # Insert span before header
-                    parent.insert(i, span)
-                    i += 1  # Skip over inserted span
+                        # Insert span before header
+                        parent.insert(i, span)
+                        i += 1  # Skip over inserted span
 
                 # Recurse into children
                 process_element(elem)

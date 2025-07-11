@@ -59,18 +59,107 @@ class ObsidianMarkdownToHtml:
         with open("svg/other_headers.html", encoding='utf-8') as other_headers: self.other_headers = other_headers.read()
         with open("styles/json_canvas.css") as json_stylesheet: self.json_stylesheet = json_stylesheet.read()
 
+    def get_block_reference_content(self, page_name, block_ref):
+        """Extract content for a block reference"""
+        if page_name not in self.link_to_filepath:
+            return None
+            
+        link = self.link_to_filepath[page_name]
+        file_paths = [k for k, v in self.link_to_filepath.items() if v == link]
+        if not file_paths:
+            return None
+            
+        f_p = "\\" + file_paths[-1] + ".md"
+        cue_text = block_ref.lower().replace(" ", "-")
+        
+        try:
+            examined_lines = self.readlines_raw(self.in_directory + f_p)
+            
+            if cue_text[0] == '^':
+                # Find the line with the block reference
+                for i in range(len(examined_lines) - 1, -1, -1):
+                    if examined_lines[i].strip().endswith(cue_text):
+                        # Found the line with block reference
+                        content_lines = []
+                        
+                        # Get the content of this line (without the block reference)
+                        line_content = examined_lines[i].strip()
+                        if line_content.endswith(cue_text):
+                            line_content = line_content[:-len(cue_text)].strip()
+                        
+                        content_lines.append(line_content)
+                        
+                        # Check if this is part of a table
+                        if '|' in line_content:
+                            # This might be a table row, collect the entire table
+                            table_lines = [line_content]
+                            
+                            # Go backwards to find table start
+                            j = i - 1
+                            while j >= 0:
+                                prev_line = examined_lines[j].strip()
+                                if '|' in prev_line or re.match(r'^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', prev_line):
+                                    table_lines.insert(0, prev_line)
+                                    j -= 1
+                                elif prev_line == "":
+                                    j -= 1
+                                    continue
+                                else:
+                                    break
+                            
+                            # Go forwards to find table end
+                            j = i + 1
+                            while j < len(examined_lines):
+                                next_line = examined_lines[j].strip()
+                                if '|' in next_line or re.match(r'^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', next_line):
+                                    table_lines.append(next_line)
+                                    j += 1
+                                elif next_line == "":
+                                    j += 1
+                                    continue
+                                else:
+                                    break
+                            
+                            return '\n'.join(table_lines)
+                        else:
+                            # Regular paragraph, collect related lines
+                            for j in range(i - 1, -1, -1):
+                                prev_line = examined_lines[j].strip()
+                                if (prev_line.startswith('#') or 
+                                    prev_line == "" or 
+                                    prev_line.startswith('- ') or
+                                    prev_line.startswith('* ') or
+                                    prev_line.startswith('+ ') or
+                                    re.match(r'^\d+\.\s', prev_line)):
+                                    break
+                                content_lines.insert(0, prev_line)
+                            
+                            return '\n'.join(content_lines)
+                        
+                        break
+        except (IOError, IndexError):
+            return None
+        
+        return None
+
     class CustomMarkdownExtension(Extension):
-        def __init__(self, link_dict, offset, **kwargs):
+        def __init__(self, link_dict, offset, parent_instance, **kwargs):
             self.link_dict = link_dict
             self.offset = offset
+            self.parent_instance = parent_instance
             super().__init__(**kwargs)
 
         def extendMarkdown(self, md):
             md.parser.blockprocessors.deregister('code')
             md.treeprocessors.register(AnchorSpanTreeProcessor(md), 'anchor_span', 15)
             md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
+            
+            # Regular wiki links
             WIKILINK_RE = r'\[\[([^\]]+)\]\]'
             md.inlinePatterns.register(WikiLinkInlineProcessor(WIKILINK_RE, md, self.link_dict, self.offset), 'wikilink', 175)
+            
+            # Block reference links - register with higher priority
+            BLOCK_REF_RE = r'\[\[([^#\]]+)#(\^[^\]]+)\]\]'
     
     def transclude_article(self, mk_link):
         ret_line = make_opening_tag("aside")
@@ -78,30 +167,24 @@ class ObsidianMarkdownToHtml:
         file_paths = [k for k,v in (self.link_to_filepath).items() if v == link]
         f_p = "\\" + file_paths[-1] + ".md"
         ret_line += make_opening_tag("div class=\"transclsec\"")
+        
         if "#" in mk_link:
-            #section
-            transcl_sec = ""
+            # Handle section transclusion
             [gen_link, head_link] = mk_link.split("#")
             link = ((self.link_to_filepath)[gen_link] + "#" + head_link).lower().replace(" ", "-")
-                        
-            cue_text = mk_link.split("#")[-1].lower().replace(" ", "-")
-            examined_lines = self.readlines_raw(self.in_directory+f_p)
             
-            if cue_text[0] == '^':
-                new_lines = []
-                for i in range(len(examined_lines) - 1, -1, -1):
-                    if examined_lines[i].split("\n")[0][-7:] == cue_text:
-                        new_lines = [examined_lines[i].split("\n")[0][:-7]]
-                        for j in range(i-1,  -1, -1):
-                            if examined_lines[j][:2] == "# " or examined_lines[j][:3] == "## " \
-                                or examined_lines[j][:4] == "### " or examined_lines[j][:5] == "#### " \
-                                or examined_lines[j][:6] == "##### " or examined_lines[j][:7] == "###### "\
-                                or examined_lines[j].strip() == "":
-                                break
-                            new_lines.insert(0, examined_lines[j])
-                        break
-                transcl_sec += self.read_lines(new_lines, 0, add_to_header_list=False)
+            if head_link.startswith('^'):
+                # Use the new block reference method
+                transcl_sec = self.get_block_reference_content(gen_link, head_link)
+                if transcl_sec:
+                    ret_line += self.process_markdown(transcl_sec)
+                else:
+                    ret_line += f"<p>Block reference {head_link} not found</p>"
             else:
+                # Existing section logic
+                cue_text = mk_link.split("#")[-1].lower().replace(" ", "-")
+                examined_lines = self.readlines_raw(self.in_directory+f_p)
+                
                 new_lines = []
                 for i in range(0, len(examined_lines)):
                     if examined_lines[i][0] == '#' and head_link in re.sub(self.CLEANR, '', examined_lines[i]).replace("[[","").replace("]]","").replace(":","").replace("*", ""):
@@ -113,33 +196,31 @@ class ObsidianMarkdownToHtml:
                                 break
                             new_lines.append(examined_lines[j])
                         break
-                transcl_sec += self.read_lines(new_lines, 0, add_to_header_list=False)
-
-            ret_line += transcl_sec
+                ret_line += self.read_lines(new_lines, 0, add_to_header_list=False)
         else:
-            #entire article
+            # Entire article transclusion
             link = (self.link_to_filepath)[mk_link].lower().replace(" ", "-")
             ret_line += make_op_close_inline_tag("p", make_op_close_inline_tag("strong", mk_link.split('/')[-1]))
             ret_line += "<br>\n"
             ret_line += self.file_viewer(self.in_directory+f_p, add_to_header_list=False)
 
         ret_line += make_closing_tag("div")
-
         ret_line += make_opening_tag("div class=\"transclude-link\"")
         ret_line += make_link(make_offset(self.offset) + link[1:].replace("*",""), ">>", "_self", "goto")
         ret_line += make_closing_tag("div")
         return ret_line
     
     def process_markdown(self, text):
-        # Create markdown instance with footnote extension and tables
+        # Create markdown instance with all extensions
         extensions = [
-            self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset)),
+            self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self),
             ObsidianFootnoteExtension(),
             "sane_lists",
-            "tables"  # Add tables extension
+            "tables", 
+            "nl2br"
         ]
         return markdown.markdown(text, extensions=extensions)
-        
+
     def line_parser(self, line, in_code = False, canvas=False):
         """Simplified line parser - footnotes are now handled by processors"""
         ret_line = ""
@@ -174,56 +255,26 @@ class ObsidianMarkdownToHtml:
         return ret_line
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
-        """Process lines with proper table handling"""
+        """Process lines while preserving line breaks"""
         i = opening
-        new_file = ""
+        content_lines = []
         
-        # Process lines in chunks to handle tables properly
-        current_chunk = []
-        in_table = False
-        
+        # Collect all lines, preserving their original content including newlines
         while i < len(file_lines):
-            if i == len(file_lines)-1 or canvas:
-                line_to_put = file_lines[i]
-            else:
-                line_to_put = file_lines[i][:-1]
-            
-            # Check if this line could be part of a table
-            is_table_line = '|' in line_to_put and line_to_put.strip()
-            is_table_separator = re.match(r'^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', line_to_put)
-            
-            if is_table_line or is_table_separator:
-                if not in_table:
-                    # Process any accumulated non-table content
-                    if current_chunk:
-                        content_text = '\n'.join(current_chunk)
-                        processed_content = self.process_markdown(content_text)
-                        new_file += processed_content
-                        current_chunk = []
-                    in_table = True
-                current_chunk.append(line_to_put)
-            else:
-                if in_table:
-                    # End of table - process the table chunk
-                    if current_chunk:
-                        content_text = '\n'.join(current_chunk)
-                        processed_content = self.process_markdown(content_text)
-                        new_file += processed_content
-                        current_chunk = []
-                    in_table = False
-                
-                # Add non-table line to current chunk
-                current_chunk.append(line_to_put)
-            
+            line = file_lines[i]
+            # Keep the line as-is, removing only the trailing newline character
+            # so that we can control where newlines are placed
+            content_lines.append(line.rstrip('\n'))
             i += 1
         
-        # Process any remaining content
-        if current_chunk:
-            content_text = '\n'.join(current_chunk)
-            processed_content = self.process_markdown(content_text)
-            new_file += processed_content
+        # Join all lines with newlines - this is crucial for nl2br to work
+        content_text = '\n'.join(content_lines)
         
-        return new_file    
+        # Process the entire content through markdown at once
+        # The nl2br extension will convert single newlines to <br> tags
+        processed_content = self.process_markdown(content_text)
+        
+        return processed_content
     
     def readlines_raw(self, file_dir):
         open_file = open(file_dir, "r", encoding="utf8")
