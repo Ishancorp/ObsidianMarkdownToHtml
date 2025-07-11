@@ -37,6 +37,31 @@ def make_link(link, text, target="_self", className="", extern=False):
         ret_str += " " + external_link
     return ret_str
 
+def fix_table_spacing(markdown_text):
+    table_pattern = re.compile(r'''
+        (?:(?<=\n)|\A)               # Start of string or after a newline
+        (?P<table>                   # Named group for the full table
+            (?:\|.*\|\n)            # Header row
+            (?:\|[-:| ]+\|\n)       # Divider row
+            (?:\|.*\|\n?)*          # Optional body rows
+        )
+        (?P<tag_line>               # Named group for an optional tag line
+            \^([a-zA-Z0-9]{6})[ \t]*\n  # Line with ^ + 6 alphanumeric characters
+        )?
+    ''', re.VERBOSE)
+
+    def replacement(match):
+        table = match.group('table').rstrip()
+        tag_line = match.group('tag_line')
+        if tag_line:
+            tag = tag_line.strip()
+            return f"\n{table}\n{tag} \n\n"
+        else:
+            return f"\n{table}\n\n"
+
+    result = table_pattern.sub(replacement, markdown_text)
+    return result
+
 class ObsidianMarkdownToHtml:
     def __init__(self, in_directory, out_directory):
         self.in_directory = in_directory
@@ -109,15 +134,24 @@ class ObsidianMarkdownToHtml:
                             
                             # Go forwards to find table end
                             j = i + 1
+                            empty_line_count = 0
                             while j < len(examined_lines):
                                 next_line = examined_lines[j].strip()
                                 if '|' in next_line or re.match(r'^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', next_line):
+                                    # Reset empty line count when we find table content
+                                    empty_line_count = 0
                                     table_lines.append(next_line)
                                     j += 1
                                 elif next_line == "":
-                                    j += 1
-                                    continue
+                                    empty_line_count += 1
+                                    # Allow up to 1 empty line within a table, but stop after that
+                                    if empty_line_count <= 1:
+                                        j += 1
+                                        continue
+                                    else:
+                                        break
                                 else:
+                                    # Non-table content found, stop here
                                     break
                             
                             return '\n'.join(table_lines)
@@ -175,6 +209,7 @@ class ObsidianMarkdownToHtml:
             "tables", 
             "nl2br"
         ]
+        text = fix_table_spacing(text)
         processed_html = markdown.markdown(text, extensions=extensions)
         
         # Add newlines between adjacent paragraph tags

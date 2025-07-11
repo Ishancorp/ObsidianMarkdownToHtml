@@ -246,21 +246,16 @@ class AnchorSpanTreeProcessor(Treeprocessor):
         process_element(root)
 
 class ObsidianFootnoteExtension(Extension):
-    """Extension to handle Obsidian-style footnotes"""
     
     def extendMarkdown(self, md):
-        # Create footnote processor instance
         footnote_processor = ObsidianFootnoteBlockProcessor(md.parser)
         
-        # Register processors
         md.parser.blockprocessors.register(footnote_processor, 'obsidian_footnote', 80)
         md.inlinePatterns.register(ObsidianFootnoteInlineProcessor(r'\[\^([^\]]+)\]', md), 'obsidian_footnote_ref', 180)
         md.treeprocessors.register(FootnoteTreeProcessor(md, footnote_processor), 'footnote_tree', 10)
 
-# Add this to MarkdownProcessor.py (paste-2.txt)
-
 class TransclusionInlineProcessor(InlineProcessor):
-    """Process Obsidian-style transclusion ![[page]] or ![[page#section]]"""
+    """Enhanced transclusion processor that handles table boundaries correctly"""
     
     def __init__(self, pattern, md, parent_instance):
         super().__init__(pattern, md)
@@ -349,7 +344,7 @@ class TransclusionInlineProcessor(InlineProcessor):
         return aside, match.start(0), match.end(0)
     
     def get_transcluded_content(self, mk_link):
-        """Get content for transclusion"""
+        """Get content for transclusion with proper table boundary handling"""
         link = self.parent_instance.link_to_filepath[mk_link.split("#")[0]]
         file_paths = [k for k, v in self.parent_instance.link_to_filepath.items() if v == link]
         f_p = "\\" + file_paths[-1] + ".md"
@@ -359,8 +354,8 @@ class TransclusionInlineProcessor(InlineProcessor):
             gen_link, head_link = mk_link.split("#", 1)
             
             if head_link.startswith('^'):
-                # Block reference
-                return self.parent_instance.get_block_reference_content(gen_link, head_link)
+                # Block reference - use improved block reference handling
+                return self.get_block_reference_content_improved(gen_link, head_link, f_p)
             else:
                 # Section reference
                 return self.get_section_content(f_p, head_link)
@@ -368,12 +363,125 @@ class TransclusionInlineProcessor(InlineProcessor):
             # Entire article transclusion
             return self.get_full_article_content(f_p, mk_link)
     
+    def get_block_reference_content_improved(self, page_name, block_ref, file_path):
+        """Get content for a block reference with improved table boundary detection"""
+        try:
+            examined_lines = self.parent_instance.readlines_raw(self.parent_instance.in_directory + file_path)
+            
+            if block_ref[0] == '^':
+                # Find the line with the block reference
+                for i in range(len(examined_lines) - 1, -1, -1):
+                    if examined_lines[i].strip().endswith(block_ref):
+                        # Found the line with block reference
+                        line_content = examined_lines[i-1].strip() + examined_lines[i].strip()
+                        if line_content.endswith(block_ref):
+                            line_content = line_content[:-len(block_ref)].strip()
+                        
+                        # Check if this is part of a table
+                        if '|' in line_content:
+                            return self.extract_table_block(examined_lines, i, block_ref)
+                        else:
+                            return self.extract_paragraph_block(examined_lines, i, block_ref)
+            
+            return None
+        except (IOError, IndexError):
+            return None
+    
+    def extract_table_block(self, lines, ref_line_idx, block_ref):
+        """Extract a complete table that contains the block reference"""
+        table_lines = []
+        
+        # Get the line with block reference (without the reference)
+        line_content = lines[ref_line_idx].strip()
+        if line_content.endswith(block_ref):
+            line_content = line_content[:-len(block_ref)].strip()
+        
+        # Find table boundaries
+        table_start = ref_line_idx
+        table_end = ref_line_idx
+        
+        # Go backwards to find table start
+        for j in range(ref_line_idx - 1, -1, -1):
+            prev_line = lines[j].strip()
+            if self.is_table_line(prev_line):
+                table_start = j
+            elif prev_line == "":
+                continue  # Skip empty lines within table
+            else:
+                break  # Hit non-table content
+        
+        # Go forwards to find table end
+        for j in range(ref_line_idx + 1, len(lines)):
+            next_line = lines[j].strip()
+            if self.is_table_line(next_line):
+                table_end = j
+            elif next_line == "":
+                # Check if the next non-empty line is still part of the table
+                k = j + 1
+                while k < len(lines) and lines[k].strip() == "":
+                    k += 1
+                if k < len(lines) and self.is_table_line(lines[k].strip()):
+                    continue  # Still part of table
+                else:
+                    break  # End of table
+            else:
+                break  # Hit non-table content
+        
+        # Extract table content
+        for i in range(table_start, table_end + 1):
+            line = lines[i].strip()
+            if line:  # Skip empty lines
+                # Remove block reference if it's on this line
+                if line.endswith(block_ref):
+                    line = line[:-len(block_ref)].strip()
+                table_lines.append(line)
+        
+        return '\n'.join(table_lines)
+    
+    def extract_paragraph_block(self, lines, ref_line_idx, block_ref):
+        """Extract a paragraph block that contains the block reference"""
+        content_lines = []
+        
+        # Get the line with block reference (without the reference)
+        line_content = lines[ref_line_idx].strip()
+        if line_content.endswith(block_ref):
+            line_content = line_content[:-len(block_ref)].strip()
+        content_lines.append(line_content)
+        
+        # Collect related lines going backwards
+        for j in range(ref_line_idx - 1, -1, -1):
+            prev_line = lines[j].strip()
+            if (prev_line.startswith('#') or 
+                prev_line == "" or 
+                prev_line.startswith('- ') or
+                prev_line.startswith('* ') or
+                prev_line.startswith('+ ') or
+                re.match(r'^\d+\.\s', prev_line) or
+                self.is_table_line(prev_line)):
+                break
+            content_lines.insert(0, prev_line)
+        
+        return '\n'.join(content_lines)
+    
+    def is_table_line(self, line):
+        """Check if a line is part of a table"""
+        if not line:
+            return False
+        
+        # Check for table row (contains |)
+        if '|' in line:
+            return True
+        
+        # Check for table separator line (contains only -, :, |, and spaces)
+        if re.match(r'^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', line):
+            return True
+        return False
+    
     def get_section_content(self, file_path, section_name):
         """Get content of a specific section"""
         try:
             examined_lines = self.parent_instance.readlines_raw(self.parent_instance.in_directory + file_path)
             
-            cue_text = section_name.lower().replace(" ", "-")
             new_lines = []
             
             for i in range(len(examined_lines)):
@@ -418,7 +526,6 @@ class TransclusionInlineProcessor(InlineProcessor):
             return title_line + content
         except (IOError, IndexError):
             return None
-
 class BlockReferenceProcessor(Treeprocessor):
     """Process block references and attach them as IDs to paragraphs"""
     
@@ -445,6 +552,24 @@ class BlockReferenceProcessor(Treeprocessor):
                         # Remove the block reference from the text
                         self.remove_block_reference(elem, match.group(0))
 
+                        anchor_span = etree.Element('span')
+                        anchor_span.set('class', 'anchor')
+                        anchor_span.set('id', f'^{block_id}')
+                        parent.insert(i, anchor_span)
+                        i += 1
+                
+                # Handle table elements with block references
+                elif elem.tag == 'table':
+                    # Check if any cell in the table has a block reference
+                    table_text = self.get_full_text(elem)
+                    match = self.block_ref_pattern.search(table_text)
+                    if match:
+                        block_id = match.group(1)
+                        
+                        # Remove the block reference from the table
+                        self.remove_block_reference(elem, match.group(0))
+                        
+                        # Add anchor span before the table
                         anchor_span = etree.Element('span')
                         anchor_span.set('class', 'anchor')
                         anchor_span.set('id', f'^{block_id}')
