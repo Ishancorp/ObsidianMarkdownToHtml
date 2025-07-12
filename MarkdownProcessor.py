@@ -8,6 +8,7 @@ from markdown.extensions import Extension
 import xml.etree.ElementTree as etree
 from xml.etree.ElementTree import fromstring
 import re
+from helpers import *
 
 def clean_input(text):
     # Remove control characters and non-printables
@@ -301,7 +302,7 @@ class TransclusionInlineProcessor(InlineProcessor):
             
             # Create image element
             img = etree.Element('img')
-            img.set('src', self.parent_instance.make_offset(self.parent_instance.offset) + link[1:])
+            img.set('src', make_offset(self.parent_instance.offset) + link[1:])
             img.set('alt', link_text)
             
             return img, match.start(0), match.end(0)
@@ -353,7 +354,6 @@ class TransclusionInlineProcessor(InlineProcessor):
                 while match_fn:
                     last_number = match_fn.group(2)
                     replacement_text = transcluded_footnotes.get(last_number, '')
-                    print(match_fn.group(2))
                     def replace_footnote(match):
                         current_last = match.group(2)
                         if current_last == last_number:
@@ -402,7 +402,7 @@ class TransclusionInlineProcessor(InlineProcessor):
             href = self.parent_instance.link_to_filepath[link_text]
         
         link_a = etree.SubElement(link_div, 'a')
-        link_a.set('href', self.parent_instance.make_offset(self.parent_instance.offset) + href[1:].replace("*", "").replace(" ", "-"))
+        link_a.set('href', make_offset(self.parent_instance.offset) + href[1:].replace("*", "").replace(" ", "-"))
         link_a.set('class', 'goto')
         link_a.set('target', '_self')
         link_a.text = '>>'
@@ -437,10 +437,22 @@ class TransclusionInlineProcessor(InlineProcessor):
                 footnote_id = match.group(1)
                 footnote_content = match.group(2).strip()
                 
+                # Cut off the footnote at the first Markdown header
+                header_match = re.search(r'^#{1,6}\s.*', footnote_content, re.MULTILINE)
+                cutoff_index = header_match.start() if header_match else len(footnote_content)
+
+                # Cut off at the first occurrence of two newlines
+                double_newline_match = re.search(r'\n\s*\n', footnote_content)
+                if double_newline_match and double_newline_match.start() < cutoff_index:
+                    cutoff_index = double_newline_match.start()
+
+                # Truncate the content accordingly
+                footnote_content = footnote_content[:cutoff_index]
+
                 # Clean up the footnote content
                 footnote_content = re.sub(r'\n+', ' ', footnote_content)  # Replace newlines with spaces
                 footnote_content = re.sub(r'\s+', ' ', footnote_content)  # Normalize whitespace
-                
+
                 # Check if this footnote is referenced in the transcluded content
                 if f'[^{footnote_id}]' in content:
                     footnotes[footnote_id] = footnote_content
@@ -652,7 +664,7 @@ class TransclusionInlineProcessor(InlineProcessor):
             return False
         
         # Check for table row (contains |)
-        if '|' in line:
+        if re.match(r'^\s*\|.*\|\s*$', line):
             return True
         
         # Check for table separator line (contains only -, :, |, and spaces)
@@ -708,6 +720,7 @@ class TransclusionInlineProcessor(InlineProcessor):
                         break
             
             content = ''.join(examined_lines[start_idx:])
+            content = fix_table_spacing(content)
             return title_line + content.strip()
         except (IOError, IndexError):
             return None
