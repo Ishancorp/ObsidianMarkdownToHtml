@@ -337,9 +337,6 @@ class ObsidianMarkdownToHtml:
         with open(file_name, encoding='utf-8') as json_data:
             return json.load(json_data)
     
-    def json_viewer(self, data):
-        return self.JSONViewer.json_viewer(data)
-
     def _escape_html(self, text):
         """Helper method to escape HTML characters"""
         if not isinstance(text, str):
@@ -417,7 +414,7 @@ class ObsidianMarkdownToHtml:
                 new_file += make_op_close_inline_tag("h1 class=\"file-title\"", file_name + ".CANVAS")
 
                 canvas_dict = self.read_json(file_dir)
-                new_file += self.json_viewer(canvas_dict)
+                new_file += self.JSONViewer.json_viewer(canvas_dict)
                 
                 new_file += self.footer()
                 new_file += "<script src=\""+ make_offset(self.offset) + "\\canvas.js\"></script>\n"
