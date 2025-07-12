@@ -90,7 +90,7 @@ class ObsidianFootnoteInlineProcessor(InlineProcessor):
         link.text = f'<sup>[{footnote_id}]</sup>'
         tooltip = etree.SubElement(el, 'span')
         tooltip.set('class', 'fn-tooltip')
-        tooltip.text = f'fn-tooltip-{self.prefix}-{footnote_id}'
+        tooltip.text = f'fn-tooltip-{self.prefix}-{footnote_id}%'
         
         return el, m.start(0), m.end(0)
 
@@ -183,7 +183,7 @@ class FootnoteTreeProcessor(Treeprocessor):
             self.set_placeholders(child)
         
         if parent.text and f'fn-tooltip-{self.prefix}-' in parent.text:
-            snip_stuff = parent.text.split('-')[-1]
+            snip_stuff = parent.text.split('-')[-1][:-1]
             if snip_stuff in self.footnote_processor.footnotes.keys():
                 parent.text = self.footnote_processor.footnotes[snip_stuff]
 
@@ -339,11 +339,33 @@ class TransclusionInlineProcessor(InlineProcessor):
             # Clean up the content before processing
             cleaned_content = self.clean_content(transcluded_content)
             
+            # Scan for footnotes in the transcluded content
+            transcluded_footnotes = self.scan_for_footnotes(link_text, cleaned_content)
+            
             # Create a separate markdown instance with unique footnote prefix
             transcluded_md = self.create_transclusion_markdown(unique_prefix)
             
             # Process the transcluded content with the separate markdown instance
             processed_content = transcluded_md.convert(cleaned_content)
+
+            if transcluded_footnotes:
+                match_fn = re.search(r'fn-tooltip-(\d+)-t\d+-(\d+)%', processed_content)
+                while match_fn:
+                    last_number = match_fn.group(2)
+                    replacement_text = transcluded_footnotes.get(last_number, '')
+                    print(match_fn.group(2))
+                    def replace_footnote(match):
+                        current_last = match.group(2)
+                        if current_last == last_number:
+                            return replacement_text
+                        return match.group(0)  # return original match unchanged
+
+                    processed_content = re.sub(
+                        r'fn-tooltip-(\d+)-t\d+-(\d+)%',
+                        replace_footnote,
+                        processed_content
+                    )
+                    match_fn = re.search(r'fn-tooltip-(\d+)-t\d+-(\d+)%', processed_content)
             
             # Clean up the processed HTML
             cleaned_html = self.clean_html_spacing(processed_content)
@@ -388,6 +410,52 @@ class TransclusionInlineProcessor(InlineProcessor):
         aside.append(link_div)
         
         return aside, match.start(0), match.end(0)
+    
+    def scan_for_footnotes(self, link_text, content):
+        """Scan transcluded content for footnotes and return them as a dictionary"""
+        footnotes = {}
+        
+        # Get the file path for the transcluded content
+        page_name = link_text.split("#")[0]
+        if page_name not in self.parent_instance.link_to_filepath:
+            return footnotes
+        
+        link = self.parent_instance.link_to_filepath[page_name]
+        file_paths = [k for k, v in self.parent_instance.link_to_filepath.items() if v == link]
+        f_p = "\\" + file_paths[-1] + ".md"
+        
+        try:
+            # Read the full file content to scan for footnotes
+            full_file_content = self.parent_instance.readlines_raw(self.parent_instance.in_directory + f_p)
+            full_content = ''.join(full_file_content)
+            
+            # Pattern to match footnote definitions [^id]: content
+            footnote_pattern = re.compile(r'^\[\^([^\]]+)\]:\s*(.*?)(?=^\[\^|\Z)', re.MULTILINE | re.DOTALL)
+            
+            # Find all footnote definitions in the file
+            for match in footnote_pattern.finditer(full_content):
+                footnote_id = match.group(1)
+                footnote_content = match.group(2).strip()
+                
+                # Clean up the footnote content
+                footnote_content = re.sub(r'\n+', ' ', footnote_content)  # Replace newlines with spaces
+                footnote_content = re.sub(r'\s+', ' ', footnote_content)  # Normalize whitespace
+                
+                # Check if this footnote is referenced in the transcluded content
+                if f'[^{footnote_id}]' in content:
+                    footnotes[footnote_id] = footnote_content
+            
+            # Also check for footnotes that might be in the transcluded section itself
+            section_footnote_pattern = re.compile(r'^\[\^([^\]]+)\]:\s*(.*)', re.MULTILINE)
+            for match in section_footnote_pattern.finditer(content):
+                footnote_id = match.group(1)
+                footnote_content = match.group(2).strip()
+                footnotes[footnote_id] = footnote_content
+        
+        except (IOError, IndexError):
+            pass
+        
+        return footnotes
     
     def clean_content(self, content):
         """Clean up content before markdown processing"""
