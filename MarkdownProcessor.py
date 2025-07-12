@@ -1,3 +1,4 @@
+import hashlib
 import unicodedata
 from markdown.blockprocessors import BlockProcessor
 from markdown.treeprocessors import Treeprocessor
@@ -70,17 +71,18 @@ class IndentedParagraphProcessor(BlockProcessor):
 class ObsidianFootnoteInlineProcessor(InlineProcessor):
     """Process Obsidian-style footnotes [^1] and convert them to standard markdown footnotes"""
     
-    def __init__(self, pattern, md):
+    def __init__(self, pattern, md, prefix):
         super().__init__(pattern, md)
         self.RE = re.compile(r'\[\^([^\]]+)\]')
+        self.prefix = prefix
     
     def handleMatch(self, m, matcher):
         footnote_id = m.group(1)
         
         # Create footnote reference in standard markdown format
         el = etree.Element('span')
-        el.set('id', f'fn-{footnote_id}')
-        el.set('class', f'fn fn-{footnote_id}')
+        el.set('id', f'fn-{self.prefix}-{footnote_id}')
+        el.set('class', f'fn fn-{self.prefix}-{footnote_id}')
         link = etree.SubElement(el, 'a')
         link.set('href', f'#fn:{footnote_id}')
         link.set('class', 'fn-link')
@@ -88,7 +90,7 @@ class ObsidianFootnoteInlineProcessor(InlineProcessor):
         link.text = f'<sup>[{footnote_id}]</sup>'
         tooltip = etree.SubElement(el, 'span')
         tooltip.set('class', 'fn-tooltip')
-        tooltip.text = f'fn-tooltip-{footnote_id}'
+        tooltip.text = f'fn-tooltip-{self.prefix}-{footnote_id}'
         
         return el, m.start(0), m.end(0)
 
@@ -129,9 +131,10 @@ class ObsidianFootnoteBlockProcessor(BlockProcessor):
 class FootnoteTreeProcessor(Treeprocessor):
     """Process stored footnotes and add them to the document"""
     
-    def __init__(self, md, footnote_processor):
+    def __init__(self, md, footnote_processor, prefix):
         super().__init__(md)
         self.footnote_processor = footnote_processor
+        self.prefix = prefix
     
     def run(self, root):
         if not hasattr(self.footnote_processor, 'footnotes') or not self.footnote_processor.footnotes:
@@ -179,7 +182,7 @@ class FootnoteTreeProcessor(Treeprocessor):
         for child in parent:
             self.set_placeholders(child)
         
-        if parent.text and 'fn-tooltip-' in parent.text:
+        if parent.text and f'fn-tooltip-{self.prefix}-' in parent.text:
             snip_stuff = parent.text.split('-')[-1]
             if snip_stuff in self.footnote_processor.footnotes.keys():
                 parent.text = self.footnote_processor.footnotes[snip_stuff]
@@ -263,12 +266,15 @@ class AnchorSpanTreeProcessor(Treeprocessor):
         process_element(root)
 
 class ObsidianFootnoteExtension(Extension):
+    def __init__(self, prefix):
+        self.prefix = str(prefix)
+
     def extendMarkdown(self, md):
         footnote_processor = ObsidianFootnoteBlockProcessor(md.parser)
         
         md.parser.blockprocessors.register(footnote_processor, 'obsidian_footnote', 80)
-        md.inlinePatterns.register(ObsidianFootnoteInlineProcessor(r'\[\^([^\]]+)\]', md), 'obsidian_footnote_ref', 180)
-        md.treeprocessors.register(FootnoteTreeProcessor(md, footnote_processor), 'footnote_tree', 10)
+        md.inlinePatterns.register(ObsidianFootnoteInlineProcessor(r'\[\^([^\]]+)\]', md, self.prefix), 'obsidian_footnote_ref', 180)
+        md.treeprocessors.register(FootnoteTreeProcessor(md, footnote_processor, self.prefix), 'footnote_tree', 10)
 
 class TransclusionInlineProcessor(InlineProcessor):
     """Enhanced transclusion processor that handles table boundaries correctly"""

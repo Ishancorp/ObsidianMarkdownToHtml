@@ -73,6 +73,7 @@ class ObsidianMarkdownToHtml:
         self.header_list = []
         self.in_table = False
         self.CLEANR = re.compile('<.*?>') 
+        self.counter = 1
         
         self.add_dirs_to_dict("")
         self.nuwa_file = ""
@@ -204,7 +205,7 @@ class ObsidianMarkdownToHtml:
         # Create markdown instance with all extensions
         extensions = [
             self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self),
-            ObsidianFootnoteExtension(),
+            ObsidianFootnoteExtension(self.counter),
             "sane_lists",
             "tables", 
             "nl2br"
@@ -214,6 +215,8 @@ class ObsidianMarkdownToHtml:
         
         # Add newlines between adjacent paragraph tags
         processed_html = re.sub(r'</p>\s*<p', '</p>\n<br>\n<p', processed_html)
+
+        self.counter += 1
         
         return processed_html
     
