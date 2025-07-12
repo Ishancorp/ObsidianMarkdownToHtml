@@ -124,16 +124,17 @@ class ObsidianMarkdownToHtml:
         return None
 
     class CustomMarkdownExtension(Extension):
-        def __init__(self, link_dict, offset, parent_instance, **kwargs):
+        def __init__(self, link_dict, offset, parent_instance, add_to_header_list=True, **kwargs):
             self.link_dict = link_dict
             self.offset = offset
             self.parent_instance = parent_instance
+            self.add_to_header_list = add_to_header_list
             super().__init__(**kwargs)
 
         def extendMarkdown(self, md):
             md.parser.blockprocessors.deregister('code')
-            md.treeprocessors.register(AnchorSpanTreeProcessor(md), 'anchor_span', 15)
-            md.treeprocessors.register(BlockReferenceProcessor(md), 'block_reference', 12)  # Add this line
+            md.treeprocessors.register(AnchorSpanTreeProcessor(md, self.parent_instance, self.add_to_header_list), 'anchor_span', 15)
+            md.treeprocessors.register(BlockReferenceProcessor(md), 'block_reference', 12)
             md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
             
             # Regular wiki links
@@ -143,14 +144,14 @@ class ObsidianMarkdownToHtml:
             # Transclusion links - register with higher priority than wiki links
             TRANSCLUSION_RE = r'!\[\[([^\]]+)\]\]'
             md.inlinePatterns.register(TransclusionInlineProcessor(TRANSCLUSION_RE, md, self.parent_instance), 'transclusion', 180)
-    
+
     def make_offset(self, offset):
         return make_offset(offset)
     
-    def process_markdown(self, text):
+    def process_markdown(self, text, add_to_header_list=True):
         # Create markdown instance with all extensions
         extensions = [
-            self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self),
+            self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self, add_to_header_list),
             ObsidianFootnoteExtension(self.counter),
             "sane_lists",
             "tables", 
@@ -168,7 +169,7 @@ class ObsidianMarkdownToHtml:
     
     def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
         """Process lines while preserving line breaks"""
-        processed_content = self.process_markdown("".join(file_lines[opening:]))
+        processed_content = self.process_markdown("".join(file_lines[opening:]), add_to_header_list)
         
         return processed_content
     

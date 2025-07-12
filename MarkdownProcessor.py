@@ -217,6 +217,11 @@ class WikiLinkInlineProcessor(InlineProcessor):
         return el, m.start(0), m.end(0)
 
 class AnchorSpanTreeProcessor(Treeprocessor):
+    def __init__(self, md, parent_instance=None, add_to_header_list=True):
+        super().__init__(md)
+        self.parent_instance = parent_instance
+        self.add_to_header_list = add_to_header_list
+    
     def run(self, root):
         def get_text_content(elem):
             """Extract clean text content from an element"""
@@ -259,6 +264,11 @@ class AnchorSpanTreeProcessor(Treeprocessor):
                         # Insert span before header
                         parent.insert(i, span)
                         i += 1  # Skip over inserted span
+                        
+                        # Add to header list if enabled and parent_instance exists
+                        if self.add_to_header_list and self.parent_instance:
+                            header_level = int(elem.tag[1])  # Extract number from h1, h2, etc.
+                            self.parent_instance.header_list.append([text, header_id, header_level])
 
                 # Recurse into children
                 process_element(elem)
