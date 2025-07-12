@@ -5,6 +5,7 @@ from markdown.inlinepatterns import InlineProcessor
 from markdown.extensions.footnotes import FootnoteExtension, FootnoteInlineProcessor, FootnoteBlockProcessor
 from markdown.extensions import Extension
 import xml.etree.ElementTree as etree
+from xml.etree.ElementTree import fromstring
 import re
 
 def clean_input(text):
@@ -27,7 +28,7 @@ def slugify(text):
     text = re.sub(r'\s+', '-', text)
     
     # Remove special characters but keep alphanumeric, hyphens, and some safe chars
-    text = re.sub(r'[^\w\-\[\]\(\)]', '', text)
+    text = re.sub(r'[^\w\-\[\]\(\),]', '', text)
     
     # Remove multiple consecutive hyphens
     text = re.sub(r'-+', '-', text)
@@ -262,7 +263,6 @@ class AnchorSpanTreeProcessor(Treeprocessor):
         process_element(root)
 
 class ObsidianFootnoteExtension(Extension):
-    
     def extendMarkdown(self, md):
         footnote_processor = ObsidianFootnoteBlockProcessor(md.parser)
         
