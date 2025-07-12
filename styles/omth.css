@@ -173,6 +173,43 @@ li ul {
     margin-left: 0.3em;
 }
   
+input#searchInput {
+    width: 100%;
+    margin-left: 0.75em;
+    margin-right: 0.75em;
+    background-color: #2A2A2A;
+    border: 1px solid #363636;
+    caret-color: #DADADA;
+    color: #DADADA;
+    border-radius: 5px;
+    outline: none;
+    padding: 0.5em;
+    margin-bottom: 1em;
+}
+input#searchInput:focus {
+    border: 3px solid #555555;
+}
+ul#articles {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+ul#articles li a {
+    margin-top: -1px;
+    color: #DADADA;
+    text-decoration: none;
+    font-size: 18px;
+    display: block;
+    border-radius: 10px;
+    padding: 5px;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
+    margin-bottom: 4px;
+    margin-right: 1em;
+}
+ul#articles li a:hover {
+    background-color: #2F3852;
+}
 div#navbar {
     border: 0;
     padding: 2ch;
@@ -185,6 +222,20 @@ div#navbar {
     margin: 0 auto;
     left: 0;
     right: auto;
+    overflow-x: hidden;
+}
+  
+div#searchbar {
+    border: 0;
+    padding: 2ch;
+    background-color: #242424;
+    color: #DADADA;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+    border-radius: 1ch;
+    max-width: 50vw;
+    max-height: 100vh;
+    margin: 2.5em 0;
+    left: 100px;
     overflow-x: hidden;
 }
   
@@ -238,8 +289,17 @@ svg#navicon {
     width: 2em;
 }
   
+svg#searchicon {
+    height: 2em;
+    width: 2em;
+}
+  
 svg#navicon:hover {
     stroke: #6086ed;
+}
+  
+svg#searchicon:hover {
+    fill: #6086ed;
 }
 
 svg#tocicon {
@@ -362,7 +422,17 @@ footer {
       height: 2rem;
       width: 2rem;
     }
+    svg#searchicon {
+      height: 2rem;
+      width: 2rem;
+    }
     div#navbar {
+      max-width: 100vw;
+      max-height: 90vh;
+      margin: 0 auto;
+      top: 10vh;
+    }
+    div#searchbar {
       max-width: 100vw;
       max-height: 90vh;
       margin: 0 auto;

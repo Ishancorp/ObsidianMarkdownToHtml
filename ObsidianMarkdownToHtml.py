@@ -26,9 +26,11 @@ class ObsidianMarkdownToHtml:
 
         with open("styles/omth.css") as stylesheet: self.stylesheet = stylesheet.read()
         with open("scripts/json_canvas.js") as script: self.script = script.read()
+        with open("scripts/searcher.js") as script: self.searcher = script.read()
         with open("svg/canvas_bar.html", encoding='utf-8') as canv_bar: self.canvas_bar = " " + canv_bar.read()
         with open("svg/other_pages.html", encoding='utf-8') as other_pages: self.other_pages = other_pages.read()
         with open("svg/other_headers.html", encoding='utf-8') as other_headers: self.other_headers = other_headers.read()
+        with open("svg/other_search.html", encoding='utf-8') as other_search: self.other_search = other_search.read()
         with open("styles/json_canvas.css") as json_stylesheet: self.json_stylesheet = json_stylesheet.read()
 
     def get_block_reference_content(self, page_name, block_ref):
@@ -200,6 +202,7 @@ class ObsidianMarkdownToHtml:
         checkbox_prefix = 1
         
         ret_str = make_opening_tag("nav")
+        ret_str += "<span>"
         ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"toggle\">\n"
         ret_str += self.other_pages
         ret_str += "</button>"
@@ -239,6 +242,33 @@ class ObsidianMarkdownToHtml:
                 #remove indexed
                 ret_str += "<li>" + make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + make_closing_tag("li")
         ret_str += make_closing_tag("ul") + 3*"</br>\n" + "</div>" + make_closing_tag("div")
+
+        ret_str += "<button popovertarget=\"searchbar\" popovertargetaction=\"toggle\">\n"
+        ret_str += self.other_search
+        ret_str += "</button>"
+
+        search_dict = self.link_to_filepath.copy()
+        seen_values = set()
+        keys_to_delete = []
+
+        # Iterate over a copy of items to avoid RuntimeError during deletion
+        for key, value in list(search_dict.items()):
+            if value in seen_values:
+                keys_to_delete.append(key)
+            else:
+                seen_values.add(value)
+
+        for key in keys_to_delete:
+            del search_dict[key]
+
+        ret_str += f"<div id=\"searchbar\" popover><input type=\"text\" id=\"searchInput\" onkeyup=\"searchForArticle()\" placeholder=\"Search..\"><ul id=\"articles\">"
+        for key in search_dict.keys():
+            right_part_link = search_dict[key][1:].replace(" ", "-")
+            link = self.make_offset(self.offset) + right_part_link
+            ret_str += f"<li><a searchText=\"{link}\" href=\"{link}\">{key}<br><sub class=\"fileloc\">{right_part_link[1:].replace("\\", " > ")}</sub></a></li>"
+        ret_str += "</ul>" + ("<br>" * 5) + "</div>"
+
+        ret_str += "</span>"
 
         ret_str += make_op_close_inline_tag("p class=\"top-bar\"", self.nuwa_file.replace("\\", "<span class=\"file-link\"> > </span>"))
 
@@ -382,6 +412,7 @@ class ObsidianMarkdownToHtml:
                 new_file += make_closing_tag("article")
                 
                 new_file += self.footer()
+                new_file += "<script src=\""+ make_offset(self.offset) + "\\searcher.js\"></script>\n"
                 new_file += make_closing_tag("body")
                 new_file += make_closing_tag("html")
                     
@@ -409,6 +440,7 @@ class ObsidianMarkdownToHtml:
                 
                 new_file += self.footer()
                 new_file += "<script src=\""+ make_offset(self.offset) + "\\canvas.js\"></script>\n"
+                new_file += "<script src=\""+ make_offset(self.offset) + "\\searcher.js\"></script>\n"
                 new_file += make_closing_tag("body")
                 new_file += make_closing_tag("html")
                     
@@ -426,3 +458,6 @@ class ObsidianMarkdownToHtml:
         
         with open((self.out_directory) + "\\canvas.js", "w") as text_file:
             text_file.write(self.script)
+        
+        with open((self.out_directory) + "\\searcher.js", "w") as text_file:
+            text_file.write(self.searcher)
