@@ -248,7 +248,7 @@ class ObsidianMarkdownToHtml:
         ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
         
         for header in (self.header_list):
-            ret_str += make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", make_link(header[1], header[0]).replace("[[","").replace("]]",""))
+            ret_str += make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", make_link("#" + header[1], header[0]).replace("[[","").replace("]]",""))
         self.header_list = []
         ret_str += 3*"<br/>\n"
         ret_str += make_closing_tag("div")
