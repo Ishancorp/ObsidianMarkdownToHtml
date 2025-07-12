@@ -277,11 +277,12 @@ class ObsidianFootnoteExtension(Extension):
         md.treeprocessors.register(FootnoteTreeProcessor(md, footnote_processor, self.prefix), 'footnote_tree', 10)
 
 class TransclusionInlineProcessor(InlineProcessor):
-    """Enhanced transclusion processor that handles table boundaries correctly"""
+    """Enhanced transclusion processor that handles footnotes with unique prefixes"""
     
     def __init__(self, pattern, md, parent_instance):
         super().__init__(pattern, md)
         self.parent_instance = parent_instance
+        self.transclusion_counter = 0  # Add counter for unique prefixes
 
     def handleMatch(self, m, matcher):
         link_text = m.group(1).strip()
@@ -331,13 +332,36 @@ class TransclusionInlineProcessor(InlineProcessor):
         transcluded_content = self.get_transcluded_content(link_text)
         
         if transcluded_content:
-            # Parse the transcluded content as markdown
-            temp_root = etree.Element('div')
-            self.md.parser.parseChunk(temp_root, transcluded_content)
+            # Generate unique prefix for this transclusion
+            self.transclusion_counter += 1
+            unique_prefix = f"{self.parent_instance.counter}-t{self.transclusion_counter}"
             
-            # Move all parsed content to transclude div
-            for child in temp_root:
-                transcl_div.append(child)
+            # Clean up the content before processing
+            cleaned_content = self.clean_content(transcluded_content)
+            
+            # Create a separate markdown instance with unique footnote prefix
+            transcluded_md = self.create_transclusion_markdown(unique_prefix)
+            
+            # Process the transcluded content with the separate markdown instance
+            processed_content = transcluded_md.convert(cleaned_content)
+            
+            # Clean up the processed HTML
+            cleaned_html = self.clean_html_spacing(processed_content)
+            
+            # Parse the processed HTML and add to transclude div
+            try:
+                # Wrap in a temporary div to ensure valid XML parsing
+                wrapped_content = f"<div>{cleaned_html}</div>"
+                temp_root = fromstring(wrapped_content)
+                
+                # Move all parsed content to transclude div
+                for child in temp_root:
+                    transcl_div.append(child)
+                    
+            except Exception as e:
+                # Fallback: add as text if XML parsing fails
+                p = etree.SubElement(transcl_div, 'p')
+                p.text = f"Error processing transcluded content: {str(e)}"
         else:
             # Add error message if content not found
             p = etree.SubElement(transcl_div, 'p')
@@ -364,6 +388,73 @@ class TransclusionInlineProcessor(InlineProcessor):
         aside.append(link_div)
         
         return aside, match.start(0), match.end(0)
+    
+    def clean_content(self, content):
+        """Clean up content before markdown processing"""
+        if not content:
+            return ""
+        
+        # Remove excessive empty lines but preserve paragraph breaks
+        lines = content.split('\n')
+        cleaned_lines = []
+        empty_line_count = 0
+        
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                empty_line_count += 1
+                # Only allow up to 2 consecutive empty lines (for paragraph breaks)
+                if empty_line_count <= 2:
+                    cleaned_lines.append(line)
+            else:
+                empty_line_count = 0
+                cleaned_lines.append(line)
+        
+        # Join back and strip leading/trailing whitespace
+        cleaned = '\n'.join(cleaned_lines).strip()
+        
+        # Remove excessive spaces at the beginning of lines
+        cleaned = re.sub(r'^[ \t]+', '', cleaned, flags=re.MULTILINE)
+        
+        return cleaned
+    
+    def clean_html_spacing(self, html):
+        """Clean up HTML spacing issues"""
+        if not html:
+            return ""
+        
+        # Remove excessive whitespace between tags
+        html = re.sub(r'>\s+<', '><', html)
+        
+        # Remove excessive newlines
+        html = re.sub(r'\n\s*\n\s*\n+', '\n\n', html)
+        
+        # Clean up paragraph spacing
+        html = re.sub(r'<p>\s*</p>', '', html)  # Remove empty paragraphs
+        html = re.sub(r'</p>\s*<p>', '</p><p>', html)  # Remove space between paragraphs
+        
+        # Clean up line breaks
+        html = re.sub(r'<br\s*/?>\s*<br\s*/?>', '<br>', html)  # Remove duplicate breaks
+        
+        return html.strip()
+    
+    def create_transclusion_markdown(self, unique_prefix):
+        """Create a separate markdown instance for processing transcluded content"""
+        import markdown
+        
+        # Create extensions for transclusion processing
+        extensions = [
+            # Use the unique prefix for footnotes in transcluded content
+            ObsidianFootnoteExtension(unique_prefix),
+            "sane_lists",
+            "tables", 
+            # Remove "nl2br" extension as it might be adding unwanted line breaks
+        ]
+        
+        # Create a new markdown instance
+        transcluded_md = markdown.Markdown(extensions=extensions)
+        
+        return transcluded_md
     
     def get_transcluded_content(self, mk_link):
         """Get content for transclusion with proper table boundary handling"""
@@ -449,7 +540,7 @@ class TransclusionInlineProcessor(InlineProcessor):
             else:
                 break  # Hit non-table content
         
-        # Extract table content
+        # Extract table content and clean up spacing
         for i in range(table_start, table_end + 1):
             line = lines[i].strip()
             if line:  # Skip empty lines
@@ -458,6 +549,7 @@ class TransclusionInlineProcessor(InlineProcessor):
                     line = line[:-len(block_ref)].strip()
                 table_lines.append(line)
         
+        # Join with single newlines only
         return '\n'.join(table_lines)
     
     def extract_paragraph_block(self, lines, ref_line_idx, block_ref):
@@ -483,6 +575,7 @@ class TransclusionInlineProcessor(InlineProcessor):
                 break
             content_lines.insert(0, prev_line)
         
+        # Join with single newlines only
         return '\n'.join(content_lines)
     
     def is_table_line(self, line):
@@ -524,7 +617,9 @@ class TransclusionInlineProcessor(InlineProcessor):
                         new_lines.append(next_line)
                     break
             
-            return ''.join(new_lines)
+            # Join and clean up the content
+            content = ''.join(new_lines)
+            return content.strip()
         except (IOError, IndexError):
             return None
     
@@ -545,9 +640,10 @@ class TransclusionInlineProcessor(InlineProcessor):
                         break
             
             content = ''.join(examined_lines[start_idx:])
-            return title_line + content
+            return title_line + content.strip()
         except (IOError, IndexError):
             return None
+
 class BlockReferenceProcessor(Treeprocessor):
     """Process block references and attach them as IDs to paragraphs"""
     
