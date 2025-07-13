@@ -140,7 +140,7 @@ class ObsidianMarkdownToHtml:
                 
                 new_file += make_closing_tag("article")
                 
-                new_file += self.html_builder.bottom_part()
+                new_file += self.html_builder.bottom_part(self.offset)
                     
                 self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/')].replace(" ", "-"), new_file)
                 # break
@@ -156,7 +156,7 @@ class ObsidianMarkdownToHtml:
 
                 new_file += self.JSONViewer.json_viewer(file_dir)
                 
-                new_file += self.html_builder.bottom_part(is_json=True)
+                new_file += self.html_builder.bottom_part(self.offset, is_json=True)
                     
                 self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/') + ".canvas"].replace(" ", "-"), new_file)
             else:

@@ -28,11 +28,11 @@ class HTMLBuilder:
         ret_str += make_closing_tag("footer")
         return ret_str
 
-    def bottom_part(self, is_json=False):
+    def bottom_part(self, offset, is_json=False):
         new_file = self.footer()
         if is_json:
-            new_file += "<script src=\""+ make_offset(self.offset) + "\\canvas.js\"></script>\n"
-        new_file += "<script src=\""+ make_offset(self.offset) + "\\searcher.js\"></script>\n"
+            new_file += "<script src=\""+ make_offset(offset) + "\\canvas.js\"></script>\n"
+        new_file += "<script src=\""+ make_offset(offset) + "\\searcher.js\"></script>\n"
         new_file += make_closing_tag("body")
         new_file += make_closing_tag("html")
         return new_file
