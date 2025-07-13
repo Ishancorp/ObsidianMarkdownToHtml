@@ -7,6 +7,20 @@ class NavigationBuilder:
         with open("svg/other_search.html", encoding='utf-8') as other_search: self.other_search = other_search.read()
         with open("svg/other_headers.html", encoding='utf-8') as other_headers: self.other_headers = other_headers.read()
 
+        self.search_dict = self.link_to_filepath.copy()
+        seen_values = set()
+        keys_to_delete = []
+
+        # Iterate over a copy of items to avoid RuntimeError during deletion
+        for key, value in list(self.search_dict.items()):
+            if value in seen_values:
+                keys_to_delete.append(key)
+            else:
+                seen_values.add(value)
+
+        for key in keys_to_delete:
+            del self.search_dict[key]
+
     def generate_navigation_bar(self, offset, header_list, nuwa_file):
         checkbox_prefix = 1
         
@@ -56,23 +70,9 @@ class NavigationBuilder:
         ret_str += self.other_search
         ret_str += "</button>"
 
-        search_dict = self.link_to_filepath.copy()
-        seen_values = set()
-        keys_to_delete = []
-
-        # Iterate over a copy of items to avoid RuntimeError during deletion
-        for key, value in list(search_dict.items()):
-            if value in seen_values:
-                keys_to_delete.append(key)
-            else:
-                seen_values.add(value)
-
-        for key in keys_to_delete:
-            del search_dict[key]
-
         ret_str += f"<div id=\"searchbar\" popover><input type=\"text\" id=\"searchInput\" onkeyup=\"searchForArticle()\" placeholder=\"Search..\"><ul id=\"articles\">"
-        for key in search_dict.keys():
-            right_part_link = search_dict[key][1:].replace(" ", "-")
+        for key in self.search_dict.keys():
+            right_part_link = self.search_dict[key][1:].replace(" ", "-")
             link = make_offset(offset) + right_part_link
             ret_str += f"<li><a searchText=\"{link}\" href=\"{link}\">{key}<br><sub class=\"fileloc\">{right_part_link[1:].replace("\\", " > ")}</sub></a></li>"
         ret_str += "</ul>" + ("<br>" * 5) + "</div>"

@@ -1,15 +1,15 @@
 import os
 import shutil
-import datetime
-import json
+from collections import deque
 import re
 import markdown
-from python_segments.NavigationBuilder import *
+from python_segments.html_builders.NavigationBuilder import *
+from python_segments.html_builders.HTMLBuilder import *
 from python_segments.MarkdownProcessor import *
-from markdown.extensions import Extension
 from python_segments.helpers import *
 from python_segments.JSONViewer import *;
 from python_segments.CustomMarkdownExtension import *;
+from python_segments.FileManager import *;
 
 class ObsidianMarkdownToHtml:
     def __init__(self, in_directory, out_directory):
@@ -23,26 +23,16 @@ class ObsidianMarkdownToHtml:
         self.cached_pages = {}
         self.header_list = []
         self.in_table = False
-        self.CLEANR = re.compile('<.*?>') 
         self.counter = 1
         
         self.add_dirs_to_dict("")
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
-        self.nuwa_file = ""
-
-        with open("styles/omth.css") as stylesheet: self.stylesheet = stylesheet.read()
-        with open("scripts/json_canvas.js") as script: self.script = script.read()
-        with open("scripts/searcher.js") as script: self.searcher = script.read()
-        with open("svg/canvas_bar.html", encoding='utf-8') as canv_bar: self.canvas_bar = " " + canv_bar.read()
-        with open("svg/other_pages.html", encoding='utf-8') as other_pages: self.other_pages = other_pages.read()
-        with open("svg/other_headers.html", encoding='utf-8') as other_headers: self.other_headers = other_headers.read()
-        with open("svg/other_search.html", encoding='utf-8') as other_search: self.other_search = other_search.read()
-        with open("styles/json_canvas.css") as json_stylesheet: self.json_stylesheet = json_stylesheet.read()
+        self.html_builder = HTMLBuilder()
 
         self.JSONViewer = JSONViewer(self)
+        self.FileManager = FileManager()
     
     def process_markdown(self, text, add_to_header_list=True):
-        # Create markdown instance with all extensions
         extensions = [
             CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self, add_to_header_list),
             ObsidianFootnoteExtension(self.counter),
@@ -53,27 +43,16 @@ class ObsidianMarkdownToHtml:
         text = fix_table_spacing(text)
         processed_html = markdown.markdown(text, extensions=extensions)
         
-        # Add newlines between adjacent paragraph tags
         processed_html = re.sub(r'</p>\s*<p', '</p>\n<br>\n<p', processed_html)
 
         self.counter += 1
         
         return processed_html
     
-    def read_lines(self, file_lines, opening, add_to_header_list=True, canvas=False):
-        """Process lines while preserving line breaks"""
+    def read_lines(self, file_lines, opening, add_to_header_list=True):
         processed_content = self.process_markdown("".join(file_lines[opening:]), add_to_header_list)
         
         return processed_content
-    
-    def readlines_raw(self, file_dir):
-        try:
-            with open(file_dir, "r", encoding="utf8") as f:
-                return f.readlines()
-        except UnicodeDecodeError:
-            # Fallback to different encoding
-            with open(file_dir, "r", encoding="latin-1") as f:
-                return f.readlines()
 
     def file_viewer(self, file_dir, add_to_header_list=True):
         try:
@@ -83,7 +62,7 @@ class ObsidianMarkdownToHtml:
             if not os.path.exists(file_dir):
                 raise FileNotFoundError(f"File not found: {file_dir}")
                 
-            file_lines = self.readlines_raw(file_dir)
+            file_lines = self.FileManager.readlines_raw(file_dir)
         
             opening = 0
             if file_lines and file_lines[0] == "---\n":
@@ -121,59 +100,23 @@ class ObsidianMarkdownToHtml:
                 if(rel_dir != ""):
                     (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
 
-    def footer(self):
-        ret_str = make_opening_tag("footer")
-        ret_str += make_op_close_inline_tag("p", "Generated with the <a target=\"_blank\" href=\"https://github.com/Ishancorp/ObsidianMarkdownToHtml\">Obsidian Markdown to HTML script</a>")
-        ret_str += make_op_close_inline_tag("p", "Last updated on " + datetime.datetime.now().strftime("%m/%d/%Y"))
-        ret_str += make_closing_tag("footer")
-        return ret_str
-
     def add_dirs_to_dict(self, path):
-        nu_dir = self.in_directory + "\\" + path
-        files_and_dirs = os.listdir(nu_dir)
-        sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
-        dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
-        
-        self.add_files_to_dict(sep_files, path)
-        for file in sep_files:
-            temp = ".\\" + path + "\\"
-            (self.files).append(temp.replace("\\\\", "\\") + file)
+        stack = deque([path])
+        while stack:
+            path = stack.popleft()
+            nu_dir = self.in_directory + "\\" + path
+            files_and_dirs = os.listdir(nu_dir)
+            sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
+            dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
+            
+            self.add_files_to_dict(sep_files, path)
+            for file in sep_files:
+                temp = ".\\" + path + "\\"
+                (self.files).append(temp.replace("\\\\", "\\") + file)
 
-        for dir in dirs:
-            nu_dr = path + "\\" + dir
-            self.add_dirs_to_dict(nu_dr)
-        
-    def read_json(self, file_name):
-        with open(file_name, encoding='utf-8') as json_data:
-            return json.load(json_data)
-
-    def _escape_html(self, text):
-        """Helper method to escape HTML characters"""
-        if not isinstance(text, str):
-            text = str(text)
-        return (text.replace("&", "&amp;")
-                    .replace("<", "&lt;")
-                    .replace(">", "&gt;")
-                    .replace('"', "&quot;")
-                    .replace("'", "&#39;"))
-
-    def writeToFile(self, file_name, new_file):
-        export_file = self.out_directory + self.link_to_filepath[file_name.replace('\\', '/')].replace(" ", "-")
-        os.makedirs(os.path.dirname(export_file), exist_ok=True)
-        
-        exp_file = open(export_file, "w", encoding="utf-8")
-        exp_file.write(new_file)
-        exp_file.close()
-
-    def top_part(self, file_name):
-        new_file = make_opening_tag("html")
-        new_file += make_opening_tag("head")
-        new_file += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-        new_file += make_op_close_inline_tag("title", file_name)
-        new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/\">\n"
-        new_file += "<link rel=\"preconnect\" href=\"https://rsms.me/inter/inter.css\">\n"
-        new_file += "<link rel=\"stylesheet\" href=\""+ make_offset(self.offset) + "\\style.css\">\n"
-        return new_file
+            for dir in reversed(dirs):
+                nu_dr = path + "\\" + dir
+                stack.appendleft(nu_dr)
         
     def compile_webpages(self):
         for file in self.files:
@@ -183,14 +126,11 @@ class ObsidianMarkdownToHtml:
             if extension == "md":
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
-                new_file = self.top_part(file_name)
-                new_file += make_closing_tag("head")
-                new_file += make_opening_tag("body")
+                new_file = self.html_builder.top_part(file_name, self.offset)
 
                 viewed_file = self.file_viewer(file_dir)
 
-                self.nuwa_file = file[2:-3]
-                new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, self.nuwa_file)
+                new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:-3])
                 self.header_list = []
                 
                 new_file += make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
@@ -200,41 +140,25 @@ class ObsidianMarkdownToHtml:
                 
                 new_file += make_closing_tag("article")
                 
-                new_file += self.footer()
-                new_file += "<script src=\""+ make_offset(self.offset) + "\\searcher.js\"></script>\n"
-                new_file += make_closing_tag("body")
-                new_file += make_closing_tag("html")
+                new_file += self.html_builder.bottom_part()
                     
-                self.writeToFile(full_file_name, new_file)
+                self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/')].replace(" ", "-"), new_file)
                 # break
             elif extension == "canvas":
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
-                new_file = self.top_part(file_name)
+                new_file = self.html_builder.top_part(file_name, self.offset, is_json=True)
 
-                new_file += make_opening_tag("style")
-                new_file += self.json_stylesheet
-                new_file += make_closing_tag("style")
-
-                new_file += make_closing_tag("head")
-                new_file += make_opening_tag("body")
-
-                self.nuwa_file = file[2:] + ".html"
-                new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, self.nuwa_file)
+                new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:] + ".html")
                 self.header_list = []
                 
                 new_file += make_op_close_inline_tag("h1 class=\"file-title\"", file_name + ".CANVAS")
 
-                canvas_dict = self.read_json(file_dir)
-                new_file += self.JSONViewer.json_viewer(canvas_dict)
+                new_file += self.JSONViewer.json_viewer(file_dir)
                 
-                new_file += self.footer()
-                new_file += "<script src=\""+ make_offset(self.offset) + "\\canvas.js\"></script>\n"
-                new_file += "<script src=\""+ make_offset(self.offset) + "\\searcher.js\"></script>\n"
-                new_file += make_closing_tag("body")
-                new_file += make_closing_tag("html")
+                new_file += self.html_builder.bottom_part(is_json=True)
                     
-                self.writeToFile(full_file_name + ".canvas", new_file)
+                self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/') + ".canvas"].replace(" ", "-"), new_file)
             else:
                 # write file as-is
                 export_file = self.out_directory + file.split(".", 1)[1].replace(" ", "-").lower()
@@ -243,11 +167,4 @@ class ObsidianMarkdownToHtml:
 
         print("Compiled")
         
-        with open((self.out_directory) + "\\style.css", "w") as text_file:
-            text_file.write(self.stylesheet)
-        
-        with open((self.out_directory) + "\\canvas.js", "w") as text_file:
-            text_file.write(self.script)
-        
-        with open((self.out_directory) + "\\searcher.js", "w") as text_file:
-            text_file.write(self.searcher)
+        self.FileManager.write_files(self.out_directory)

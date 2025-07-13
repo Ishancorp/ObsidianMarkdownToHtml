@@ -1,11 +1,15 @@
+import json
 from python_segments.MarkdownProcessor import *
 from python_segments.helpers import *
 
 class JSONViewer:
     def __init__(self, parent_instance):
         self.parent_instance = parent_instance
+        with open("svg/canvas_bar.html", encoding='utf-8') as canv_bar: self.canvas_bar = " " + canv_bar.read()
 
-    def json_viewer(self, data):
+    def json_viewer(self, file_name):
+        with open(file_name, encoding='utf-8') as json_data:
+            data = json.load(json_data)
         nodes_by_id = {}
         max_x = 0
         max_y = 0
@@ -174,7 +178,7 @@ class JSONViewer:
             f"{arrow_part}{svg_part}{div_part}"
             "</div>\n"
             "</div>\n"
-            f"{self.parent_instance.canvas_bar}"
+            f"{self.canvas_bar}"
             "</div>\n"
         )
 

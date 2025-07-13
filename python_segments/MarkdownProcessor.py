@@ -8,6 +8,7 @@ import xml.etree.ElementTree as etree
 from xml.etree.ElementTree import fromstring
 import re
 from python_segments.helpers import *
+from python_segments.FileManager import *
 
 def clean_input(text):
     # Remove control characters and non-printables
@@ -293,6 +294,7 @@ class TransclusionInlineProcessor(InlineProcessor):
         super().__init__(pattern, md)
         self.parent_instance = parent_instance
         self.transclusion_counter = 0  # Add counter for unique prefixes
+        self.FileManager = FileManager()
 
     def handleMatch(self, m, matcher):
         link_text = m.group(1).strip()
@@ -435,7 +437,7 @@ class TransclusionInlineProcessor(InlineProcessor):
         
         try:
             # Read the full file content to scan for footnotes
-            full_file_content = self.parent_instance.readlines_raw(self.parent_instance.in_directory + f_p)
+            full_file_content = self.FileManager.readlines_raw(self.parent_instance.in_directory + f_p)
             full_content = ''.join(full_file_content)
             
             # Pattern to match footnote definitions [^id]: content
@@ -568,7 +570,7 @@ class TransclusionInlineProcessor(InlineProcessor):
     def get_block_reference_content_improved(self, page_name, block_ref, file_path):
         """Get content for a block reference with improved table boundary detection"""
         try:
-            examined_lines = self.parent_instance.readlines_raw(self.parent_instance.in_directory + file_path)
+            examined_lines = self.FileManager.readlines_raw(self.parent_instance.in_directory + file_path)
             
             if block_ref[0] == '^':
                 # Find the line with the block reference
@@ -684,14 +686,14 @@ class TransclusionInlineProcessor(InlineProcessor):
     def get_section_content(self, file_path, section_name):
         """Get content of a specific section"""
         try:
-            examined_lines = self.parent_instance.readlines_raw(self.parent_instance.in_directory + file_path)
+            examined_lines = self.FileManager.readlines_raw(self.parent_instance.in_directory + file_path)
             
             new_lines = []
             
             for i in range(len(examined_lines)):
                 line = examined_lines[i]
                 if (line.startswith('#') and 
-                    section_name in re.sub(self.parent_instance.CLEANR, '', line).replace("[[","").replace("]]","").replace(":","").replace("*", "")):
+                    section_name in re.sub(CLEANR, '', line).replace("[[","").replace("]]","").replace(":","").replace("*", "")):
                     
                     header_size = len(line.split("# ", 1)[0]) + 1
                     new_lines.append(line)
@@ -715,7 +717,7 @@ class TransclusionInlineProcessor(InlineProcessor):
     def get_full_article_content(self, file_path, page_name):
         """Get content of entire article"""
         try:
-            examined_lines = self.parent_instance.readlines_raw(self.parent_instance.in_directory + file_path)
+            examined_lines = self.FileManager.readlines_raw(self.parent_instance.in_directory + file_path)
             
             # Add title
             title_line = f"**{page_name.split('/')[-1]}**\n\n"
