@@ -21,7 +21,7 @@ def slugify(text):
     text = re.sub(r'\x02?wzxhzdk:\d+', '', text)
     text = text.strip().lower()
     text = re.sub(r'\s+', '-', text)
-    text = re.sub(r'[^\w\-\[\]\(\),]', '', text)
+    text = re.sub(r'[^\w\-\[\]\(\),†\"\'“”‘’‡.;]', '', text)
     text = re.sub(r'-+', '-', text)
     return text
 
