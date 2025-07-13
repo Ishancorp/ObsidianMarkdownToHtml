@@ -14,22 +14,15 @@ def clean_input(text):
     return ''.join(ch for ch in text if unicodedata.category(ch)[0] != 'C')
 
 def slugify(text):
-    """Convert text to a URL-friendly slug"""
     if not text:
         return ""
     
     text = clean_input(text)
-
     text = re.sub(r'\x02?wzxhzdk:\d+', '', text)
-    
     text = text.strip().lower()
-    
     text = re.sub(r'\s+', '-', text)
-    
     text = re.sub(r'[^\w\-\[\]\(\),]', '', text)
-    
     text = re.sub(r'-+', '-', text)
-    
     return text
 
 class IndentedParagraphProcessor(BlockProcessor):
