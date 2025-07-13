@@ -38,7 +38,8 @@ class ObsidianMarkdownToHtml:
             ObsidianFootnoteExtension(self.counter),
             "sane_lists",
             "tables", 
-            "nl2br"
+            "nl2br",
+            ImprovedLaTeXExtension(),
         ]
         text = fix_table_spacing(text)
         processed_html = markdown.markdown(text, extensions=extensions)
@@ -143,7 +144,6 @@ class ObsidianMarkdownToHtml:
                 new_file += self.html_builder.bottom_part(self.offset)
                     
                 self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/')].replace(" ", "-"), new_file)
-                # break
             elif extension == "canvas":
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]

@@ -96,6 +96,23 @@ aside {
     display: flex;
 }
   
+.latex-display {
+    display: block;
+    margin: 1em 0;
+    padding: 0.5em;
+    text-align: center;
+    border-radius: 4px;
+    font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', serif;
+    overflow-x: auto;
+}
+
+.latex-inline {
+    display: inline;
+    font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', serif;
+    color: #DADADA;
+    padding: 0.1em 0.2em;
+    border-radius: 2px;
+}
 h1 {
     font-family: Inter, sans-serif;
     font-size: 2rem;

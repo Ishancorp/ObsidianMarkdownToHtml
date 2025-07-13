@@ -11,7 +11,6 @@ from python_segments.helpers import *
 from python_segments.FileManager import *
 
 def clean_input(text):
-    # Remove control characters and non-printables
     return ''.join(ch for ch in text if unicodedata.category(ch)[0] != 'C')
 
 def slugify(text):
@@ -23,16 +22,12 @@ def slugify(text):
 
     text = re.sub(r'\x02?wzxhzdk:\d+', '', text)
     
-    # Convert to lowercase and strip whitespace
     text = text.strip().lower()
     
-    # Replace spaces and multiple whitespace with single hyphens
     text = re.sub(r'\s+', '-', text)
     
-    # Remove special characters but keep alphanumeric, hyphens, and some safe chars
     text = re.sub(r'[^\w\-\[\]\(\),]', '', text)
     
-    # Remove multiple consecutive hyphens
     text = re.sub(r'-+', '-', text)
     
     return text
@@ -50,7 +45,6 @@ class IndentedParagraphProcessor(BlockProcessor):
         section = etree.SubElement(parent, 'section')
 
         for line in lines:
-            # Determine indent level from the first indented line
             match = self.INDENT_RE.match(line)
             if not match:
                 continue
@@ -58,11 +52,9 @@ class IndentedParagraphProcessor(BlockProcessor):
             indent_raw = match.group(1)
             level = indent_raw.count('    ') + indent_raw.count('\t')
 
-            # Create paragraph with class "indent-{level}"
             para = etree.SubElement(section, 'p')
             para.set('class', f'indent-{level}')
 
-            # Remove leading indentation for each line
             stripped_lines = []
             stripped = re.sub(rf'^(?: {{4}}|\t){{{level}}}', '', line)
             stripped_lines.append(stripped)
@@ -70,8 +62,6 @@ class IndentedParagraphProcessor(BlockProcessor):
             para.text = '\n'.join(stripped_lines)
 
 class ObsidianFootnoteInlineProcessor(InlineProcessor):
-    """Process Obsidian-style footnotes [^1] and convert them to standard markdown footnotes"""
-    
     def __init__(self, pattern, md, prefix):
         super().__init__(pattern, md)
         self.RE = re.compile(r'\[\^([^\]]+)\]')
@@ -80,7 +70,6 @@ class ObsidianFootnoteInlineProcessor(InlineProcessor):
     def handleMatch(self, m, matcher):
         footnote_id = m.group(1)
         
-        # Create footnote reference in standard markdown format
         el = etree.Element('span')
         el.set('id', f'fn-{self.prefix}-{footnote_id}')
         el.set('class', f'fn fn-{self.prefix}-{footnote_id}')
@@ -96,8 +85,6 @@ class ObsidianFootnoteInlineProcessor(InlineProcessor):
         return el, m.start(0), m.end(0)
 
 class ObsidianFootnoteBlockProcessor(BlockProcessor):
-    """Process Obsidian-style footnote definitions [^1]: content"""
-    
     def __init__(self, parser):
         super().__init__(parser)
         self.RE = re.compile(r'^\[\^([^\]]+)\]:\s*(.*)')
@@ -110,15 +97,12 @@ class ObsidianFootnoteBlockProcessor(BlockProcessor):
         block = blocks.pop(0)
         lines = block.split('\n')
         
-        # Parse the first line
         match = self.RE.match(lines[0])
         if not match:
             return
         
-        # Process continuation lines
         for line in lines:
-            if line.strip():  # Non-empty line
-                #footnote_content.append(line)
+            if line.strip():
                 match = self.RE.match(line)
                 if not match:
                     return
@@ -141,42 +125,32 @@ class FootnoteTreeProcessor(Treeprocessor):
         if not hasattr(self.footnote_processor, 'footnotes') or not self.footnote_processor.footnotes:
             return
         
-        # Create a copy of the footnotes dictionary to avoid modification during iteration
         footnotes_copy = dict(self.footnote_processor.footnotes)
 
         self.set_placeholders(root)
         
-        # Create footnotes section
         footnotes_div = etree.Element('div')
         footnotes_div.set('class', 'footnotes')
         
-        # Add horizontal rule
         hr = etree.SubElement(footnotes_div, 'hr')
         
-        # Create ordered list for footnotes
         ol = etree.SubElement(footnotes_div, 'ol')
         
-        # Iterate over the copy instead of the original
         for footnote_id, content in footnotes_copy.items():
-            # Create list item
             li = etree.SubElement(ol, 'li')
             li.set('id', f'fn:{footnote_id}')
             
-            # Process footnote content through markdown
             footnote_root = etree.Element('div')
             self.md.parser.parseChunk(footnote_root, content)
             
-            # Move processed content to list item
             for child in footnote_root:
                 li.append(child)
             
-            # Add back-reference link
             backref = etree.SubElement(li, 'a')
             backref.set('href', f'#fnref:{footnote_id}')
             backref.set('class', 'footnote-backref')
             backref.text = '↩'
         
-        # Add footnotes section to the end of the document
         root.append(footnotes_div)
     
     def set_placeholders(self, parent):
@@ -227,17 +201,14 @@ class AnchorSpanTreeProcessor(Treeprocessor):
             """Extract clean text content from an element"""
             text_parts = []
             
-            # Get direct text content
             if elem.text:
                 text_parts.append(elem.text.strip())
             
-            # Get text from child elements
             for child in elem:
                 child_text = get_text_content(child)
                 if child_text:
                     text_parts.append(child_text)
                 
-                # Get tail text after child elements
                 if child.tail:
                     text_parts.append(child.tail.strip())
             
@@ -247,30 +218,23 @@ class AnchorSpanTreeProcessor(Treeprocessor):
             i = 0
             while i < len(parent):
                 elem = parent[i]
-                # Check for headers
                 if elem.tag in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
-                    # Extract text content for slug
                     text = get_text_content(elem)
                     
                     header_id = slugify(text)
                     
-                    # Only create anchor if we have a valid ID
                     if header_id:
-                        # Create <span class="anchor" id="...">
                         span = etree.Element('span')
                         span.set('class', 'anchor')
                         span.set('id', header_id)
 
-                        # Insert span before header
                         parent.insert(i, span)
-                        i += 1  # Skip over inserted span
+                        i += 1
                         
-                        # Add to header list if enabled and parent_instance exists
                         if self.add_to_header_list and self.parent_instance:
-                            header_level = int(elem.tag[1])  # Extract number from h1, h2, etc.
+                            header_level = int(elem.tag[1])
                             self.parent_instance.header_list.append([text, header_id, header_level])
 
-                # Recurse into children
                 process_element(elem)
                 i += 1
 
@@ -293,13 +257,12 @@ class TransclusionInlineProcessor(InlineProcessor):
     def __init__(self, pattern, md, parent_instance):
         super().__init__(pattern, md)
         self.parent_instance = parent_instance
-        self.transclusion_counter = 0  # Add counter for unique prefixes
+        self.transclusion_counter = 0 
         self.FileManager = FileManager()
 
     def handleMatch(self, m, matcher):
         link_text = m.group(1).strip()
         
-        # Check if this is an image by extension
         extension = link_text.split(".")[-1].lower()
         if extension in ["png", "svg", "jpg", "jpeg", "gif", "webp"]:
             return self.handle_image_transclusion(link_text, m)
@@ -311,53 +274,41 @@ class TransclusionInlineProcessor(InlineProcessor):
         if link_text in self.parent_instance.link_to_filepath:
             link = self.parent_instance.link_to_filepath[link_text].lower().replace(" ", "-")
             
-            # Create image element
             img = etree.Element('img')
             img.set('src', make_offset(self.parent_instance.offset) + link[1:])
             img.set('alt', link_text)
             
             return img, match.start(0), match.end(0)
         else:
-            # If image not found, return broken link indicator
             span = etree.Element('span')
             span.set('class', 'broken-link')
             span.text = f'![[{link_text}]]'
             return span, match.start(0), match.end(0)
     
     def handle_content_transclusion(self, link_text, match):
-        """Handle content transclusion (articles/sections)"""
         if link_text.split("#")[0] not in self.parent_instance.link_to_filepath:
-            # If page not found, return broken link indicator
             span = etree.Element('span')
             span.set('class', 'broken-link')
             span.text = f'![[{link_text}]]'
             return span, match.start(0), match.end(0)
         
-        # Create aside element for transclusion
         aside = etree.Element('aside')
         
-        # Create transclude section div
         transcl_div = etree.Element('div')
         transcl_div.set('class', 'transclsec')
         
-        # Get the transcluded content
         transcluded_content = self.get_transcluded_content(link_text)
         
         if transcluded_content:
-            # Generate unique prefix for this transclusion
             self.transclusion_counter += 1
             unique_prefix = f"{self.parent_instance.counter}-t{self.transclusion_counter}"
             
-            # Clean up the content before processing
             cleaned_content = self.clean_content(transcluded_content)
             
-            # Scan for footnotes in the transcluded content
             transcluded_footnotes = self.scan_for_footnotes(link_text, cleaned_content)
             
-            # Create a separate markdown instance with unique footnote prefix
             transcluded_md = self.create_transclusion_markdown(unique_prefix)
             
-            # Process the transcluded content with the separate markdown instance
             processed_content = transcluded_md.convert(cleaned_content)
 
             if transcluded_footnotes:
@@ -369,7 +320,7 @@ class TransclusionInlineProcessor(InlineProcessor):
                         current_last = match.group(2)
                         if current_last == last_number:
                             return replacement_text
-                        return match.group(0)  # return original match unchanged
+                        return match.group(0)
 
                     processed_content = re.sub(
                         r'fn-tooltip-(\d+)-t\d+-(\d+)%',
@@ -378,31 +329,24 @@ class TransclusionInlineProcessor(InlineProcessor):
                     )
                     match_fn = re.search(r'fn-tooltip-(\d+)-t\d+-(\d+)%', processed_content)
             
-            # Clean up the processed HTML
             cleaned_html = self.clean_html_spacing(processed_content)
             
-            # Parse the processed HTML and add to transclude div
             try:
-                # Wrap in a temporary div to ensure valid XML parsing
                 wrapped_content = f"<div>{cleaned_html}</div>"
                 temp_root = fromstring(wrapped_content)
                 
-                # Move all parsed content to transclude div
                 for child in temp_root:
                     transcl_div.append(child)
                     
             except Exception as e:
-                # Fallback: add as text if XML parsing fails
                 p = etree.SubElement(transcl_div, 'p')
                 p.text = f"Error processing transcluded content: {str(e)}"
         else:
-            # Add error message if content not found
             p = etree.SubElement(transcl_div, 'p')
             p.text = f"Content not found: {link_text}"
         
         aside.append(transcl_div)
         
-        # Add link to original
         link_div = etree.Element('div')
         link_div.set('class', 'transclude-link')
         
@@ -423,10 +367,8 @@ class TransclusionInlineProcessor(InlineProcessor):
         return aside, match.start(0), match.end(0)
     
     def scan_for_footnotes(self, link_text, content):
-        """Scan transcluded content for footnotes and return them as a dictionary"""
         footnotes = {}
         
-        # Get the file path for the transcluded content
         page_name = link_text.split("#")[0]
         if page_name not in self.parent_instance.link_to_filepath:
             return footnotes
@@ -436,39 +378,30 @@ class TransclusionInlineProcessor(InlineProcessor):
         f_p = "\\" + file_paths[-1] + ".md"
         
         try:
-            # Read the full file content to scan for footnotes
             full_file_content = self.FileManager.readlines_raw(self.parent_instance.in_directory + f_p)
             full_content = ''.join(full_file_content)
             
-            # Pattern to match footnote definitions [^id]: content
             footnote_pattern = re.compile(r'^\[\^([^\]]+)\]:\s*(.*?)(?=^\[\^|\Z)', re.MULTILINE | re.DOTALL)
             
-            # Find all footnote definitions in the file
             for match in footnote_pattern.finditer(full_content):
                 footnote_id = match.group(1)
                 footnote_content = match.group(2).strip()
                 
-                # Cut off the footnote at the first Markdown header
                 header_match = re.search(r'^#{1,6}\s.*', footnote_content, re.MULTILINE)
                 cutoff_index = header_match.start() if header_match else len(footnote_content)
 
-                # Cut off at the first occurrence of two newlines
                 double_newline_match = re.search(r'\n\s*\n', footnote_content)
                 if double_newline_match and double_newline_match.start() < cutoff_index:
                     cutoff_index = double_newline_match.start()
 
-                # Truncate the content accordingly
                 footnote_content = footnote_content[:cutoff_index]
 
-                # Clean up the footnote content
-                footnote_content = re.sub(r'\n+', ' ', footnote_content)  # Replace newlines with spaces
-                footnote_content = re.sub(r'\s+', ' ', footnote_content)  # Normalize whitespace
+                footnote_content = re.sub(r'\n+', ' ', footnote_content)
+                footnote_content = re.sub(r'\s+', ' ', footnote_content)
 
-                # Check if this footnote is referenced in the transcluded content
                 if f'[^{footnote_id}]' in content:
                     footnotes[footnote_id] = footnote_content
             
-            # Also check for footnotes that might be in the transcluded section itself
             section_footnote_pattern = re.compile(r'^\[\^([^\]]+)\]:\s*(.*)', re.MULTILINE)
             for match in section_footnote_pattern.finditer(content):
                 footnote_id = match.group(1)
@@ -481,11 +414,9 @@ class TransclusionInlineProcessor(InlineProcessor):
         return footnotes
     
     def clean_content(self, content):
-        """Clean up content before markdown processing"""
         if not content:
             return ""
         
-        # Remove excessive empty lines but preserve paragraph breaks
         lines = content.split('\n')
         cleaned_lines = []
         empty_line_count = 0
@@ -494,94 +425,73 @@ class TransclusionInlineProcessor(InlineProcessor):
             stripped = line.strip()
             if not stripped:
                 empty_line_count += 1
-                # Only allow up to 2 consecutive empty lines (for paragraph breaks)
                 if empty_line_count <= 2:
                     cleaned_lines.append(line)
             else:
                 empty_line_count = 0
                 cleaned_lines.append(line)
         
-        # Join back and strip leading/trailing whitespace
         cleaned = '\n'.join(cleaned_lines).strip()
         
-        # Remove excessive spaces at the beginning of lines
         cleaned = re.sub(r'^[ \t]+', '', cleaned, flags=re.MULTILINE)
         
         return cleaned
     
     def clean_html_spacing(self, html):
-        """Clean up HTML spacing issues"""
         if not html:
             return ""
         
-        # Remove excessive whitespace between tags
         html = re.sub(r'>\s+<', '><', html)
         
-        # Remove excessive newlines
         html = re.sub(r'\n\s*\n\s*\n+', '\n\n', html)
         
-        # Clean up paragraph spacing
-        html = re.sub(r'<p>\s*</p>', '', html)  # Remove empty paragraphs
-        html = re.sub(r'</p>\s*<p>', '</p><p>', html)  # Remove space between paragraphs
+        html = re.sub(r'<p>\s*</p>', '', html)
+        html = re.sub(r'</p>\s*<p>', '</p><p>', html)
         
-        # Clean up line breaks
-        html = re.sub(r'<br\s*/?>\s*<br\s*/?>', '<br>', html)  # Remove duplicate breaks
+        html = re.sub(r'<br\s*/?>\s*<br\s*/?>', '<br>', html)
         
         return html.strip()
     
     def create_transclusion_markdown(self, unique_prefix):
-        """Create a separate markdown instance for processing transcluded content"""
         import markdown
         
-        # Create extensions for transclusion processing
         extensions = [
-            # Use the unique prefix for footnotes in transcluded content
             ObsidianFootnoteExtension(unique_prefix),
             "sane_lists",
             "tables", 
-            # Remove "nl2br" extension as it might be adding unwanted line breaks
+            ImprovedLaTeXExtension(),
         ]
         
-        # Create a new markdown instance
         transcluded_md = markdown.Markdown(extensions=extensions)
         
         return transcluded_md
     
     def get_transcluded_content(self, mk_link):
-        """Get content for transclusion with proper table boundary handling"""
         link = self.parent_instance.link_to_filepath[mk_link.split("#")[0]]
         file_paths = [k for k, v in self.parent_instance.link_to_filepath.items() if v == link]
         f_p = "\\" + file_paths[-1] + ".md"
         
         if "#" in mk_link:
-            # Handle section transclusion
             gen_link, head_link = mk_link.split("#", 1)
             
             if head_link.startswith('^'):
-                # Block reference - use improved block reference handling
                 return self.get_block_reference_content_improved(gen_link, head_link, f_p)
             else:
-                # Section reference
                 return self.get_section_content(f_p, head_link)
         else:
-            # Entire article transclusion
             return self.get_full_article_content(f_p, mk_link)
     
     def get_block_reference_content_improved(self, page_name, block_ref, file_path):
-        """Get content for a block reference with improved table boundary detection"""
         try:
             examined_lines = self.FileManager.readlines_raw(self.parent_instance.in_directory + file_path)
             
             if block_ref[0] == '^':
-                # Find the line with the block reference
                 for i in range(len(examined_lines) - 1, -1, -1):
                     if examined_lines[i].strip().endswith(block_ref):
-                        # Found the line with block reference
                         line_content = examined_lines[i-1].strip() + examined_lines[i].strip()
                         if line_content.endswith(block_ref):
                             line_content = line_content[:-len(block_ref)].strip()
                         
-                        # Check if this is part of a table
                         if '|' in line_content:
                             return self.extract_table_block(examined_lines, i, block_ref)
                         else:
@@ -592,68 +502,56 @@ class TransclusionInlineProcessor(InlineProcessor):
             return None
     
     def extract_table_block(self, lines, ref_line_idx, block_ref):
-        """Extract a complete table that contains the block reference"""
         table_lines = []
         
-        # Get the line with block reference (without the reference)
         line_content = lines[ref_line_idx].strip()
         if line_content.endswith(block_ref):
             line_content = line_content[:-len(block_ref)].strip()
         
-        # Find table boundaries
         table_start = ref_line_idx
         table_end = ref_line_idx
         
-        # Go backwards to find table start
         for j in range(ref_line_idx - 1, -1, -1):
             prev_line = lines[j].strip()
             if self.is_table_line(prev_line):
                 table_start = j
             elif prev_line == "":
-                continue  # Skip empty lines within table
+                continue
             else:
-                break  # Hit non-table content
+                break
         
-        # Go forwards to find table end
         for j in range(ref_line_idx + 1, len(lines)):
             next_line = lines[j].strip()
             if self.is_table_line(next_line):
                 table_end = j
             elif next_line == "":
-                # Check if the next non-empty line is still part of the table
                 k = j + 1
                 while k < len(lines) and lines[k].strip() == "":
                     k += 1
                 if k < len(lines) and self.is_table_line(lines[k].strip()):
-                    continue  # Still part of table
+                    continue
                 else:
-                    break  # End of table
+                    break
             else:
-                break  # Hit non-table content
+                break
         
-        # Extract table content and clean up spacing
         for i in range(table_start, table_end + 1):
             line = lines[i].strip()
-            if line:  # Skip empty lines
-                # Remove block reference if it's on this line
+            if line:
                 if line.endswith(block_ref):
                     line = line[:-len(block_ref)].strip()
                 table_lines.append(line)
         
-        # Join with single newlines only
         return '\n'.join(table_lines)
     
     def extract_paragraph_block(self, lines, ref_line_idx, block_ref):
-        """Extract a paragraph block that contains the block reference"""
         content_lines = []
         
-        # Get the line with block reference (without the reference)
         line_content = lines[ref_line_idx].strip()
         if line_content.endswith(block_ref):
             line_content = line_content[:-len(block_ref)].strip()
         content_lines.append(line_content)
         
-        # Collect related lines going backwards
         for j in range(ref_line_idx - 1, -1, -1):
             prev_line = lines[j].strip()
             if (prev_line.startswith('#') or 
@@ -666,25 +564,20 @@ class TransclusionInlineProcessor(InlineProcessor):
                 break
             content_lines.insert(0, prev_line)
         
-        # Join with single newlines only
         return '\n'.join(content_lines)
     
     def is_table_line(self, line):
-        """Check if a line is part of a table"""
         if not line:
             return False
         
-        # Check for table row (contains |)
         if re.match(r'^\s*\|.*\|\s*$', line):
             return True
         
-        # Check for table separator line (contains only -, :, |, and spaces)
         if re.match(r'^\s*\|?\s*[-:]+\s*(\|\s*[-:]+\s*)*\|?\s*$', line):
             return True
         return False
     
     def get_section_content(self, file_path, section_name):
-        """Get content of a specific section"""
         try:
             examined_lines = self.FileManager.readlines_raw(self.parent_instance.in_directory + file_path)
             
@@ -698,7 +591,6 @@ class TransclusionInlineProcessor(InlineProcessor):
                     header_size = len(line.split("# ", 1)[0]) + 1
                     new_lines.append(line)
                     
-                    # Collect lines until next header of same or higher level
                     for j in range(i + 1, len(examined_lines)):
                         next_line = examined_lines[j]
                         if (next_line.startswith('#') and 
@@ -708,21 +600,17 @@ class TransclusionInlineProcessor(InlineProcessor):
                         new_lines.append(next_line)
                     break
             
-            # Join and clean up the content
             content = ''.join(new_lines)
             return content.strip()
         except (IOError, IndexError):
             return None
     
     def get_full_article_content(self, file_path, page_name):
-        """Get content of entire article"""
         try:
             examined_lines = self.FileManager.readlines_raw(self.parent_instance.in_directory + file_path)
             
-            # Add title
             title_line = f"**{page_name.split('/')[-1]}**\n\n"
             
-            # Skip frontmatter if present
             start_idx = 0
             if examined_lines and examined_lines[0].strip() == "---":
                 for i in range(1, len(examined_lines)):
@@ -737,8 +625,6 @@ class TransclusionInlineProcessor(InlineProcessor):
             return None
 
 class BlockReferenceProcessor(Treeprocessor):
-    """Process block references and attach them as IDs to paragraphs"""
-    
     def __init__(self, md):
         super().__init__(md)
         self.block_ref_pattern = re.compile(r'\s*\^([a-zA-Z0-9]{6})\s*$')
@@ -749,17 +635,13 @@ class BlockReferenceProcessor(Treeprocessor):
             while i < len(parent):
                 elem = parent[i]
                 
-                # Check if this is a paragraph element
                 if elem.tag == 'p':
-                    # Get the text content of the paragraph
                     text_content = self.get_full_text(elem)
                     
-                    # Check if it ends with a block reference
                     match = self.block_ref_pattern.search(text_content)
                     if match:
                         block_id = match.group(1)
                         
-                        # Remove the block reference from the text
                         self.remove_block_reference(elem, match.group(0))
 
                         anchor_span = etree.Element('span')
@@ -768,32 +650,26 @@ class BlockReferenceProcessor(Treeprocessor):
                         parent.insert(i, anchor_span)
                         i += 1
                 
-                # Handle table elements with block references
                 elif elem.tag == 'table':
-                    # Check if any cell in the table has a block reference
                     table_text = self.get_full_text(elem)
                     match = self.block_ref_pattern.search(table_text)
                     if match:
                         block_id = match.group(1)
                         
-                        # Remove the block reference from the table
                         self.remove_block_reference(elem, match.group(0))
                         
-                        # Add anchor span before the table
                         anchor_span = etree.Element('span')
                         anchor_span.set('class', 'anchor')
                         anchor_span.set('id', f'^{block_id}')
                         parent.insert(i, anchor_span)
                         i += 1
                 
-                # Recurse into children
                 process_element(elem)
                 i += 1
         
         process_element(root)
     
     def get_full_text(self, elem):
-        """Get the full text content of an element including children"""
         text_parts = []
         
         if elem.text:
@@ -810,23 +686,18 @@ class BlockReferenceProcessor(Treeprocessor):
         return ''.join(text_parts)
     
     def remove_block_reference(self, elem, block_ref_text):
-        """Remove the block reference text from the element"""
-        # Check if it's in the direct text
         if elem.text and block_ref_text in elem.text:
             elem.text = elem.text.replace(block_ref_text, '').rstrip()
             return
         
-        # Check children and their tails
         for child in elem:
             if child.tail and block_ref_text in child.tail:
                 child.tail = child.tail.replace(block_ref_text, '').rstrip()
                 return
             
-            # Recursively check child elements
             self.remove_block_reference_from_child(child, block_ref_text)
     
     def remove_block_reference_from_child(self, elem, block_ref_text):
-        """Recursively remove block reference from child elements"""
         if elem.text and block_ref_text in elem.text:
             elem.text = elem.text.replace(block_ref_text, '').rstrip()
             return
@@ -836,3 +707,127 @@ class BlockReferenceProcessor(Treeprocessor):
                 child.tail = child.tail.replace(block_ref_text, '').rstrip()
                 return
             self.remove_block_reference_from_child(child, block_ref_text)
+
+class ImprovedLaTeXInlineProcessor(InlineProcessor):
+    def __init__(self, pattern, md):
+        super().__init__(pattern, md)
+        self.RE = re.compile(r'(?<!\$)\$([^$\n]+?)\$(?!\$)')
+    
+    def handleMatch(self, m, matcher):
+        latex_content = m.group(1).strip()
+        
+        if not latex_content or len(latex_content) < 1:
+            return None
+        
+        span = etree.Element('span')
+        span.set('class', 'latex-inline')
+        span.set('data-latex', latex_content)
+        
+        span.text = f'${latex_content}$'
+        
+        return span, m.start(0), m.end(0)
+
+class ImprovedLaTeXBlockProcessor(BlockProcessor):
+    def __init__(self, parser):
+        super().__init__(parser)
+        self.RE = re.compile(r'^\$\$(.*?)\$\$\s*$', re.MULTILINE | re.DOTALL)
+    
+    def test(self, parent, block):
+        return bool(self.RE.search(block))
+    
+    def run(self, parent, blocks):
+        block = blocks.pop(0)
+        
+        lines = block.split('\n')
+        processed_lines = []
+        i = 0
+        
+        while i < len(lines):
+            line = lines[i]
+            
+            start_match = re.match(r'^\$\$(.*)', line)
+            if start_match:
+                latex_content = start_match.group(1)
+                
+                end_match = re.search(r'(.*)\$\$$', latex_content)
+                if end_match:
+                    latex_content = end_match.group(1).strip()
+                    self.create_latex_element(parent, latex_content)
+                else:
+                    latex_lines = [latex_content]
+                    i += 1
+                    
+                    while i < len(lines):
+                        line = lines[i]
+                        end_match = re.search(r'(.*)\$\$$', line)
+                        if end_match:
+                            latex_lines.append(end_match.group(1))
+                            break
+                        else:
+                            latex_lines.append(line)
+                        i += 1
+                    
+                    latex_content = '\n'.join(latex_lines).strip()
+                    self.create_latex_element(parent, latex_content)
+            else:
+                processed_lines.append(line)
+            
+            i += 1
+        
+        if processed_lines:
+            remaining_content = '\n'.join(processed_lines).strip()
+            if remaining_content:
+                blocks.insert(0, remaining_content)
+        
+        return True
+    
+    def create_latex_element(self, parent, latex_content):
+        div = etree.SubElement(parent, 'div')
+        div.set('class', 'latex-display')
+        div.set('data-latex', latex_content)
+        div.text = f'$${latex_content}$$'
+
+class ImprovedLaTeXExtension(Extension):
+    def extendMarkdown(self, md):
+        latex_block_processor = ImprovedLaTeXBlockProcessor(md.parser)
+        md.parser.blockprocessors.register(latex_block_processor, 'latex_block', 75)
+        
+        latex_inline_processor = ImprovedLaTeXInlineProcessor(r'(?<!\$)\$([^$\n]+?)\$(?!\$)', md)
+        md.inlinePatterns.register(latex_inline_processor, 'latex_inline', 175)
+
+# Usage example - add this to your existing markdown extensions
+def create_markdown_with_latex(prefix, parent_instance=None):
+    import markdown
+    
+    extensions = [
+        ObsidianFootnoteExtension(prefix),
+        "sane_lists",
+        "tables",
+        ImprovedLaTeXExtension(),
+    ]
+    
+    md = markdown.Markdown(extensions=extensions)
+    
+    if parent_instance:
+        md.inlinePatterns.register(
+            WikiLinkInlineProcessor(r'\[\[([^\]]+)\]\]', md, parent_instance.link_to_filepath, parent_instance.offset),
+            'wikilink', 
+            75
+        )
+        md.inlinePatterns.register(
+            TransclusionInlineProcessor(r'!\[\[([^\]]+)\]\]', md, parent_instance),
+            'transclusion',
+            80
+        )
+        md.treeprocessors.register(
+            AnchorSpanTreeProcessor(md, parent_instance),
+            'anchor_span',
+            15
+        )
+        md.treeprocessors.register(
+            BlockReferenceProcessor(md),
+            'block_reference',
+            5
+        )
+    
+    return md

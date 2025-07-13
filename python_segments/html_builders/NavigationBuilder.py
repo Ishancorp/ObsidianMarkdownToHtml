@@ -11,7 +11,6 @@ class NavigationBuilder:
         seen_values = set()
         keys_to_delete = []
 
-        # Iterate over a copy of items to avoid RuntimeError during deletion
         for key, value in list(self.search_dict.items()):
             if value in seen_values:
                 keys_to_delete.append(key)
@@ -38,7 +37,6 @@ class NavigationBuilder:
             if i == 0 or (i > 0 and file_tuples[i-1][1] != file_tuples[i][1]):
                 link = make_offset(offset)+file_tuples[i][1][1:]
                 if file_tuples[i][1].rsplit("\\", 1)[0] != file_tuples[i-1][1].rsplit("\\", 1)[0]:
-                    # delete pre each slash till slashes are different
                     fileprev = file_tuples[i-1][1].rsplit("\\", 1)[0] + "\\"
                     filecur = file_tuples[i][1].rsplit("\\", 1)[0] + "\\"
                     
@@ -47,12 +45,10 @@ class NavigationBuilder:
                             break
                         fileprev = fileprev.split("\\",1)[-1]
                         filecur = filecur.split("\\",1)[-1]
-                    # add close uls corresp to slashes of i-1
                     if(i != 0):
                         if(fileprev != "." and fileprev != ""):
                             ret_str += (fileprev.count("\\"))*(make_closing_tag("ul")+make_closing_tag("li"))
                             
-                        # add folders, open uls corresp to slashes of i
                         if(filecur != "."):
                             filecur_elems = filecur.split("\\")
                             for j in range(0, len(filecur_elems)-1):
@@ -62,7 +58,6 @@ class NavigationBuilder:
                                 ret_str += f"<input type=\"checkbox\" id={checkbox_tag} name={checkbox_tag}>\n"
                                 ret_str += f"<label id=\"checkbox\" for={checkbox_tag}>{filecur_elems[j].title()}</label>\n"
                                 ret_str += "<ul class=\"child\">\n"
-                #remove indexed
                 ret_str += "<li>" + make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + make_closing_tag("li")
         ret_str += make_closing_tag("ul") + 3*"</br>\n" + "</div>" + make_closing_tag("div")
 

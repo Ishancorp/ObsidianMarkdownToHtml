@@ -17,10 +17,8 @@ class CustomMarkdownExtension(Extension):
         md.treeprocessors.register(BlockReferenceProcessor(md), 'block_reference', 12)
         md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
         
-        # Regular wiki links
         WIKILINK_RE = r'\[\[([^\]]+)\]\]'
         md.inlinePatterns.register(WikiLinkInlineProcessor(WIKILINK_RE, md, self.link_dict, self.offset), 'wikilink', 175)
         
-        # Transclusion links - register with higher priority than wiki links
         TRANSCLUSION_RE = r'!\[\[([^\]]+)\]\]'
         md.inlinePatterns.register(TransclusionInlineProcessor(TRANSCLUSION_RE, md, self.parent_instance), 'transclusion', 180)

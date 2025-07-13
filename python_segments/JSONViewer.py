@@ -16,7 +16,6 @@ class JSONViewer:
         div_part = ""
         arrow_part = ""
         
-        # Validate input data structure
         if not isinstance(data, dict):
             return "<div class=\"error\">Invalid canvas data: Expected dictionary</div>"
         
@@ -29,10 +28,8 @@ class JSONViewer:
         if not isinstance(edges, list):
             return "<div class=\"error\">Invalid canvas data: 'edges' must be a list</div>"
         
-        # Process nodes with improved error handling
         for i, node in enumerate(nodes):
             try:
-                # Validate required node properties
                 if not isinstance(node, dict):
                     print(f"Warning: Node {i} is not a dictionary, skipping")
                     continue
@@ -42,7 +39,6 @@ class JSONViewer:
                     print(f"Warning: Node {i} missing 'id', skipping")
                     continue
                     
-                # Get node properties with defaults
                 x = float(node.get("x", 0))
                 y = float(node.get("y", 0))
                 width = max(float(node.get("width", 200)), 50)  # Minimum width
@@ -50,15 +46,12 @@ class JSONViewer:
                 text = str(node.get("text", ""))
                 color = node.get("color", "")
                 
-                # Build div with improved string formatting
                 div_classes = ["general-boxes"]
                 if color and isinstance(color, str):
-                    # Sanitize color class name
                     sanitized_color = ''.join(c for c in color if c.isalnum() or c in ['-', '_'])
                     if sanitized_color:
                         div_classes.append(f"color-{sanitized_color}")
                 
-                # Calculate positions with offset
                 left_pos = x + 750
                 top_pos = y + 400
                 
@@ -68,17 +61,15 @@ class JSONViewer:
                     f'style="left:{left_pos}px;top:{top_pos}px;width:{width}px;height:{height}px">\n'
                 )
                 
-                # Process node text content
                 if text:
                     try:
                         read_lines = text.splitlines()
-                        processed_content = self.parent_instance.read_lines(read_lines, 0, add_to_header_list=False, canvas=True)
+                        processed_content = self.parent_instance.read_lines(read_lines, 0, add_to_header_list=False)
                         div_part += processed_content
                     except Exception as e:
                         print(f"Warning: Error processing text for node {node_id}: {e}")
                         div_part += self._escape_html(text)
                 
-                # Store node connection points for edges
                 nodes_by_id[node_id] = {
                     "left": (x, y + height/2),
                     "right": (x + width, y + height/2),
@@ -86,7 +77,6 @@ class JSONViewer:
                     "bottom": (x + width/2, y + height),
                 }
                 
-                # Update canvas bounds
                 max_x = max(max_x, x + width)
                 max_y = max(max_y, y + height)
                 
@@ -96,13 +86,11 @@ class JSONViewer:
                 print(f"Warning: Error processing node {i}: {e}")
                 continue
         
-        # Calculate SVG dimensions with padding
-        svg_width = max(max_x + 1000, 1500)  # Minimum width
-        svg_height = max(max_y + 1000, 1000)  # Minimum height
+        svg_width = max(max_x + 1000, 1500)
+        svg_height = max(max_y + 1000, 1000)
         
         svg_part = f'<svg id="svg" width="{svg_width}" height="{svg_height}">\n'
         
-        # Process edges with improved error handling
         valid_sides = {"left", "right", "top", "bottom"}
         
         for i, edge in enumerate(edges):
@@ -116,7 +104,6 @@ class JSONViewer:
                 from_side = edge.get("fromSide", "right")
                 to_side = edge.get("toSide", "left")
                 
-                # Validate edge properties
                 if not from_node or not to_node:
                     print(f"Warning: Edge {i} missing node references, skipping")
                     continue
@@ -125,7 +112,6 @@ class JSONViewer:
                     print(f"Warning: Edge {i} references non-existent nodes, skipping")
                     continue
                     
-                # Validate and sanitize side values
                 if from_side not in valid_sides:
                     print(f"Warning: Edge {i} has invalid fromSide '{from_side}', using 'right'")
                     from_side = "right"
@@ -134,23 +120,19 @@ class JSONViewer:
                     print(f"Warning: Edge {i} has invalid toSide '{to_side}', using 'left'")
                     to_side = "left"
                 
-                # Get connection points
                 node_from = nodes_by_id[from_node]
                 node_to = nodes_by_id[to_node]
                 
-                # Calculate line coordinates with offset
                 x1 = node_from[from_side][0] + 750
                 y1 = node_from[from_side][1] + 400
                 x2 = node_to[to_side][0] + 750
                 y2 = node_to[to_side][1] + 400
                 
-                # Add line to SVG
                 svg_part += (
                     f'<line class="line" '
                     f'x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}"/>\n'
                 )
                 
-                # Add arrow with position-specific styling
                 arrow_x = node_to[to_side][0] + 750
                 arrow_y = node_to[to_side][1] + 400
                 

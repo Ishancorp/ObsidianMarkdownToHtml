@@ -33,6 +33,16 @@ class HTMLBuilder:
         if is_json:
             new_file += "<script src=\""+ make_offset(offset) + "\\canvas.js\"></script>\n"
         new_file += "<script src=\""+ make_offset(offset) + "\\searcher.js\"></script>\n"
+        new_file += """
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$']],
+    displayMath: [['$$', '$$']]
+  }
+};
+</script>"""
         new_file += make_closing_tag("body")
         new_file += make_closing_tag("html")
         return new_file

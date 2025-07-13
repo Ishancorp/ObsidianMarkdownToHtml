@@ -32,6 +32,7 @@ om2html.compile_webpages()
 - [x] Add unordered list
 - [x] Add footnotes
 - [x] Add search
+- [x] Add LaTeX
 - [ ] Add interface
 - [-] Work on canvas
   - [x] Make nodes work
