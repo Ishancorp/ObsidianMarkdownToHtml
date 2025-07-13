@@ -1,7 +1,7 @@
-from MarkdownProcessor import *
+from python_segments.MarkdownProcessor import *
 from markdown.extensions import Extension
-from helpers import *
-from JSONViewer import *;
+from python_segments.helpers import *
+from python_segments.JSONViewer import *;
 
 class CustomMarkdownExtension(Extension):
     def __init__(self, link_dict, offset, parent_instance, add_to_header_list=True, **kwargs):

@@ -1,5 +1,5 @@
-from MarkdownProcessor import *
-from helpers import *
+from python_segments.MarkdownProcessor import *
+from python_segments.helpers import *
 
 class JSONViewer:
     def __init__(self, parent_instance):

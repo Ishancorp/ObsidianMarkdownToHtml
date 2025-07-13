@@ -1,5 +1,4 @@
 import re
-from MarkdownProcessor import *
 
 CLEANR = re.compile('<.*?>') 
 external_link = ""

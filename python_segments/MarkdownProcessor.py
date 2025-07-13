@@ -1,4 +1,3 @@
-import hashlib
 import unicodedata
 from markdown.blockprocessors import BlockProcessor
 from markdown.treeprocessors import Treeprocessor
@@ -8,7 +7,7 @@ from markdown.extensions import Extension
 import xml.etree.ElementTree as etree
 from xml.etree.ElementTree import fromstring
 import re
-from helpers import *
+from python_segments.helpers import *
 
 def clean_input(text):
     # Remove control characters and non-printables
