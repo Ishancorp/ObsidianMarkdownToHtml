@@ -8,11 +8,14 @@ from MarkdownProcessor import *
 from markdown.extensions import Extension
 from helpers import *
 from JSONViewer import *;
+from CustomMarkdownExtension import *;
 
 class ObsidianMarkdownToHtml:
     def __init__(self, in_directory, out_directory):
-        self.in_directory = in_directory
-        self.out_directory = out_directory
+        if not os.path.exists(in_directory):
+            raise ValueError(f"Input directory does not exist: {in_directory}")
+        self.in_directory = os.path.abspath(in_directory)
+        self.out_directory = os.path.abspath(out_directory)
         self.link_to_filepath = {}
         self.files = []
         self.offset = 0
@@ -36,35 +39,13 @@ class ObsidianMarkdownToHtml:
 
         self.JSONViewer = JSONViewer(self)
 
-    class CustomMarkdownExtension(Extension):
-        def __init__(self, link_dict, offset, parent_instance, add_to_header_list=True, **kwargs):
-            self.link_dict = link_dict
-            self.offset = offset
-            self.parent_instance = parent_instance
-            self.add_to_header_list = add_to_header_list
-            super().__init__(**kwargs)
-
-        def extendMarkdown(self, md):
-            md.parser.blockprocessors.deregister('code')
-            md.treeprocessors.register(AnchorSpanTreeProcessor(md, self.parent_instance, self.add_to_header_list), 'anchor_span', 15)
-            md.treeprocessors.register(BlockReferenceProcessor(md), 'block_reference', 12)
-            md.parser.blockprocessors.register(IndentedParagraphProcessor(md.parser), 'indent_paragraph', 75)
-            
-            # Regular wiki links
-            WIKILINK_RE = r'\[\[([^\]]+)\]\]'
-            md.inlinePatterns.register(WikiLinkInlineProcessor(WIKILINK_RE, md, self.link_dict, self.offset), 'wikilink', 175)
-            
-            # Transclusion links - register with higher priority than wiki links
-            TRANSCLUSION_RE = r'!\[\[([^\]]+)\]\]'
-            md.inlinePatterns.register(TransclusionInlineProcessor(TRANSCLUSION_RE, md, self.parent_instance), 'transclusion', 180)
-
     def make_offset(self, offset):
         return make_offset(offset)
     
     def process_markdown(self, text, add_to_header_list=True):
         # Create markdown instance with all extensions
         extensions = [
-            self.CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self, add_to_header_list),
+            CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self, add_to_header_list),
             ObsidianFootnoteExtension(self.counter),
             "sane_lists",
             "tables", 
@@ -87,27 +68,37 @@ class ObsidianMarkdownToHtml:
         return processed_content
     
     def readlines_raw(self, file_dir):
-        open_file = open(file_dir, "r", encoding="utf8")
-        file_lines = open_file.readlines()
-        open_file.close()
-        return file_lines
+        try:
+            with open(file_dir, "r", encoding="utf8") as f:
+                return f.readlines()
+        except UnicodeDecodeError:
+            # Fallback to different encoding
+            with open(file_dir, "r", encoding="latin-1") as f:
+                return f.readlines()
 
     def file_viewer(self, file_dir, add_to_header_list=True):
-        if file_dir.replace("/","\\") in (self.cached_pages).keys():
-            return (self.cached_pages)[file_dir.replace("/","\\")]
+        try:
+            if file_dir.replace("/","\\") in self.cached_pages:
+                return self.cached_pages[file_dir.replace("/","\\")]
+            
+            if not os.path.exists(file_dir):
+                raise FileNotFoundError(f"File not found: {file_dir}")
+                
+            file_lines = self.readlines_raw(file_dir)
         
-        file_lines = self.readlines_raw(file_dir)
-        
-        opening = 0
-        if file_lines and file_lines[0] == "---\n":
-            for i in range(1, len(file_lines)):
-                if file_lines[i] == "---\n":
-                    opening = i+1
-                    break
-        
-        new_file = self.read_lines(file_lines, opening, add_to_header_list=add_to_header_list)
-        (self.cached_pages)[file_dir] = new_file
-        return new_file
+            opening = 0
+            if file_lines and file_lines[0] == "---\n":
+                for i in range(1, len(file_lines)):
+                    if file_lines[i] == "---\n":
+                        opening = i+1
+                        break
+            
+            new_file = self.read_lines(file_lines, opening, add_to_header_list=add_to_header_list)
+            (self.cached_pages)[file_dir] = new_file
+            return new_file
+        except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
+            print(f"Error processing {file_dir}: {e}")
+            return f"<p>Error loading file: {file_dir}</p>"
 
     def nav_bar(self):
         checkbox_prefix = 1
@@ -145,10 +136,10 @@ class ObsidianMarkdownToHtml:
                             filecur_elems = filecur.split("\\")
                             for j in range(0, len(filecur_elems)-1):
                                 ret_str += "<li class=\"parent\">\n"
-                                checkbox_tag = str(checkbox_prefix) + "-" + filecur_elems[j].replace(" ", "-")
+                                checkbox_tag = f"{checkbox_prefix}-{filecur_elems[j].replace(" ", "-")}"
                                 checkbox_prefix += 1
-                                ret_str += "<input type=\"checkbox\" id=" + checkbox_tag + " name=" + checkbox_tag + ">\n"
-                                ret_str += "<label id=\"checkbox\" for=" + checkbox_tag + ">" + filecur_elems[j].title() + "</label>\n"
+                                ret_str += f"<input type=\"checkbox\" id={checkbox_tag} name={checkbox_tag}>\n"
+                                ret_str += f"<label id=\"checkbox\" for={checkbox_tag}>{filecur_elems[j].title()}</label>\n"
                                 ret_str += "<ul class=\"child\">\n"
                 #remove indexed
                 ret_str += "<li>" + make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + make_closing_tag("li")
@@ -244,7 +235,7 @@ class ObsidianMarkdownToHtml:
     def read_json(self, file_name):
         with open(file_name, encoding='utf-8') as json_data:
             return json.load(json_data)
-    
+
     def _escape_html(self, text):
         """Helper method to escape HTML characters"""
         if not isinstance(text, str):
