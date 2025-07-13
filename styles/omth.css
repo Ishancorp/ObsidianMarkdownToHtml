@@ -1,8 +1,8 @@
 :root {
     font-family: -apple-system, BlinkMacSystemFont, 
-      "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", 
-      "Fira Sans", "Droid Sans", "Helvetica Neue", 
-      sans-serif;
+        "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", 
+        "Fira Sans", "Droid Sans", "Helvetica Neue", 
+        sans-serif;
     font-feature-settings: 'liga' 1, 'calt' 1; /* fix for Chrome */
 }
 body {
@@ -95,7 +95,7 @@ aside {
     border-left: 0.1em solid #6086ED;
     display: flex;
 }
-  
+
 .latex-display {
     display: block;
     margin: 1em 0;
@@ -105,7 +105,6 @@ aside {
     font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', serif;
     overflow-x: auto;
 }
-
 .latex-inline {
     display: inline;
     font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', serif;
@@ -144,15 +143,15 @@ h6 {
     margin-bottom: 1rem;
     font-weight: 600;
 }
-  
+
 h1.file-title {
     text-align: center;
 }
-  
+
 hr {
     margin-bottom: 0;
 }
-  
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -163,33 +162,32 @@ td, th {
     border: 1px solid #363636;
     padding: 0.4em;
 }
-  
+
 article {
     max-width: 700px;
     margin: auto;
     padding-left: 0.5em;
     padding-right: 0.5em;
 }
-  
+
 nav {
     background-color: #1E1E1E;
     padding-top: 0.5em;
 }
-  
 nav li {
     list-style-type: none;
     padding: 0;
     margin-left: 0.75rem;
     width: 100%
 }
-  
+
 li ul {
     margin: 0;
     padding-left: 0.5rem;
     border-left: 1px solid #393939;
     margin-left: 0.3em;
 }
-  
+
 input#searchInput {
     width: 100%;
     margin-left: 0.75em;
@@ -241,7 +239,7 @@ div#navbar {
     right: auto;
     overflow-x: hidden;
 }
-  
+
 div#searchbar {
     border: 0;
     padding: 2ch;
@@ -255,7 +253,7 @@ div#searchbar {
     left: 100px;
     overflow-x: hidden;
 }
-  
+
 div#table-of-contents {
     border: 0;
     padding: 2ch;
@@ -269,7 +267,7 @@ div#table-of-contents {
     left: auto;
     right: 0;
 }
-  
+
 div.transclude-link {
     text-align: right;
     margin-top: 0.5em;
@@ -280,54 +278,48 @@ div.transclude-link {
 div.transclsec {
     width: 100%;
 }
-  
+
 #navbar:popover-open {
     animation: fadeIn 150ms ease-in-out;
 }
-  
 div#navbar::backdrop {
     background-color: rgba(0, 0, 0, 0.2);
     backdrop-filter: blur(6px);
 }
-  
+
 button {
     border-radius: 5px;
     background-color: #6086ED;
     border: 1px solid #6086ed;
 }
-  
+
 button:hover {
     border: 1px solid #6086ed;
     background-color: #1e1e1e;
 }
-  
+
 svg#navicon {
     height: 2em;
     width: 2em;
 }
-  
 svg#searchicon {
     height: 2em;
     width: 2em;
 }
-  
 svg#navicon:hover {
     stroke: #6086ed;
 }
-  
 svg#searchicon:hover {
     fill: #6086ed;
 }
-
 svg#tocicon {
     height: 2em;
     width: 2em;
 }
-
 svg#tocicon:hover {
     stroke: #6086ed;
 }
-  
+
 nav {
     position: -webkit-sticky; /* Safari */
     position: sticky;
@@ -335,18 +327,16 @@ nav {
     display: flex;
     justify-content: space-between;
 }
-  
 span.anchor {
     height: 30px;
     margin-top: -30px;
     position: absolute;
 }
-  
+
 input[type='checkbox']:not(:checked) + label + ul {
-      display: none;
-      visibility:hidden;
+        display: none;
+        visibility:hidden;
 }
-  
 input[type="checkbox"] {
     appearance: none;
     transform-origin: center;
@@ -360,17 +350,14 @@ input[type="checkbox"] {
     bottom: 0.1em;
     position: relative;
 }
-  
 input[type="checkbox"]::before {
     content: ">";
 }
-  
 input[type="checkbox"]:checked {
     transform: rotate(90deg);
     bottom: auto;
     top: 0.4em;
 }
-  
 footer {
     background-color: #242424;
     color: #484848;
@@ -386,19 +373,16 @@ footer {
 .footnotes {
     font-size: smaller;
 }
-
 .fn {
     position: relative;
     display: inline-block;
     border-bottom: 1px dotted black;
 }
-
 .fn .fn-tooltip {
     max-height: 360px;
     overflow: auto;
     font-size: smaller;
 }
-
 .fn .fn-tooltip {
     visibility: hidden;
     width: 300px;
@@ -413,64 +397,57 @@ footer {
     border-style: solid;
     border-width: 2px;
     padding: 1em;
-  
-    /* Position the tooltip */
     position: absolute;
     z-index: 1;
 }
 .fn:hover .fn-tooltip {
     visibility: visible;
 }
-
 .fn-link {
     text-decoration: none;
 }
-
 .fn-link:hover {
     text-decoration: none;
 }
-  
+
 @media screen and (max-width: 768px) {
     svg#tocicon {
-      height: 2rem;
-      width: 2rem;
+        height: 2rem;
+        width: 2rem;
     }
     svg#navicon {
-      height: 2rem;
-      width: 2rem;
+        height: 2rem;
+        width: 2rem;
     }
     svg#searchicon {
-      height: 2rem;
-      width: 2rem;
+        height: 2rem;
+        width: 2rem;
     }
     div#navbar {
-      max-width: 100vw;
-      max-height: 90vh;
-      margin: 0 auto;
-      top: 10vh;
+        max-width: 100vw;
+        max-height: 90vh;
+        margin: 0 auto;
+        top: 10vh;
     }
     div#searchbar {
-      max-width: 100vw;
-      max-height: 90vh;
-      margin: 0 auto;
-      top: 10vh;
+        max-width: 100vw;
+        max-height: 90vh;
+        margin: 0 auto;
+        top: 10vh;
     }
     div#table-of-contents {
-      max-width: 100vw;
-      max-height: 90vh;
-      margin: 0 auto;
-      top: 10vh;
+        max-width: 100vw;
+        max-height: 90vh;
+        margin: 0 auto;
+        top: 10vh;
     }
-  
     article {
-      width: 90%;
-      margin: auto;
-      padding-left: 0.25em;
-      padding-right: 0.25em;
+        width: 90%;
+        margin: auto;
+        padding-left: 0.25em;
+        padding-right: 0.25em;
     }
-  
     footer {
-      margin-top: 4em;
+        margin-top: 4em;
     }
 }
-  
