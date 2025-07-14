@@ -2,9 +2,7 @@ import os
 import shutil
 from python_segments.html_builders.HTMLBuilder import *
 from python_segments.MarkdownProcessor.MarkdownProcessor import *
-from python_segments.helpers import *
 from python_segments.JSONViewer import *;
-from python_segments.MarkdownProcessor.CustomMarkdownExtension import *;
 from python_segments.FileManager import *;
 
 class ObsidianMarkdownToHtml:
@@ -27,19 +25,30 @@ class ObsidianMarkdownToHtml:
             [__, file_name, extension] = file.split(".")
             file_dir = self.in_directory + file[1:]
             if extension == "md":
-                seg_file_name = os.path.basename(file_name)
                 viewed_file = self.FileManager.file_viewer(file_dir, self.offset, self.MarkdownProcessor.process_markdown)
                 self.FileManager.writeToFile(
                     Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/')].replace(" ", "-"), 
-                    self.html_builder.build_HTML(seg_file_name, self.offset, self.header_list, file[2:-3], viewed_file)
+                    self.html_builder.build_HTML(
+                        os.path.basename(file_name), 
+                        self.offset, 
+                        self.header_list, 
+                        file[2:-3], 
+                        viewed_file,
+                    )
                 )
                 self.header_list = []
             elif extension == "canvas":
-                seg_file_name = os.path.basename(file_name)
                 json_content = self.JSONViewer.json_viewer(file_dir, self.offset)
                 self.FileManager.writeToFile(
                     Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/') + ".canvas"].replace(" ", "-"), 
-                    self.html_builder.build_HTML(seg_file_name, self.offset, self.header_list, file[2:] + ".html", json_content, is_json=True)
+                    self.html_builder.build_HTML(
+                        os.path.basename(file_name), 
+                        self.offset, 
+                        self.header_list, 
+                        file[2:] + ".html", 
+                        json_content, 
+                        is_json=True,
+                    )
                 )
             else:
                 export_file = Path(self.out_directory) / file.split(".", 1)[1].replace(" ", "-").lower()
