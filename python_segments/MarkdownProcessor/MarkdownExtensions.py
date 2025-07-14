@@ -3,12 +3,10 @@ import markdown
 from markdown.blockprocessors import BlockProcessor
 from markdown.treeprocessors import Treeprocessor
 from markdown.inlinepatterns import InlineProcessor
-from markdown.extensions.footnotes import FootnoteExtension, FootnoteInlineProcessor, FootnoteBlockProcessor
 from markdown.extensions import Extension
 import xml.etree.ElementTree as etree
 from xml.etree.ElementTree import fromstring
 import re
-from python_segments.MarkdownProcessor import CustomMarkdownExtension
 from python_segments.helpers import *
 from python_segments.FileManager import *
 
@@ -328,7 +326,7 @@ class TransclusionInlineProcessor(InlineProcessor):
             
             try:
                 wrapped_content = f"<div>{cleaned_html}</div>"
-                temp_root = fromstring(wrapped_content)
+                temp_root = fromstring(wrapped_content.replace('&', '&amp;'))
                 
                 for child in temp_root:
                     transcl_div.append(child)
