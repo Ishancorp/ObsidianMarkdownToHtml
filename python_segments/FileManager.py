@@ -19,6 +19,14 @@ class FileManager:
             with open(file_dir, "r", encoding="latin-1") as f:
                 return f.readlines()
 
+    def read_raw(self, file_dir):
+        try:
+            with open(file_dir, "r", encoding="utf8") as f:
+                return f.read()
+        except UnicodeDecodeError:
+            with open(file_dir, "r", encoding="latin-1") as f:
+                return f.read()
+
     def writeToFile(self, export_file, new_file):
         os.makedirs(os.path.dirname(export_file), exist_ok=True)
         

@@ -371,8 +371,9 @@ class TransclusionInlineProcessor(InlineProcessor):
         f_p = "\\" + file_paths[-1] + ".md"
         
         try:
-            full_file_content = self.FileManager.readlines_raw(self.parent_instance.in_directory + f_p)
-            full_content = ''.join(full_file_content)
+            #full_file_content = self.FileManager.readlines_raw(self.parent_instance.in_directory + f_p)
+            #full_content = ''.join(full_file_content)
+            full_content = self.FileManager.read_raw(self.parent_instance.in_directory + f_p)
             
             footnote_pattern = re.compile(r'^\[\^([^\]]+)\]:\s*(.*?)(?=^\[\^|\Z)', re.MULTILINE | re.DOTALL)
             
@@ -600,18 +601,18 @@ class TransclusionInlineProcessor(InlineProcessor):
     
     def get_full_article_content(self, file_path, page_name):
         try:
-            examined_lines = self.FileManager.readlines_raw(self.parent_instance.in_directory + file_path)
-            
+            raw_text = self.FileManager.read_raw(self.parent_instance.in_directory + file_path)
             title_line = f"**{page_name.split('/')[-1]}**\n\n"
             
             start_idx = 0
-            if examined_lines and examined_lines[0].strip() == "---":
-                for i in range(1, len(examined_lines)):
-                    if examined_lines[i].strip() == "---":
-                        start_idx = i + 1
-                        break
-            
-            content = ''.join(examined_lines[start_idx:])
+            if raw_text.startswith('---\n'):
+                first_marker_end = raw_text.find('\n', 4)
+                if first_marker_end != -1:
+                    second_marker_pos = raw_text.find('---\n', first_marker_end + 1)
+                    if second_marker_pos != -1:
+                        start_idx = second_marker_pos + 4
+
+            content = raw_text[start_idx:]
             content = fix_table_spacing(content)
             return title_line + content.strip()
         except (IOError, IndexError):

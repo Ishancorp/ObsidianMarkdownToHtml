@@ -51,16 +51,17 @@ class ObsidianMarkdownToHtml:
                 return self.cached_pages[file_dir.replace("/","\\")]
             if not os.path.exists(file_dir):
                 raise FileNotFoundError(f"File not found: {file_dir}")
-                
-            file_lines = self.FileManager.readlines_raw(file_dir)
+
+            file_text = self.FileManager.read_raw(file_dir)
             opening = 0
-            if file_lines and file_lines[0] == "---\n":
-                for i in range(1, len(file_lines)):
-                    if file_lines[i] == "---\n":
-                        opening = i+1
-                        break
-            
-            new_file = self.process_markdown("".join(file_lines[opening:]), add_to_header_list)
+            if file_text.startswith("---\n"):
+                first_end = file_text.find('\n', 4)  # Skip initial '---\n'
+                if first_end != -1:
+                    second_marker_pos = file_text.find('---\n', first_end + 1)
+                    if second_marker_pos != -1:
+                        opening = second_marker_pos + 4  # length of '---\n'
+
+            new_file = self.process_markdown(file_text[opening:], add_to_header_list)
             (self.cached_pages)[file_dir] = new_file
             return new_file
         except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
