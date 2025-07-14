@@ -371,8 +371,6 @@ class TransclusionInlineProcessor(InlineProcessor):
         f_p = "\\" + file_paths[-1] + ".md"
         
         try:
-            #full_file_content = self.FileManager.readlines_raw(self.parent_instance.in_directory + f_p)
-            #full_content = ''.join(full_file_content)
             full_content = self.FileManager.read_raw(self.parent_instance.in_directory + f_p)
             
             footnote_pattern = re.compile(r'^\[\^([^\]]+)\]:\s*(.*?)(?=^\[\^|\Z)', re.MULTILINE | re.DOTALL)

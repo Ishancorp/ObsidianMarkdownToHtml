@@ -66,28 +66,6 @@ class ObsidianMarkdownToHtml:
             print(f"Error processing {file_dir}: {e}")
             return f"<p>Error loading file: {file_dir}</p>"
     
-    def add_files_to_dict(self, sep_files, rel_dir):
-        nu_rel_dir = "." + rel_dir + "\\"
-        for file in sep_files:
-            extension = file.split('.')[-1]
-            if extension == "md":
-                name = file.split('.')[0]
-                html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
-                (self.link_to_filepath)[name] = html_pruned
-                if(rel_dir != ""):
-                    (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
-            elif extension == "canvas":
-                name = file.split(".")[0] + ".canvas"
-                html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
-                (self.link_to_filepath)[name] = html_pruned
-                if(rel_dir != ""):
-                    (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
-            else:
-                file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
-                (self.link_to_filepath)[file] = file_pruned
-                if(rel_dir != ""):
-                    (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
-
     def add_dirs_to_dict(self, path):
         stack = deque([path])
         while stack:
@@ -96,7 +74,6 @@ class ObsidianMarkdownToHtml:
             files_and_dirs = os.listdir(nu_dir)
             sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
             dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
-            self.add_files_to_dict(sep_files, path)
             for file in sep_files:
                 temp = ".\\" + path + "\\"
                 (self.files).append(temp.replace("\\\\", "\\") + file)
@@ -104,6 +81,27 @@ class ObsidianMarkdownToHtml:
             for dir in reversed(dirs):
                 nu_dr = path + "\\" + dir
                 stack.appendleft(nu_dr)
+        
+            nu_rel_dir = "." + path + "\\"
+            for file in sep_files:
+                extension = file.split('.')[-1]
+                if extension == "md":
+                    name = file.split('.')[0]
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    (self.link_to_filepath)[name] = html_pruned
+                    if(path != ""):
+                        (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
+                elif extension == "canvas":
+                    name = file.split(".")[0] + ".canvas"
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    (self.link_to_filepath)[name] = html_pruned
+                    if(path != ""):
+                        (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
+                else:
+                    file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
+                    (self.link_to_filepath)[file] = file_pruned
+                    if(path != ""):
+                        (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
         
     def compile_webpages(self):
         for file in self.files:
