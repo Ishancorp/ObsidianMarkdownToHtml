@@ -1,6 +1,5 @@
 import os
 import shutil
-from python_segments.html_builders.NavigationBuilder import *
 from python_segments.html_builders.HTMLBuilder import *
 from python_segments.MarkdownProcessor.MarkdownProcessor import *
 from python_segments.helpers import *
@@ -18,8 +17,7 @@ class ObsidianMarkdownToHtml:
         self.header_list = []
         self.FileManager = FileManager()
         self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict(self.in_directory)
-        self.navigation_builder = NavigationBuilder(self.link_to_filepath)
-        self.html_builder = HTMLBuilder()
+        self.html_builder = HTMLBuilder(self.link_to_filepath)
         self.MarkdownProcessor = MarkdownProcessor(self, self.link_to_filepath)
         self.JSONViewer = JSONViewer(self.MarkdownProcessor)
     
@@ -30,20 +28,19 @@ class ObsidianMarkdownToHtml:
             file_dir = self.in_directory + file[1:]
             if extension == "md":
                 seg_file_name = os.path.basename(file_name)
-                new_file = self.html_builder.top_part(seg_file_name, self.offset)
                 viewed_file = self.FileManager.file_viewer(file_dir, self.offset, self.MarkdownProcessor.process_markdown)
-                new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:-3])
-                new_file += self.html_builder.middle_part(seg_file_name, viewed_file)
-                new_file += self.html_builder.bottom_part(self.offset)
-                self.FileManager.writeToFile(Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/')].replace(" ", "-"), new_file)
+                self.FileManager.writeToFile(
+                    Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/')].replace(" ", "-"), 
+                    self.html_builder.build_HTML(seg_file_name, self.offset, self.header_list, file[2:-3], viewed_file)
+                )
                 self.header_list = []
             elif extension == "canvas":
                 seg_file_name = os.path.basename(file_name)
-                new_file = self.html_builder.top_part(seg_file_name, self.offset, is_json=True)
-                new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:] + ".html")
-                new_file += self.html_builder.middle_part(seg_file_name, self.JSONViewer.json_viewer(file_dir, self.offset), is_json=True)
-                new_file += self.html_builder.bottom_part(self.offset, is_json=True)
-                self.FileManager.writeToFile(Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/') + ".canvas"].replace(" ", "-"), new_file)
+                json_content = self.JSONViewer.json_viewer(file_dir, self.offset)
+                self.FileManager.writeToFile(
+                    Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/') + ".canvas"].replace(" ", "-"), 
+                    self.html_builder.build_HTML(seg_file_name, self.offset, self.header_list, file[2:] + ".html", json_content, is_json=True)
+                )
             else:
                 export_file = Path(self.out_directory) / file.split(".", 1)[1].replace(" ", "-").lower()
                 export_file.parent.mkdir(parents=True, exist_ok=True)
