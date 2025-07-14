@@ -1,3 +1,4 @@
+from collections import deque
 from python_segments.helpers import *
 
 class NavigationBuilder:
@@ -78,8 +79,13 @@ class NavigationBuilder:
         ret_str += "</button>"
         if header_list:
             ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
+            stack = deque()
             for header in header_list:
-                ret_str += make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", make_link("#" + header[1], header[0]).replace("[[","").replace("]]",""))
+                while stack and stack[-1] >= header[2]:
+                    stack.pop()
+                ret_str += make_op_close_inline_tag(f"p class=\"indent-{len(stack)}\"", make_link("#" + header[1], header[0]).replace("[[","").replace("]]",""))
+                if not stack or stack[-1] != header[2]:
+                    stack.append(header[2])
             ret_str += make_closing_tag("div")
         ret_str += make_closing_tag("div")
         ret_str += make_closing_tag("nav")

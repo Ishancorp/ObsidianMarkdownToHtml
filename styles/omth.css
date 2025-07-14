@@ -268,6 +268,50 @@ div#table-of-contents {
     right: 0;
 }
 
+div#table-of-contents a {
+    display: block;
+    color: #DADADA;
+    text-decoration: none;
+    padding: 0.25em 0.5em;
+    border-radius: 5px;
+}
+
+div#table-of-contents a:hover {
+    background-color: #363636;
+}
+
+div#navbar li.parent {
+    margin-top: 0.3em;
+    margin-bottom: 0.3em;
+}
+
+div#navbar ul.child {
+    margin-top: 0.3em;
+}
+
+div#navbar a {
+    display: block;
+    color: #DADADA;
+    text-decoration: none;
+    padding: 0.25em 0.5em;
+    border-radius: 5px;
+}
+
+div#navbar a:hover {
+    background-color: #363636;
+}
+
+div#navbar #checkbox {
+    color: #DADADA;
+    text-decoration: none;
+    padding: 0.25em 0.5em;
+    border-radius: 5px;
+}
+
+div#navbar #checkbox:hover {
+    background-color: #363636;
+}
+
 div.transclude-link {
     text-align: right;
     margin-top: 0.5em;
