@@ -29,24 +29,24 @@ class ObsidianMarkdownToHtml:
             [__, file_name, extension] = file.split(".")
             file_dir = self.in_directory + file[1:]
             if extension == "md":
-                seg_file_name = file_name.split("\\")[-1]
+                seg_file_name = os.path.basename(file_name)
                 new_file = self.html_builder.top_part(seg_file_name, self.offset)
                 viewed_file = self.FileManager.file_viewer(file_dir, self.offset, self.MarkdownProcessor.process_markdown)
                 new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:-3])
-                self.header_list = []
                 new_file += self.html_builder.middle_part(seg_file_name, viewed_file)
                 new_file += self.html_builder.bottom_part(self.offset)
-                self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[file_name[1:].replace('\\', '/')].replace(" ", "-"), new_file)
+                self.FileManager.writeToFile(Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/')].replace(" ", "-"), new_file)
+                self.header_list = []
             elif extension == "canvas":
-                seg_file_name = file_name.split("\\")[-1]
+                seg_file_name = os.path.basename(file_name)
                 new_file = self.html_builder.top_part(seg_file_name, self.offset, is_json=True)
                 new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:] + ".html")
                 new_file += self.html_builder.middle_part(seg_file_name, self.JSONViewer.json_viewer(file_dir, self.offset), is_json=True)
                 new_file += self.html_builder.bottom_part(self.offset, is_json=True)
-                self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[file_name[1:].replace('\\', '/') + ".canvas"].replace(" ", "-"), new_file)
+                self.FileManager.writeToFile(Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/') + ".canvas"].replace(" ", "-"), new_file)
             else:
-                export_file = self.out_directory + file.split(".", 1)[1].replace(" ", "-").lower()
-                os.makedirs(os.path.dirname(export_file), exist_ok=True)
+                export_file = Path(self.out_directory) / file.split(".", 1)[1].replace(" ", "-").lower()
+                export_file.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy(file_dir, export_file)
 
         print("Compiled")
