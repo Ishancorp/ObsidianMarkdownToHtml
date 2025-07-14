@@ -208,6 +208,9 @@ ul#articles {
     list-style-type: none;
     padding: 0;
     margin: 0;
+    overflow-y: auto; 
+    overflow-x: hidden;
+    max-height: 85vh;
 }
 ul#articles li a {
     margin-top: -1px;
@@ -248,10 +251,9 @@ div#searchbar {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
     border-radius: 1ch;
     max-width: 50vw;
-    max-height: 90vh;
     margin: 2.5em 0;
     left: 100px;
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 div#table-of-contents {
@@ -480,6 +482,9 @@ footer {
         top: 10vh;
         left: auto;
         right: auto;
+    }
+    ul#articles {
+        max-height: 80vh;
     }
     div#table-of-contents {
         max-width: 100vw;
