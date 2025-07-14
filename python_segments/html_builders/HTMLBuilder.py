@@ -28,6 +28,18 @@ class HTMLBuilder:
         ret_str += make_closing_tag("footer")
         return ret_str
 
+    def middle_part(self, file_name, content, is_json=False):
+        if is_json:
+            new_file = make_op_close_inline_tag("h1 class=\"file-title\"", file_name + ".CANVAS")
+            new_file += content
+            return new_file
+        else:
+            new_file = make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
+            new_file += make_opening_tag("article")
+            new_file += content
+            new_file += make_closing_tag("article")
+            return new_file
+
     def bottom_part(self, offset, is_json=False):
         new_file = self.footer()
         if is_json:

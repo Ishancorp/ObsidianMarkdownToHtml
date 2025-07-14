@@ -12,7 +12,6 @@ function searchForArticle() {
         a = li[i].getElementsByTagName("a")[0];
         searchText = a.getAttribute("searchText");
         txtValue = a.textContent || a.innerText;
-        console.log(searchText);
         if (txtValue.toLowerCase().replace(/\s+/g, '-').indexOf(filter) > -1 
             || 
             searchText.toLowerCase().replace(/\s+/g, '-').indexOf(filter) > -1) {

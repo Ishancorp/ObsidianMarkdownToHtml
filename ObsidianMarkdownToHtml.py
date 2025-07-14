@@ -24,11 +24,9 @@ class ObsidianMarkdownToHtml:
         self.header_list = []
         self.in_table = False
         self.counter = 1
-        
         self.add_dirs_to_dict("")
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
         self.html_builder = HTMLBuilder()
-
         self.JSONViewer = JSONViewer(self)
         self.FileManager = FileManager()
     
@@ -43,28 +41,22 @@ class ObsidianMarkdownToHtml:
         ]
         text = fix_table_spacing(text)
         processed_html = markdown.markdown(text, extensions=extensions)
-        
         processed_html = re.sub(r'</p>\s*<p', '</p>\n<br>\n<p', processed_html)
-
         self.counter += 1
-        
         return processed_html
     
     def read_lines(self, file_lines, opening, add_to_header_list=True):
         processed_content = self.process_markdown("".join(file_lines[opening:]), add_to_header_list)
-        
         return processed_content
 
     def file_viewer(self, file_dir, add_to_header_list=True):
         try:
             if file_dir.replace("/","\\") in self.cached_pages:
                 return self.cached_pages[file_dir.replace("/","\\")]
-            
             if not os.path.exists(file_dir):
                 raise FileNotFoundError(f"File not found: {file_dir}")
                 
             file_lines = self.FileManager.readlines_raw(file_dir)
-        
             opening = 0
             if file_lines and file_lines[0] == "---\n":
                 for i in range(1, len(file_lines)):
@@ -109,7 +101,6 @@ class ObsidianMarkdownToHtml:
             files_and_dirs = os.listdir(nu_dir)
             sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
             dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
-            
             self.add_files_to_dict(sep_files, path)
             for file in sep_files:
                 temp = ".\\" + path + "\\"
@@ -128,36 +119,20 @@ class ObsidianMarkdownToHtml:
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
                 new_file = self.html_builder.top_part(file_name, self.offset)
-
                 viewed_file = self.file_viewer(file_dir)
-
                 new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:-3])
                 self.header_list = []
-                
-                new_file += make_op_close_inline_tag("h1 class=\"file-title\"", file_name)
-                new_file += make_opening_tag("article")
-
-                new_file += viewed_file
-                
-                new_file += make_closing_tag("article")
-                
+                new_file += self.html_builder.middle_part(file_name, viewed_file)
                 new_file += self.html_builder.bottom_part(self.offset)
-                    
                 self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/')].replace(" ", "-"), new_file)
             elif extension == "canvas":
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
                 new_file = self.html_builder.top_part(file_name, self.offset, is_json=True)
-
                 new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:] + ".html")
                 self.header_list = []
-                
-                new_file += make_op_close_inline_tag("h1 class=\"file-title\"", file_name + ".CANVAS")
-
-                new_file += self.JSONViewer.json_viewer(file_dir)
-                
+                new_file += self.html_builder.middle_part(file_name, self.JSONViewer.json_viewer(file_dir), is_json=True)
                 new_file += self.html_builder.bottom_part(self.offset, is_json=True)
-                    
                 self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/') + ".canvas"].replace(" ", "-"), new_file)
             else:
                 # write file as-is
@@ -166,5 +141,4 @@ class ObsidianMarkdownToHtml:
                 shutil.copy(file_dir, export_file)
 
         print("Compiled")
-        
         self.FileManager.write_files(self.out_directory)
