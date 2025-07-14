@@ -1,7 +1,5 @@
 import os
 import shutil
-import re
-import markdown
 from python_segments.html_builders.NavigationBuilder import *
 from python_segments.html_builders.HTMLBuilder import *
 from python_segments.MarkdownProcessor.MarkdownProcessor import *
