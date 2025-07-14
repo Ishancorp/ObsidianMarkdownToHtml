@@ -45,10 +45,6 @@ class ObsidianMarkdownToHtml:
         self.counter += 1
         return processed_html
     
-    def read_lines(self, file_lines, opening, add_to_header_list=True):
-        processed_content = self.process_markdown("".join(file_lines[opening:]), add_to_header_list)
-        return processed_content
-
     def file_viewer(self, file_dir, add_to_header_list=True):
         try:
             if file_dir.replace("/","\\") in self.cached_pages:
@@ -64,13 +60,13 @@ class ObsidianMarkdownToHtml:
                         opening = i+1
                         break
             
-            new_file = self.read_lines(file_lines, opening, add_to_header_list=add_to_header_list)
+            new_file = self.process_markdown("".join(file_lines[opening:]), add_to_header_list)
             (self.cached_pages)[file_dir] = new_file
             return new_file
         except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
             print(f"Error processing {file_dir}: {e}")
             return f"<p>Error loading file: {file_dir}</p>"
-        
+    
     def add_files_to_dict(self, sep_files, rel_dir):
         nu_rel_dir = "." + rel_dir + "\\"
         for file in sep_files:

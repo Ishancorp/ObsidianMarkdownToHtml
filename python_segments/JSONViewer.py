@@ -63,8 +63,7 @@ class JSONViewer:
                 
                 if text:
                     try:
-                        read_lines = text.splitlines()
-                        processed_content = self.parent_instance.read_lines(read_lines, 0, add_to_header_list=False)
+                        processed_content = self.parent_instance.process_markdown(text, add_to_header_list=False)
                         div_part += processed_content
                     except Exception as e:
                         print(f"Warning: Error processing text for node {node_id}: {e}")
