@@ -59,32 +59,28 @@ class NavigationBuilder:
                                 ret_str += f"<label id=\"checkbox\" for={checkbox_tag}>{filecur_elems[j].title()}</label>\n"
                                 ret_str += "<ul class=\"child\">\n"
                 ret_str += "<li>" + make_link(link.replace(" ", "-").lower(), file_tuples[i][0].split("/")[-1]) + make_closing_tag("li")
-        ret_str += make_closing_tag("ul") + 3*"</br>\n" + "</div>" + make_closing_tag("div")
+        ret_str += make_closing_tag("ul") + "</div>" + make_closing_tag("div")
 
         ret_str += "<button popovertarget=\"searchbar\" popovertargetaction=\"toggle\">\n"
         ret_str += self.other_search
         ret_str += "</button>"
-
         ret_str += f"<div id=\"searchbar\" popover><input type=\"text\" id=\"searchInput\" onkeyup=\"searchForArticle()\" placeholder=\"Search..\"><ul id=\"articles\">"
         for key in self.search_dict.keys():
             right_part_link = self.search_dict[key][1:].replace(" ", "-")
             link = make_offset(offset) + right_part_link
             ret_str += f"<li><a searchText=\"{link}\" href=\"{link}\">{key}<br><sub class=\"fileloc\">{right_part_link[1:].replace("\\", " > ")}</sub></a></li>"
-        ret_str += "</ul>" + ("<br>" * 5) + "</div>"
-
+        ret_str += "</ul>" + "</div>"
         ret_str += "</span>"
-
         ret_str += make_op_close_inline_tag("p class=\"top-bar\"", nuwa_file.replace("\\", "<span class=\"file-link\"> > </span>"))
 
         ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
         ret_str += self.other_headers
         ret_str += "</button>"
-        ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
-        
-        for header in (header_list):
-            ret_str += make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", make_link("#" + header[1], header[0]).replace("[[","").replace("]]",""))
-        ret_str += 3*"<br/>\n"
-        ret_str += make_closing_tag("div")
+        if header_list:
+            ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
+            for header in header_list:
+                ret_str += make_op_close_inline_tag("p class=\"indent-"+str(header[2]-1)+"\"", make_link("#" + header[1], header[0]).replace("[[","").replace("]]",""))
+            ret_str += make_closing_tag("div")
         ret_str += make_closing_tag("div")
         ret_str += make_closing_tag("nav")
         return ret_str
