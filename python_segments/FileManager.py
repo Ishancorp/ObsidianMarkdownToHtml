@@ -10,6 +10,7 @@ class FileManager:
             ("scripts/json_canvas.js", "canvas.js"),
             ("scripts/searcher.js", "searcher.js")
         ]
+        self.cached_pages = {}
 
     def add_dirs_to_dict(self, in_directory):
         files = []
@@ -81,3 +82,24 @@ class FileManager:
             dst_path = Path(out_directory) / dst
             with open(src_path, "r") as f_in, open(dst_path, "w") as f_out:
                 f_out.write(f_in.read())
+    
+    def file_viewer(self, file_dir, process_markdown, add_to_header_list=True):
+        try:
+            if file_dir.replace("/","\\") in self.cached_pages:
+                return self.cached_pages[file_dir.replace("/","\\")]
+            if not os.path.exists(file_dir):
+                raise FileNotFoundError(f"File not found: {file_dir}")
+            file_text = self.read_raw(file_dir)
+            opening = 0
+            if file_text.startswith("---\n"):
+                first_end = file_text.find('\n', 4)
+                if first_end != -1:
+                    second_marker_pos = file_text.find('---\n', first_end + 1)
+                    if second_marker_pos != -1:
+                        opening = second_marker_pos + 4
+            new_file = process_markdown(file_text[opening:], add_to_header_list)
+            (self.cached_pages)[file_dir] = new_file
+            return new_file
+        except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
+            print(f"Error processing {file_dir}: {e}")
+            return f"<p>Error loading file: {file_dir}</p>"

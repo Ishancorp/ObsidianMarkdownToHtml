@@ -42,27 +42,6 @@ class ObsidianMarkdownToHtml:
         self.counter += 1
         return processed_html
     
-    def file_viewer(self, file_dir, add_to_header_list=True):
-        try:
-            if file_dir.replace("/","\\") in self.cached_pages:
-                return self.cached_pages[file_dir.replace("/","\\")]
-            if not os.path.exists(file_dir):
-                raise FileNotFoundError(f"File not found: {file_dir}")
-            file_text = self.FileManager.read_raw(file_dir)
-            opening = 0
-            if file_text.startswith("---\n"):
-                first_end = file_text.find('\n', 4)
-                if first_end != -1:
-                    second_marker_pos = file_text.find('---\n', first_end + 1)
-                    if second_marker_pos != -1:
-                        opening = second_marker_pos + 4
-            new_file = self.process_markdown(file_text[opening:], add_to_header_list)
-            (self.cached_pages)[file_dir] = new_file
-            return new_file
-        except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
-            print(f"Error processing {file_dir}: {e}")
-            return f"<p>Error loading file: {file_dir}</p>"
-        
     def compile_webpages(self):
         for file in self.files:
             self.offset = file.count("\\")-1
@@ -72,7 +51,7 @@ class ObsidianMarkdownToHtml:
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
                 new_file = self.html_builder.top_part(file_name, self.offset)
-                viewed_file = self.file_viewer(file_dir)
+                viewed_file = self.FileManager.file_viewer(file_dir, self.process_markdown)
                 new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:-3])
                 self.header_list = []
                 new_file += self.html_builder.middle_part(file_name, viewed_file)
