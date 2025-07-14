@@ -83,7 +83,7 @@ class FileManager:
             with open(src_path, "r") as f_in, open(dst_path, "w") as f_out:
                 f_out.write(f_in.read())
     
-    def file_viewer(self, file_dir, process_markdown, add_to_header_list=True):
+    def file_viewer(self, file_dir, offset, process_markdown, add_to_header_list=True):
         try:
             if file_dir.replace("/","\\") in self.cached_pages:
                 return self.cached_pages[file_dir.replace("/","\\")]
@@ -97,7 +97,7 @@ class FileManager:
                     second_marker_pos = file_text.find('---\n', first_end + 1)
                     if second_marker_pos != -1:
                         opening = second_marker_pos + 4
-            new_file = process_markdown(file_text[opening:], add_to_header_list)
+            new_file = process_markdown(file_text[opening:], offset, add_to_header_list)
             (self.cached_pages)[file_dir] = new_file
             return new_file
         except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:

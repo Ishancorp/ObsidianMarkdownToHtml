@@ -16,16 +16,12 @@ class ObsidianMarkdownToHtml:
         self.out_directory = os.path.abspath(out_directory)
         self.offset = 0
         self.header_list = []
-        self.counter = 1
         self.FileManager = FileManager()
         self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict(self.in_directory)
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
         self.html_builder = HTMLBuilder()
-        self.JSONViewer = JSONViewer(self)
         self.MarkdownProcessor = MarkdownProcessor(self, self.link_to_filepath)
-    
-    def process_markdown(self, text, add_to_header_list=True):
-        return self.MarkdownProcessor.process_markdown(text, self.offset, add_to_header_list)
+        self.JSONViewer = JSONViewer(self.MarkdownProcessor)
     
     def compile_webpages(self):
         for file in self.files:
@@ -36,7 +32,7 @@ class ObsidianMarkdownToHtml:
                 full_file_name = file_name[1:]
                 file_name = file_name.split("\\")[-1]
                 new_file = self.html_builder.top_part(file_name, self.offset)
-                viewed_file = self.FileManager.file_viewer(file_dir, self.process_markdown)
+                viewed_file = self.FileManager.file_viewer(file_dir, self.offset, self.MarkdownProcessor.process_markdown)
                 new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:-3])
                 self.header_list = []
                 new_file += self.html_builder.middle_part(file_name, viewed_file)
@@ -48,7 +44,7 @@ class ObsidianMarkdownToHtml:
                 new_file = self.html_builder.top_part(file_name, self.offset, is_json=True)
                 new_file += self.navigation_builder.generate_navigation_bar(self.offset, self.header_list, file[2:] + ".html")
                 self.header_list = []
-                new_file += self.html_builder.middle_part(file_name, self.JSONViewer.json_viewer(file_dir), is_json=True)
+                new_file += self.html_builder.middle_part(file_name, self.JSONViewer.json_viewer(file_dir, self.offset), is_json=True)
                 new_file += self.html_builder.bottom_part(self.offset, is_json=True)
                 self.FileManager.writeToFile(self.out_directory + self.link_to_filepath[full_file_name.replace('\\', '/') + ".canvas"].replace(" ", "-"), new_file)
             else:

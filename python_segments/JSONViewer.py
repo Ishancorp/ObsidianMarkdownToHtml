@@ -3,11 +3,11 @@ from python_segments.MarkdownProcessor.MarkdownExtensions import *
 from python_segments.helpers import *
 
 class JSONViewer:
-    def __init__(self, parent_instance):
-        self.parent_instance = parent_instance
+    def __init__(self, markdown_processor):
+        self.markdown_processor = markdown_processor
         with open("svg/canvas_bar.html", encoding='utf-8') as canv_bar: self.canvas_bar = " " + canv_bar.read()
 
-    def json_viewer(self, file_name):
+    def json_viewer(self, file_name, offset):
         with open(file_name, encoding='utf-8') as json_data:
             data = json.load(json_data)
         nodes_by_id = {}
@@ -63,7 +63,7 @@ class JSONViewer:
                 
                 if text:
                     try:
-                        processed_content = self.parent_instance.process_markdown(text, add_to_header_list=False)
+                        processed_content = self.markdown_processor.process_markdown(text, offset, add_to_header_list=False)
                         div_part += processed_content
                     except Exception as e:
                         print(f"Warning: Error processing text for node {node_id}: {e}")

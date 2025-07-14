@@ -293,7 +293,7 @@ class TransclusionInlineProcessor(InlineProcessor):
         
         if transcluded_content:
             self.transclusion_counter += 1
-            unique_prefix = f"{self.parent_instance.counter}-t{self.transclusion_counter}"
+            unique_prefix = f"{self.parent_instance.MarkdownProcessor.counter}-t{self.transclusion_counter}"
             
             cleaned_content = self.clean_content(transcluded_content)
             
