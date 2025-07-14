@@ -1,6 +1,5 @@
 import os
 import shutil
-from collections import deque
 import re
 import markdown
 from python_segments.html_builders.NavigationBuilder import *
@@ -17,18 +16,16 @@ class ObsidianMarkdownToHtml:
             raise ValueError(f"Input directory does not exist: {in_directory}")
         self.in_directory = os.path.abspath(in_directory)
         self.out_directory = os.path.abspath(out_directory)
-        self.link_to_filepath = {}
-        self.files = []
         self.offset = 0
         self.cached_pages = {}
         self.header_list = []
         self.in_table = False
         self.counter = 1
-        self.add_dirs_to_dict("")
+        self.FileManager = FileManager()
+        self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict(self.in_directory)
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
         self.html_builder = HTMLBuilder()
         self.JSONViewer = JSONViewer(self)
-        self.FileManager = FileManager()
     
     def process_markdown(self, text, add_to_header_list=True):
         extensions = [
@@ -65,43 +62,6 @@ class ObsidianMarkdownToHtml:
         except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
             print(f"Error processing {file_dir}: {e}")
             return f"<p>Error loading file: {file_dir}</p>"
-    
-    def add_dirs_to_dict(self, path):
-        stack = deque([path])
-        while stack:
-            path = stack.popleft()
-            nu_dir = self.in_directory + "\\" + path
-            files_and_dirs = os.listdir(nu_dir)
-            sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
-            dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
-            for file in sep_files:
-                temp = ".\\" + path + "\\"
-                (self.files).append(temp.replace("\\\\", "\\") + file)
-
-            for dir in reversed(dirs):
-                nu_dr = path + "\\" + dir
-                stack.appendleft(nu_dr)
-        
-            nu_rel_dir = "." + path + "\\"
-            for file in sep_files:
-                extension = file.split('.')[-1]
-                if extension == "md":
-                    name = file.split('.')[0]
-                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
-                    (self.link_to_filepath)[name] = html_pruned
-                    if(path != ""):
-                        (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
-                elif extension == "canvas":
-                    name = file.split(".")[0] + ".canvas"
-                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
-                    (self.link_to_filepath)[name] = html_pruned
-                    if(path != ""):
-                        (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
-                else:
-                    file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
-                    (self.link_to_filepath)[file] = file_pruned
-                    if(path != ""):
-                        (self.link_to_filepath)[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
         
     def compile_webpages(self):
         for file in self.files:

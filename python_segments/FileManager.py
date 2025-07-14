@@ -1,3 +1,4 @@
+from collections import deque
 import os
 from pathlib import Path
 base_dir = Path(__file__).resolve().parent
@@ -9,6 +10,46 @@ class FileManager:
             ("scripts/json_canvas.js", "canvas.js"),
             ("scripts/searcher.js", "searcher.js")
         ]
+
+    def add_dirs_to_dict(self, in_directory):
+        files = []
+        link_to_filepath = {}
+        stack = deque([""])
+        while stack:
+            path = stack.popleft()
+            nu_dir = in_directory + "\\" + path
+            files_and_dirs = os.listdir(nu_dir)
+            sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
+            dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
+            for file in sep_files:
+                temp = ".\\" + path + "\\"
+                files.append(temp.replace("\\\\", "\\") + file)
+            for dir in reversed(dirs):
+                nu_dr = path + "\\" + dir
+                stack.appendleft(nu_dr)
+        
+            nu_rel_dir = "." + path + "\\"
+            for file in sep_files:
+                extension = file.split('.')[-1]
+                if extension == "md":
+                    name = file.split('.')[0]
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    link_to_filepath[name] = html_pruned
+                    if(path != ""):
+                        link_to_filepath[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
+                elif extension == "canvas":
+                    name = file.split(".")[0] + ".canvas"
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    link_to_filepath[name] = html_pruned
+                    if(path != ""):
+                        link_to_filepath[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
+                else:
+                    file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
+                    link_to_filepath[file] = file_pruned
+                    if(path != ""):
+                        link_to_filepath[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
+        
+        return files, link_to_filepath
     
     def readlines_raw(self, file_dir):
         try:
