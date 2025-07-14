@@ -254,6 +254,7 @@ div#searchbar {
     margin: 2.5em 0;
     left: 100px;
     overflow: hidden;
+    top: -1.5em;
 }
 
 div#table-of-contents {
