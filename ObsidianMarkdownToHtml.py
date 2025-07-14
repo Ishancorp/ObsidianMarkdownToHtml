@@ -4,10 +4,10 @@ import re
 import markdown
 from python_segments.html_builders.NavigationBuilder import *
 from python_segments.html_builders.HTMLBuilder import *
-from python_segments.MarkdownProcessor import *
+from python_segments.MarkdownProcessor.MarkdownProcessor import *
 from python_segments.helpers import *
 from python_segments.JSONViewer import *;
-from python_segments.CustomMarkdownExtension import *;
+from python_segments.MarkdownProcessor.CustomMarkdownExtension import *;
 from python_segments.FileManager import *;
 
 class ObsidianMarkdownToHtml:
@@ -17,30 +17,17 @@ class ObsidianMarkdownToHtml:
         self.in_directory = os.path.abspath(in_directory)
         self.out_directory = os.path.abspath(out_directory)
         self.offset = 0
-        self.cached_pages = {}
         self.header_list = []
-        self.in_table = False
         self.counter = 1
         self.FileManager = FileManager()
         self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict(self.in_directory)
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
         self.html_builder = HTMLBuilder()
         self.JSONViewer = JSONViewer(self)
+        self.MarkdownProcessor = MarkdownProcessor(self, self.link_to_filepath)
     
     def process_markdown(self, text, add_to_header_list=True):
-        extensions = [
-            CustomMarkdownExtension(self.link_to_filepath, make_offset(self.offset), self, add_to_header_list),
-            ObsidianFootnoteExtension(self.counter),
-            "sane_lists",
-            "tables", 
-            "nl2br",
-            ImprovedLaTeXExtension(),
-        ]
-        text = fix_table_spacing(text)
-        processed_html = markdown.markdown(text, extensions=extensions)
-        processed_html = re.sub(r'</p>\s*<p', '</p>\n<br>\n<p', processed_html)
-        self.counter += 1
-        return processed_html
+        return self.MarkdownProcessor.process_markdown(text, self.offset, add_to_header_list)
     
     def compile_webpages(self):
         for file in self.files:

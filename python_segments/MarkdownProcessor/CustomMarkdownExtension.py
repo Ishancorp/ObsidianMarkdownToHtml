@@ -1,4 +1,4 @@
-from python_segments.MarkdownProcessor import *
+from python_segments.MarkdownProcessor.MarkdownExtensions import AnchorSpanTreeProcessor, BlockReferenceProcessor, IndentedParagraphProcessor, WikiLinkInlineProcessor, TransclusionInlineProcessor
 from markdown.extensions import Extension
 from python_segments.helpers import *
 from python_segments.JSONViewer import *;

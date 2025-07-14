@@ -1,5 +1,5 @@
 import json
-from python_segments.MarkdownProcessor import *
+from python_segments.MarkdownProcessor.MarkdownExtensions import *
 from python_segments.helpers import *
 
 class JSONViewer:
