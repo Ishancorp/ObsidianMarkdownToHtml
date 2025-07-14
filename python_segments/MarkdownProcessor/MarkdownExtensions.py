@@ -1,5 +1,4 @@
 import unicodedata
-import markdown
 from markdown.blockprocessors import BlockProcessor
 from markdown.treeprocessors import Treeprocessor
 from markdown.inlinepatterns import InlineProcessor
