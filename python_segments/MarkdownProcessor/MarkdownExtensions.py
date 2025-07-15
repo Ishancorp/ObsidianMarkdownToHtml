@@ -324,8 +324,8 @@ class TransclusionInlineProcessor(InlineProcessor):
             cleaned_html = self.clean_html_spacing(processed_content)
             
             try:
-                wrapped_content = f"<div>{cleaned_html}</div>"
-                temp_root = fromstring(wrapped_content.replace('&', '&amp;'))
+                wrapped_content = f"<div>{cleaned_html}</div>".replace('&', '&amp;')
+                temp_root = fromstring(wrapped_content)
                 
                 for child in temp_root:
                     transcl_div.append(child)
