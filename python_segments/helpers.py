@@ -12,9 +12,6 @@ def make_closing_tag(indicer):
 
 def make_op_close_inline_tag(indicer, inner):
     return "<" + indicer + ">" + inner + "</" + indicer + ">\n"
-    
-def remove_from_id_part(id):
-    return re.sub(CLEANR, '', id).lower().replace("[[","").replace("]]","").replace(" ", "-").replace("*", "").replace(":","")
 
 def make_offset(offset):
     if offset == 0:
