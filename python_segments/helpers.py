@@ -1,6 +1,6 @@
-import re
+from re import compile, VERBOSE
 
-CLEANR = re.compile('<.*?>') 
+CLEANR = compile('<.*?>') 
 external_link = ""
 with open("svg/other_extern.html", encoding='utf-8') as other_pages: external_link = " " + other_pages.read()
 
@@ -28,7 +28,7 @@ def make_link(link, text, target="_self", className="", extern=False):
     return ret_str
 
 def fix_table_spacing(markdown_text):
-    table_pattern = re.compile(r'''
+    table_pattern = compile(r'''
         (?:(?<=\n)|\A)               # Start of string or after a newline
         (?P<table>                   # Named group for the full table
             (?:\|.*\|\n)            # Header row
@@ -38,7 +38,7 @@ def fix_table_spacing(markdown_text):
         (?P<tag_line>               # Named group for an optional tag line
             \^([a-zA-Z0-9]{6})[ \t]*\n  # Line with ^ + 6 alphanumeric characters
         )?
-    ''', re.VERBOSE)
+    ''', VERBOSE)
 
     def replacement(match):
         table = match.group('table').rstrip()

@@ -1,5 +1,6 @@
 from collections import deque
-import os
+from os import listdir, makedirs
+from os.path import isfile, isdir, dirname, exists
 from pathlib import Path
 base_dir = Path(__file__).resolve().parent
 
@@ -19,9 +20,9 @@ class FileManager:
         while stack:
             path = stack.popleft()
             nu_dir = in_directory + "\\" + path
-            files_and_dirs = os.listdir(nu_dir)
-            sep_files = [f for f in files_and_dirs if (os.path.isfile(nu_dir+'/'+f) and f[0] != '~')]
-            dirs = [f for f in files_and_dirs if (os.path.isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
+            files_and_dirs = listdir(nu_dir)
+            sep_files = [f for f in files_and_dirs if (isfile(nu_dir+'/'+f) and f[0] != '~')]
+            dirs = [f for f in files_and_dirs if (isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
             for file in sep_files:
                 temp = ".\\" + path + "\\"
                 files.append(temp.replace("\\\\", "\\") + file)
@@ -70,7 +71,7 @@ class FileManager:
                 return f.read()
 
     def writeToFile(self, export_file, new_file):
-        os.makedirs(os.path.dirname(export_file), exist_ok=True)
+        makedirs(dirname(export_file), exist_ok=True)
         
         exp_file = open(export_file, "w", encoding="utf-8")
         exp_file.write(new_file)
@@ -87,7 +88,7 @@ class FileManager:
         try:
             if file_dir.replace("/","\\") in self.cached_pages:
                 return self.cached_pages[file_dir.replace("/","\\")]
-            if not os.path.exists(file_dir):
+            if not exists(file_dir):
                 raise FileNotFoundError(f"File not found: {file_dir}")
             file_text = self.read_raw(file_dir)
             opening = 0
