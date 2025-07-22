@@ -1,3 +1,4 @@
+from collections import deque
 from unicodedata import category
 from markdown import Markdown
 from markdown.blockprocessors import BlockProcessor
@@ -8,7 +9,6 @@ import xml.etree.ElementTree as etree
 from xml.etree.ElementTree import fromstring
 import re
 from python_segments.helpers import *
-from python_segments.FileManager import *
 
 WEIRD_ARTEFACTS_RE = re.compile(r'\x02?wzxhzdk:\d+')
 SPECIAL_CHARACTERS_RE = re.compile(r'[^\w\-\[\]\(\),†\"\'“”‘’‡.;]')
@@ -229,7 +229,7 @@ class TransclusionInlineProcessor(InlineProcessor):
         super().__init__(pattern, md)
         self.parent_instance = parent_instance
         self.transclusion_counter = 0 
-        self.FileManager = FileManager()
+        self.FileManager = self.parent_instance.FileManager
         self.image_types = {"png", "svg", "jpg", "jpeg", "gif", "webp"}
         self.FOOTNOTE_PATTERN = re.compile(r'^\[\^([^\]]+)\]:\s*(.*?)(?=^\[\^|\Z)', re.MULTILINE | re.DOTALL)
         self.SECTION_FOOTNOTE_PATTERN = re.compile(r'^\[\^([^\]]+)\]:\s*(.*)', re.MULTILINE)
@@ -351,12 +351,11 @@ class TransclusionInlineProcessor(InlineProcessor):
         f_p = "\\" + file_paths[-1] + ".md"
         
         try:
-            full_content = self.FileManager.read_raw(self.parent_instance.in_directory + f_p)
+            full_content = self.FileManager.read_raw(f_p)
             
             for match in self.FOOTNOTE_PATTERN.finditer(full_content):
                 footnote_id = match.group(1)
                 footnote_content = match.group(2).strip()
-                
                 header_match = re.search(r'^#{1,6}\s.*', footnote_content, re.MULTILINE)
                 cutoff_index = header_match.start() if header_match else len(footnote_content)
                 double_newline_match = re.search(r'\n\s*\n', footnote_content)
@@ -551,7 +550,7 @@ class TransclusionInlineProcessor(InlineProcessor):
     
     def get_full_article_content(self, file_path, page_name):
         try:
-            raw_text = self.FileManager.read_raw(self.parent_instance.in_directory + file_path)
+            raw_text = self.FileManager.read_raw(file_path)
             title_line = f"**{page_name.split('/')[-1]}**\n\n"
             start_idx = 0
             if raw_text.startswith('---\n'):

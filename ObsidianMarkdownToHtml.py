@@ -13,19 +13,18 @@ class ObsidianMarkdownToHtml:
         self.out_directory = os.path.abspath(out_directory)
         self.offset = 0
         self.header_list = []
-        self.FileManager = FileManager()
-        self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict(self.in_directory)
+        self.FileManager = FileManager(self.in_directory, self.out_directory)
+        self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict()
         self.html_builder = HTMLBuilder(self.link_to_filepath)
         self.MarkdownProcessor = MarkdownProcessor(self, self.link_to_filepath)
-        self.JSONViewer = JSONViewer(self.MarkdownProcessor)
+        self.JSONViewer = JSONViewer(self.MarkdownProcessor, self.in_directory, self.out_directory)
     
     def compile_webpages(self):
         for file in self.files:
             self.offset = file.count("\\")-1
             [__, file_name, extension] = file.split(".")
-            file_dir = self.in_directory + file[1:]
             if extension == "md":
-                viewed_file = self.FileManager.file_viewer(file_dir, self.offset, self.MarkdownProcessor.process_markdown)
+                viewed_file = self.FileManager.file_viewer(file, self.offset, self.MarkdownProcessor.process_markdown)
                 self.FileManager.writeToFile(
                     Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/')].replace(" ", "-"), 
                     self.html_builder.build_HTML(
@@ -38,7 +37,7 @@ class ObsidianMarkdownToHtml:
                 )
                 self.header_list = []
             elif extension == "canvas":
-                json_content = self.JSONViewer.json_viewer(file_dir, self.offset)
+                json_content = self.JSONViewer.json_viewer(file, self.offset)
                 self.FileManager.writeToFile(
                     Path(self.out_directory) / self.link_to_filepath[file_name[1:].replace('\\', '/') + ".canvas"].replace(" ", "-"), 
                     self.html_builder.build_HTML(
@@ -53,7 +52,7 @@ class ObsidianMarkdownToHtml:
             else:
                 export_file = Path(self.out_directory) / file.split(".", 1)[1].replace(" ", "-").lower()
                 export_file.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(file_dir, export_file)
+                shutil.copy(self.in_directory + file[1:], export_file)
 
         print("Compiled")
         self.FileManager.write_files(self.out_directory)

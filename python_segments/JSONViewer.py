@@ -4,7 +4,7 @@ from python_segments.MarkdownProcessor.MarkdownExtensions import *
 from python_segments.helpers import *
 
 class JSONViewer:
-    def __init__(self, markdown_processor):
+    def __init__(self, markdown_processor, in_directory, out_directory):
         self.markdown_processor = markdown_processor
         self.canvas_bar = self._load_canvas_bar()
         self.CANVAS_OFFSET_X = 750
@@ -17,8 +17,10 @@ class JSONViewer:
         self.MIN_CANVAS_HEIGHT = 1000
         self.CANVAS_PADDING = 1000
         self.VALID_SIDES = {"left", "right", "top", "bottom"}
+        self.in_directory = in_directory
+        self.out_directory = out_directory
     
-    def _load_canvas_bar(self) -> str:
+    def _load_canvas_bar(self):
         try:
             with open("svg/canvas_bar.html", encoding='utf-8') as canv_bar:
                 return " " + canv_bar.read()
@@ -27,9 +29,10 @@ class JSONViewer:
         except Exception as e:
             return ""
     
-    def json_viewer(self, file_name: str, offset: int) -> str:
+    def json_viewer(self, file, offset):
         try:
-            data = self._load_json_file(file_name)
+            file_dir = file_dir = self.in_directory + file[1:]
+            data = self._load_json_file(file_dir)
             if isinstance(data, str):
                 return data
             nodes_data = self._validate_and_extract_nodes(data)
@@ -44,7 +47,7 @@ class JSONViewer:
         except Exception as e:
             return f'<div class="error">Error processing canvas data: {self._escape_html(str(e))}</div>'
     
-    def _load_json_file(self, file_name: str) -> Dict[str, Any]:
+    def _load_json_file(self, file_name):
         try:
             with open(file_name, encoding='utf-8') as json_file:
                 data = json.load(json_file)
@@ -58,19 +61,19 @@ class JSONViewer:
         except Exception as e:
             return f'<div class="error">Error loading file: {self._escape_html(str(e))}</div>'
     
-    def _validate_and_extract_nodes(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _validate_and_extract_nodes(self, data):
         nodes = data.get("nodes", [])
         if not isinstance(nodes, list):
             return '<div class="error">Invalid canvas data: \'nodes\' must be a list</div>'
         return nodes
     
-    def _validate_and_extract_edges(self, data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _validate_and_extract_edges(self, data):
         edges = data.get("edges", [])
         if not isinstance(edges, list):
             return '<div class="error">Invalid canvas data: \'edges\' must be a list</div>'
         return edges
     
-    def _process_nodes(self, nodes: List[Dict[str, Any]], offset: int) -> Tuple[Dict[str, Dict[str, Tuple[float, float]]], str, float, float]:
+    def _process_nodes(self, nodes, offset):
         nodes_by_id = {}
         div_part = ""
         max_x = 0
@@ -89,7 +92,7 @@ class JSONViewer:
                 continue
         return nodes_by_id, div_part, max_x, max_y
     
-    def _process_single_node(self, node: Dict[str, Any], index: int, offset: int) -> Optional[Tuple[str, str, Dict[str, Tuple[float, float]], float, float]]:
+    def _process_single_node(self, node, index, offset):
         if not isinstance(node, dict):
             return None
         node_id = node.get("id")
@@ -113,13 +116,13 @@ class JSONViewer:
         }
         return node_id, html_content, position_data, x + width, y + height
     
-    def _safe_float(self, value: Any) -> float:
+    def _safe_float(self, value) -> float:
         try:
             return float(value)
         except (ValueError, TypeError):
             return 0.0
     
-    def _generate_node_classes(self, color: str) -> List[str]:
+    def _generate_node_classes(self, color):
         div_classes = ["general-boxes"]
         if color and isinstance(color, str):
             sanitized_color = ''.join(c for c in color if c.isalnum() or c in ['-', '_'])
@@ -127,8 +130,7 @@ class JSONViewer:
                 div_classes.append(f"color-{sanitized_color}")
         return div_classes
     
-    def _build_node_html(self, node_id: str, div_classes: List[str], left_pos: float, top_pos: float, 
-                        width: float, height: float, text: str, offset: int) -> str:
+    def _build_node_html(self, node_id, div_classes, left_pos, top_pos, width, height, text, offset):
         html_content = (
             f'<div class="{" ".join(div_classes)}" '
             f'id="{self._escape_html(str(node_id))}" '
@@ -143,8 +145,7 @@ class JSONViewer:
         html_content += "\n</div>\n"
         return html_content
     
-    def _process_edges(self, edges: List[Dict[str, Any]], nodes_by_id: Dict[str, Dict[str, Tuple[float, float]]], 
-                        max_x: float, max_y: float) -> Tuple[str, str]:
+    def _process_edges(self, edges, nodes_by_id, max_x, max_y):
         svg_width = max(max_x + self.CANVAS_PADDING, self.MIN_CANVAS_WIDTH)
         svg_height = max(max_y + self.CANVAS_PADDING, self.MIN_CANVAS_HEIGHT)
         svg_part = f'<svg id="svg" width="{svg_width}" height="{svg_height}">\n'
@@ -164,8 +165,7 @@ class JSONViewer:
         svg_part += "</svg>\n"
         return svg_part, arrow_part
     
-    def _process_single_edge(self, edge: Dict[str, Any], index: int, 
-                            nodes_by_id: Dict[str, Dict[str, Tuple[float, float]]]) -> Optional[Tuple[str, str]]:
+    def _process_single_edge(self, edge, index, nodes_by_id):
         if not isinstance(edge, dict):
             return None
         
@@ -194,18 +194,18 @@ class JSONViewer:
         arrow_html = self._generate_arrow_html(to_side, x2, y2)
         return line_html, arrow_html
     
-    def _validate_side(self, side: str, default: str, edge_index: int, side_name: str) -> str:
+    def _validate_side(self, side, default, edge_index, side_name):
         if side not in self.VALID_SIDES:
             return default
         return side
     
-    def _generate_arrow_html(self, to_side: str, arrow_x: float, arrow_y: float) -> str:
+    def _generate_arrow_html(self, to_side, arrow_x, arrow_y):
         if to_side == "left":
             return f'<i class="arrow {to_side}" style="left:{arrow_x - 10}px;top:{arrow_y - 5}px;"></i>\n'
         else:
             return f'<i class="arrow {to_side}" style="left:{arrow_x - 5}px;top:{arrow_y - 10}px;"></i>\n'
     
-    def _build_final_html(self, div_part: str, svg_part: str, arrow_part: str) -> str:
+    def _build_final_html(self, div_part, svg_part, arrow_part):
         return (
             "<div id=\"outer-box\">\n"
             "<div id=\"scrollable-box\">\n"
@@ -217,7 +217,7 @@ class JSONViewer:
             "</div>\n"
         )
     
-    def _escape_html(self, text: str) -> str:
+    def _escape_html(self, text):
         if not isinstance(text, str):
             text = str(text)
         return (text.replace("&", "&amp;")

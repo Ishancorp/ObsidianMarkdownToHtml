@@ -5,21 +5,23 @@ from pathlib import Path
 base_dir = Path(__file__).resolve().parent
 
 class FileManager:
-    def __init__(self):
+    def __init__(self, in_directory, out_directory):
         self.files = [
             ("styles/omth.css", "style.css"),
             ("scripts/json_canvas.js", "canvas.js"),
             ("scripts/searcher.js", "searcher.js")
         ]
         self.cached_pages = {}
+        self.in_directory = in_directory
+        self.out_directory = out_directory
 
-    def add_dirs_to_dict(self, in_directory):
+    def add_dirs_to_dict(self):
         files = []
         link_to_filepath = {}
         stack = deque([""])
         while stack:
             path = stack.popleft()
-            nu_dir = in_directory + "\\" + path
+            nu_dir = self.in_directory + "\\" + path
             files_and_dirs = listdir(nu_dir)
             sep_files = [f for f in files_and_dirs if (isfile(nu_dir+'/'+f) and f[0] != '~')]
             dirs = [f for f in files_and_dirs if (isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
@@ -58,11 +60,11 @@ class FileManager:
             with open(file_dir, "r", encoding="utf8") as f:
                 return f.readlines()
         except UnicodeDecodeError:
-            # Fallback to different encoding
             with open(file_dir, "r", encoding="latin-1") as f:
                 return f.readlines()
 
-    def read_raw(self, file_dir):
+    def read_raw(self, file):
+        file_dir = self.in_directory + file
         try:
             with open(file_dir, "r", encoding="utf8") as f:
                 return f.read()
@@ -84,13 +86,14 @@ class FileManager:
             with open(src_path, "r") as f_in, open(dst_path, "w") as f_out:
                 f_out.write(f_in.read())
     
-    def file_viewer(self, file_dir, offset, process_markdown, add_to_header_list=True):
+    def file_viewer(self, file, offset, process_markdown, add_to_header_list=True):
+        file_dir = self.in_directory + file[1:]
         try:
             if file_dir.replace("/","\\") in self.cached_pages:
                 return self.cached_pages[file_dir.replace("/","\\")]
             if not exists(file_dir):
                 raise FileNotFoundError(f"File not found: {file_dir}")
-            file_text = self.read_raw(file_dir)
+            file_text = self.read_raw(file[1:])
             opening = 0
             if file_text.startswith("---\n"):
                 first_end = file_text.find('\n', 4)

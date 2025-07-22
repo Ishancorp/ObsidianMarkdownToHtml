@@ -2,7 +2,6 @@ import markdown
 import re
 from python_segments.MarkdownProcessor.CustomMarkdownExtension import *
 from python_segments.helpers import *
-from python_segments.FileManager import *
 
 class MarkdownProcessor:
     def __init__(self, parent_instance, link_to_filepath):
