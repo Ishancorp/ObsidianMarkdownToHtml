@@ -50,9 +50,22 @@ class ObsidianMarkdownToHtml:
                     )
                 )
             else:
-                export_file = Path(self.out_directory) / file.split(".", 1)[1].replace(" ", "-").lower()
+                if file.startswith(".\\") or file.startswith("./"):
+                    relative_path = file[2:]
+                elif file.startswith("."):
+                    relative_path = file[1:]
+                else:
+                    relative_path = file
+
+                source_file = Path(self.in_directory) / relative_path
+                export_file = Path(self.out_directory) / relative_path.replace(" ", "-")
+
                 export_file.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy(self.in_directory + file[1:], export_file)
+
+                if source_file.exists():
+                    shutil.copy(source_file, export_file)
+                else:
+                    print(f"ERROR: Source file not found: {source_file}")
 
         print("Compiled")
         self.FileManager.write_files(self.out_directory)
