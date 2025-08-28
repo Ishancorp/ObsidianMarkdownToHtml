@@ -144,12 +144,10 @@ class ObsidianMarkdownToHtml:
     def build_html_with_raw_markdown(self, title, offset, content, file_path, headers, is_json=False):
         """Build HTML page with raw markdown that will be processed by marked.js"""
         # Prepare data for client-side processing
-        outer = "article"
         
         json_styles = ""
         json_script = ""
         if is_json:
-            outer = "div"
             try:
                 with open("styles/json_canvas.css") as json_stylesheet:
                     json_styles = f"<style>{json_stylesheet.read()}</style>"
@@ -171,10 +169,10 @@ class ObsidianMarkdownToHtml:
 <body>
     {self.navigation_builder.generate_navigation_bar(offset, headers, file_path)}
     <h1 class="file-title">{title}{'.CANVAS' if is_json else ''}</h1>
-    <{outer}>
+    <{'div' if is_json else f'article data-current-file="{os.path.basename(file_path)}".md'}>
         <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
         <div id="rendered-content"></div>
-    </{outer}>
+    </{'div' if is_json else 'article'}>
     <footer>
         <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
         <p>Last updated on {self.get_current_date()}</p>
@@ -251,7 +249,7 @@ class ObsidianMarkdownToHtml:
                     html_content = self.build_html_with_raw_markdown(
                         title=file_name,
                         offset=self.offset,
-                        content=processed_content,
+                        content="",
                         file_path=file[2:-3],
                         headers=headers,
                         is_json=False

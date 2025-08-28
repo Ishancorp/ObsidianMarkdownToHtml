@@ -4,7 +4,6 @@ const fileLinks = {/*file_links*/}
 const fileContents = {/*file_contents*/}
 const inDirectory = /*in_directory*/0
 const outDirectory = /*out_directory*/0
-console.log(fileContents);
 
 // Client-side Obsidian processor with transclusions
 // Fixed version of the ObsidianProcessor with corrected transclusion logic
@@ -738,9 +737,27 @@ function postProcessing(htmlContent) {
     htmlContent = htmlContent.replace(/<\/table>\s*<p>/g, '</table><br><p>');
 }
 
+function preProcessing(content) {
+  // Check if content starts with frontmatter
+  if (content.startsWith('---\n')) {
+    const endIdx = content.indexOf('\n---\n', 4);
+    if (endIdx !== -1) {
+      content = content.slice(endIdx + 5); // skip the ending '---\n'
+    }
+  }
+  return content.trim()
+}
+
 // Process and render
 async function renderContent() {
-    const markdownContent = document.getElementById('markdown-content').textContent;
+    let markdownContent = ''
+    const article = document.querySelector("article");
+    if (article) {
+        const attributeValue = article.getAttribute('data-current-file');
+        markdownContent = preProcessing(fileContents[attributeValue]);
+    } else {
+        markdownContent = document.getElementById('markdown-content').textContent;
+    }
     const processor = new ObsidianProcessor();
 
     try {
