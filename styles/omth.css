@@ -20,6 +20,18 @@ a {
     text-decoration: underline;
     color: #6086ED;
 }
+a.broken-link {
+    color: #6B7EB3;
+    text-decoration: underline;
+}
+a.broken-link:visited {
+    color: #6B7EB3;
+    text-decoration: underline;
+}
+a.broken-link:hover {
+    color: #B5C6F5;
+    text-decoration: underline;
+}
 strong {
     font-weight: 600;
 }

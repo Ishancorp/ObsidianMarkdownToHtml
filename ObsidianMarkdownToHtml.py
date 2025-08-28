@@ -157,46 +157,6 @@ class ObsidianMarkdownToHtml:
             except:
                 pass
 
-        # Add transclusion styles
-        transclusion_styles = """
-        <style>
-        .transclusion {
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            margin: 1em 0;
-            background: #fafafa;
-        }
-        .transclusion-header {
-            padding: 0.5em 1em;
-            background: #f0f0f0;
-            border-bottom: 1px solid #e0e0e0;
-            font-size: 0.9em;
-        }
-        .transclusion-content {
-            padding: 1em;
-        }
-        .transcluded-link {
-            color: #0066cc;
-            text-decoration: none;
-        }
-        .transcluded-link:hover {
-            text-decoration: underline;
-        }
-        .transclusion-error {
-            color: #cc0000;
-            font-style: italic;
-            padding: 0.5em;
-            background: #ffe0e0;
-            border: 1px solid #cc0000;
-            border-radius: 3px;
-        }
-        .broken-link {
-            color: #cc0000;
-            font-style: italic;
-        }
-        </style>
-        """
-
         html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -206,7 +166,6 @@ class ObsidianMarkdownToHtml:
     <link rel="preconnect" href="https://rsms.me/inter/inter.css">
     <link rel="stylesheet" href="{make_offset(offset)}\\style.css">
     {json_styles}
-    {transclusion_styles}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
 </head>
 <body>

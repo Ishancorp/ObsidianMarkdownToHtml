@@ -145,13 +145,13 @@ class ObsidianProcessor {
         let originalFileContent = this.findFileContent(fileName);
         if (!originalFileContent) {
             console.log('File not found:', fileName);
-            return `<div class="transclusion-error">File not found: ${link}</div>`;
+            return `> File not found: ${link}`;
         }
 
         // Prevent circular references
         if (this.processing_files.has(fileName)) {
             console.log('Circular reference detected:', fileName);
-            return `<div class="transclusion-error">Circular reference detected: ${link}</div>`;
+            return `> Circular reference detected: ${link}`;
         }
 
         this.processing_files.add(fileName);
@@ -163,7 +163,7 @@ class ObsidianProcessor {
             if (!fileContent) {
                 console.log('Section not found:', section, 'in file:', fileName);
                 this.processing_files.delete(fileName);
-                return `<div class="transclusion-error">Section not found: ${link}</div>`;
+                return `> Section not found: ${link}`;
             }
         } else {
             fileContent = originalFileContent;
