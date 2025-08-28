@@ -1,10 +1,10 @@
 # Obsidian Markdown To HTML
 
-Obsidian Markdown To HTML is a Python library for exporting Obsidian projects to HTML. Note that this is very much in its early development phase, and I am still working on it.
+Obsidian Markdown To HTML is a Python library for exporting Obsidian projects to HTML, in the form of code which will be run in browser. 
 
 ## Built with
 
-This is built exclusively with Python.
+This is built almost exclusively with Python - however, it contains Javascript scripts which are written to target directory to be run by browser.
 
 ## Installation
 

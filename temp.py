@@ -144,12 +144,10 @@ class ObsidianMarkdownToHtml:
     def build_html_with_raw_markdown(self, title, offset, content, file_path, headers, is_json=False):
         """Build HTML page with raw markdown that will be processed by marked.js"""
         # Prepare data for client-side processing
-        outer = "article"
         
         json_styles = ""
         json_script = ""
         if is_json:
-            outer = "div"
             try:
                 with open("styles/json_canvas.css") as json_stylesheet:
                     json_styles = f"<style>{json_stylesheet.read()}</style>"
@@ -212,10 +210,10 @@ class ObsidianMarkdownToHtml:
 <body>
     {self.navigation_builder.generate_navigation_bar(offset, headers, file_path)}
     <h1 class="file-title">{title}{'.CANVAS' if is_json else ''}</h1>
-    <{outer}>
+    <{'div' if is_json else 'article'}>
         <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
         <div id="rendered-content"></div>
-    </{outer}>
+    </{'div' if is_json else 'article'}>
     <footer>
         <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
         <p>Last updated on {self.get_current_date()}</p>
@@ -272,8 +270,7 @@ class ObsidianMarkdownToHtml:
                 output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-")
             
             if relative_dir:
-                transformed_dir = "/".join(part.lower().replace(" ", "-") for part in relative_dir.split("/"))
-                output_path = Path(self.out_directory) / transformed_dir / output_file_name.split("\\")[-1]
+                output_path = Path(self.out_directory) / relative_dir / output_file_name.split("\\")[-1]
             else:
                 output_path = Path(self.out_directory) / output_file_name
 
@@ -344,3 +341,12 @@ class ObsidianMarkdownToHtml:
             shutil.copy(source_file, export_file)
         else:
             print(f"ERROR: Source file not found: {source_file}")
+
+# ---------------------
+# Run the compiler
+# ---------------------
+in_directory = input("Input dir: ")
+out_directory = input("Output dir: ")
+
+om2html = ObsidianMarkdownToHtml(in_directory, out_directory)
+om2html.compile_webpages()

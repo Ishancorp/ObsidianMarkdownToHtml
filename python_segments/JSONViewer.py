@@ -1,11 +1,10 @@
 import json
-from typing import Dict, List, Tuple, Optional, Any
-from python_segments.MarkdownProcessor.MarkdownExtensions import *
 from python_segments.helpers import *
 
 class JSONViewer:
-    def __init__(self, markdown_processor, in_directory, out_directory):
+    def __init__(self, markdown_processor=None, custom_renderer=None, in_directory=None, out_directory=None):
         self.markdown_processor = markdown_processor
+        self.custom_renderer = custom_renderer  # Function: (text, offset) -> HTML
         self.canvas_bar = self._load_canvas_bar()
         self.CANVAS_OFFSET_X = 750
         self.CANVAS_OFFSET_Y = 400
@@ -19,19 +18,17 @@ class JSONViewer:
         self.VALID_SIDES = {"left", "right", "top", "bottom"}
         self.in_directory = in_directory
         self.out_directory = out_directory
-    
+
     def _load_canvas_bar(self):
         try:
             with open("svg/canvas_bar.html", encoding='utf-8') as canv_bar:
                 return " " + canv_bar.read()
-        except FileNotFoundError:
+        except:
             return ""
-        except Exception as e:
-            return ""
-    
+
     def json_viewer(self, file, offset):
         try:
-            file_dir = file_dir = self.in_directory + file[1:]
+            file_dir = self.in_directory + file[1:]
             data = self._load_json_file(file_dir)
             if isinstance(data, str):
                 return data
@@ -46,7 +43,7 @@ class JSONViewer:
             return self._build_final_html(div_part, svg_part, arrow_part)
         except Exception as e:
             return f'<div class="error">Error processing canvas data: {self._escape_html(str(e))}</div>'
-    
+
     def _load_json_file(self, file_name):
         try:
             with open(file_name, encoding='utf-8') as json_file:
@@ -60,19 +57,19 @@ class JSONViewer:
             return f'<div class="error">Invalid JSON format: {self._escape_html(str(e))}</div>'
         except Exception as e:
             return f'<div class="error">Error loading file: {self._escape_html(str(e))}</div>'
-    
+
     def _validate_and_extract_nodes(self, data):
         nodes = data.get("nodes", [])
         if not isinstance(nodes, list):
             return '<div class="error">Invalid canvas data: \'nodes\' must be a list</div>'
         return nodes
-    
+
     def _validate_and_extract_edges(self, data):
         edges = data.get("edges", [])
         if not isinstance(edges, list):
             return '<div class="error">Invalid canvas data: \'edges\' must be a list</div>'
         return edges
-    
+
     def _process_nodes(self, nodes, offset):
         nodes_by_id = {}
         div_part = ""
@@ -88,10 +85,10 @@ class JSONViewer:
                 div_part += html_content
                 max_x = max(max_x, node_max_x)
                 max_y = max(max_y, node_max_y)
-            except Exception as e:
+            except:
                 continue
         return nodes_by_id, div_part, max_x, max_y
-    
+
     def _process_single_node(self, node, index, offset):
         if not isinstance(node, dict):
             return None
@@ -115,13 +112,13 @@ class JSONViewer:
             "bottom": (x + width/2, y + height),
         }
         return node_id, html_content, position_data, x + width, y + height
-    
+
     def _safe_float(self, value) -> float:
         try:
             return float(value)
-        except (ValueError, TypeError):
+        except:
             return 0.0
-    
+
     def _generate_node_classes(self, color):
         div_classes = ["general-boxes"]
         if color and isinstance(color, str):
@@ -129,7 +126,7 @@ class JSONViewer:
             if sanitized_color:
                 div_classes.append(f"color-{sanitized_color}")
         return div_classes
-    
+
     def _build_node_html(self, node_id, div_classes, left_pos, top_pos, width, height, text, offset):
         html_content = (
             f'<div class="{" ".join(div_classes)}" '
@@ -138,19 +135,24 @@ class JSONViewer:
         )
         if text:
             try:
-                processed_content = self.markdown_processor.process_markdown(text, offset, add_to_header_list=False)
-                html_content += processed_content
-            except Exception as e:
+                if self.custom_renderer:
+                    processed_content = self.custom_renderer(text, offset)
+                    html_content += processed_content
+                elif self.markdown_processor:
+                    processed_content = self.markdown_processor.process_markdown(text, offset, add_to_header_list=False)
+                    html_content += processed_content
+                else:
+                    html_content += self._escape_html(text)
+            except:
                 html_content += self._escape_html(text)
         html_content += "\n</div>\n"
         return html_content
-    
+
     def _process_edges(self, edges, nodes_by_id, max_x, max_y):
         svg_width = max(max_x + self.CANVAS_PADDING, self.MIN_CANVAS_WIDTH)
         svg_height = max(max_y + self.CANVAS_PADDING, self.MIN_CANVAS_HEIGHT)
         svg_part = f'<svg id="svg" width="{svg_width}" height="{svg_height}">\n'
         arrow_part = ""
-        
         for i, edge in enumerate(edges):
             try:
                 edge_data = self._process_single_edge(edge, i, nodes_by_id)
@@ -159,52 +161,38 @@ class JSONViewer:
                 line_html, arrow_html = edge_data
                 svg_part += line_html
                 arrow_part += arrow_html
-            except Exception as e:
+            except:
                 continue
-        
         svg_part += "</svg>\n"
         return svg_part, arrow_part
-    
+
     def _process_single_edge(self, edge, index, nodes_by_id):
         if not isinstance(edge, dict):
             return None
-        
         from_node = edge.get("fromNode")
         to_node = edge.get("toNode")
-        from_side = edge.get("fromSide", "right")
-        to_side = edge.get("toSide", "left")
-        
-        if not from_node or not to_node:
+        from_side = self._validate_side(edge.get("fromSide", "right"), "right", index, "fromSide")
+        to_side = self._validate_side(edge.get("toSide", "left"), "left", index, "toSide")
+        if not from_node or not to_node or from_node not in nodes_by_id or to_node not in nodes_by_id:
             return None
-        if from_node not in nodes_by_id or to_node not in nodes_by_id:
-            return None
-        
-        from_side = self._validate_side(from_side, "right", index, "fromSide")
-        to_side = self._validate_side(to_side, "left", index, "toSide")
-        
         node_from = nodes_by_id[from_node]
         node_to = nodes_by_id[to_node]
-        
         x1 = node_from[from_side][0] + self.CANVAS_OFFSET_X
         y1 = node_from[from_side][1] + self.CANVAS_OFFSET_Y
         x2 = node_to[to_side][0] + self.CANVAS_OFFSET_X
         y2 = node_to[to_side][1] + self.CANVAS_OFFSET_Y
-        
         line_html = f'<line class="line" x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}"/>\n'
         arrow_html = self._generate_arrow_html(to_side, x2, y2)
         return line_html, arrow_html
-    
+
     def _validate_side(self, side, default, edge_index, side_name):
-        if side not in self.VALID_SIDES:
-            return default
-        return side
-    
+        return side if side in self.VALID_SIDES else default
+
     def _generate_arrow_html(self, to_side, arrow_x, arrow_y):
         if to_side == "left":
             return f'<i class="arrow {to_side}" style="left:{arrow_x - 10}px;top:{arrow_y - 5}px;"></i>\n'
-        else:
-            return f'<i class="arrow {to_side}" style="left:{arrow_x - 5}px;top:{arrow_y - 10}px;"></i>\n'
-    
+        return f'<i class="arrow {to_side}" style="left:{arrow_x - 5}px;top:{arrow_y - 10}px;"></i>\n'
+
     def _build_final_html(self, div_part, svg_part, arrow_part):
         return (
             "<div id=\"outer-box\">\n"
@@ -216,7 +204,7 @@ class JSONViewer:
             f"{self.canvas_bar}"
             "</div>\n"
         )
-    
+
     def _escape_html(self, text):
         if not isinstance(text, str):
             text = str(text)

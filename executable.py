@@ -1,7 +1,8 @@
+import sys
 from ObsidianMarkdownToHtml import *
 
-in_directory = input("Input dir: ")
-out_directory = input("Output dir: ")
+in_directory = sys.argv[1]
+out_directory = sys.argv[2]
 
 om2html = ObsidianMarkdownToHtml(in_directory, out_directory)
 
