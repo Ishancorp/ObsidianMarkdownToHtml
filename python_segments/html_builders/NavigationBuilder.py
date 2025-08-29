@@ -69,7 +69,7 @@ class NavigationBuilder:
         for key in self.search_dict.keys():
             right_part_link = self.search_dict[key][1:].replace(" ", "-")
             link = make_offset(offset) + right_part_link
-            ret_str += f"<li><a searchText=\"{link}\" href=\"{link}\">{key}<br><sub class=\"fileloc\">{right_part_link.replace("\\", " > ")}</sub></a></li>"
+            ret_str += f"<li><a searchText=\"{link}\" href=\"{link}\">{key.split('/')[-1]}<br><sub class=\"fileloc\">{right_part_link[1:].replace("\\", " > ")}</sub></a></li>"
         ret_str += "</ul>" + "</div>"
         ret_str += "</span>"
         if nuwa_file.split('.')[-1] == "md": nuwa_file = nuwa_file.split('.')[0] + '.html'
