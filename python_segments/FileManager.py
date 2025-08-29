@@ -19,16 +19,20 @@ class FileManager:
     def add_dirs_to_dict(self):
         files = []
         link_to_filepath = {}
+        basename_tracker = {}  # Track basename conflicts
         stack = deque([""])
+        
         while stack:
             path = stack.popleft()
             nu_dir = self.in_directory + "\\" + path
             files_and_dirs = listdir(nu_dir)
             sep_files = [f for f in files_and_dirs if (isfile(nu_dir+'/'+f) and f[0] != '~')]
             dirs = [f for f in files_and_dirs if (isdir(nu_dir+'/'+f) and f[0] != '.' and f[0] != '~')]
+            
             for file in sep_files:
                 temp = ".\\" + path + "\\"
                 files.append(temp.replace("\\\\", "\\") + file)
+            
             for dir in reversed(dirs):
                 nu_dr = path + "\\" + dir
                 stack.appendleft(nu_dr)
@@ -36,23 +40,50 @@ class FileManager:
             nu_rel_dir = "." + path + "\\"
             for file in sep_files:
                 extension = file.split('.')[-1]
+                
                 if extension == "md":
                     name = file.split('.')[0]
                     html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
-                    link_to_filepath[name] = html_pruned
-                    if(path != ""):
-                        link_to_filepath[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
+                    
+                    # Always store the full path (guaranteed unique)
+                    full_key = nu_rel_dir.replace("\\", "/")[2:] + name if path != "" else name
+                    link_to_filepath[full_key] = html_pruned
+                    
+                    # Track basename usage for conflict detection
+                    if name not in basename_tracker:
+                        basename_tracker[name] = []
+                    basename_tracker[name].append((full_key, html_pruned))
+                    
                 elif extension == "canvas":
                     name = file.split(".")[0] + ".canvas"
                     html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
-                    link_to_filepath[name] = html_pruned
-                    if(path != ""):
-                        link_to_filepath[nu_rel_dir.replace("\\", "/")[2:]+name] = html_pruned
+                    
+                    # Always store the full path (guaranteed unique)  
+                    full_key = nu_rel_dir.replace("\\", "/")[2:] + name if path != "" else name
+                    link_to_filepath[full_key] = html_pruned
+                    
+                    # Track basename usage for conflict detection
+                    if name not in basename_tracker:
+                        basename_tracker[name] = []
+                    basename_tracker[name].append((full_key, html_pruned))
+                    
                 else:
                     file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
-                    link_to_filepath[file] = file_pruned
-                    if(path != ""):
-                        link_to_filepath[nu_rel_dir.replace("\\", "/")[2:]+file] = file_pruned
+                    
+                    # Always store the full path (guaranteed unique)
+                    full_key = nu_rel_dir.replace("\\", "/")[2:] + file if path != "" else file
+                    link_to_filepath[full_key] = file_pruned
+                    
+                    # Track basename usage for conflict detection
+                    if file not in basename_tracker:
+                        basename_tracker[file] = []
+                    basename_tracker[file].append((full_key, file_pruned))
+        
+        # Now handle basename mappings - only create them if there's no conflict
+        for basename, file_list in basename_tracker.items():
+            if len(file_list) == 1:
+                # No conflict - safe to use basename as key
+                link_to_filepath[basename] = file_list[0][1]
         
         return files, link_to_filepath
     

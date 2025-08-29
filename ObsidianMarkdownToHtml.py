@@ -72,6 +72,7 @@ class ObsidianMarkdownToHtml:
     def create_file_content_mapping(self):
         """Create a mapping of file paths to their content for client-side access"""
         self.file_content_map = {}
+        filename_counts = {}  # Track how many times each filename appears
         
         for file_path in self.files:
             if file_path.endswith('.md'):
@@ -94,23 +95,34 @@ class ObsidianMarkdownToHtml:
                             if end_idx != -1:
                                 content = content[end_idx + 5:]
                         
-                        # Store content with various key formats
+                        # Get filename components
                         filename_with_ext = os.path.basename(relative_path)
                         filename_without_ext = os.path.splitext(filename_with_ext)[0]
                         
-                        keys_to_add = [
-                            filename_with_ext,           # "file.md"
-                            filename_without_ext,        # "file"
-                            relative_path,               # "folder/file.md" 
-                            os.path.splitext(relative_path)[0],  # "folder/file"
-                        ]
+                        # Always store the full relative path (this is unique)
+                        self.file_content_map[relative_path] = content
+                        self.file_content_map[os.path.splitext(relative_path)[0]] = content
                         
-                        for key in keys_to_add:
-                            if key:
-                                self.file_content_map[key] = content
-                                
+                        # For basename keys, check for conflicts
+                        if filename_with_ext not in filename_counts:
+                            filename_counts[filename_with_ext] = []
+                        filename_counts[filename_with_ext].append((relative_path, content))
+                        
+                        if filename_without_ext not in filename_counts:
+                            filename_counts[filename_without_ext] = []
+                        filename_counts[filename_without_ext].append((relative_path, content))
+                
                 except Exception as e:
                     print(f"Error reading file {full_path}: {e}")
+        
+        # Now handle basename mappings - only create them if there's no conflict
+        for basename, file_list in filename_counts.items():
+            if len(file_list) == 1:
+                # No conflict - safe to use basename as key
+                self.file_content_map[basename] = file_list[0][1]
+            else:
+                # Conflict detected - don't create basename mapping
+                self.file_content_map.pop(basename, None)
 
     def slugify(self, text):
         """Convert text to URL-friendly slug"""
@@ -155,42 +167,46 @@ class ObsidianMarkdownToHtml:
             except:
                 pass
 
+        # Use the full file_path for data-current-file attribute
+        # This ensures each file has a unique identifier even if filenames are duplicated
+        data_current_file = file_path[2:]
+
         html = f"""<!DOCTYPE html>
-<html>
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <link rel="preconnect" href="https://rsms.me/">
-    <link rel="preconnect" href="https://rsms.me/inter/inter.css">
-    <link rel="stylesheet" href="{make_offset(offset)}\\style.css">
-    {json_styles}
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
-</head>
-<body>
-    {self.navigation_builder.generate_navigation_bar(offset, headers, file_path)}
-    <h1 class="file-title">{title}{'.CANVAS' if is_json else ''}</h1>
-    <{'div' if is_json else f'article data-current-file="{os.path.basename(file_path)}".md'}>
-        <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
-        <div id="rendered-content"></div>
-    </{'div' if is_json else 'article'}>
-    <footer>
-        <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
-        <p>Last updated on {self.get_current_date()}</p>
-    </footer>
-    <script src="{make_offset(offset)}\\renderer.js"></script>
-    <script src="{make_offset(offset)}\\searcher.js"></script>
-    {json_script}
-    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script>
-        MathJax = {{
-            tex: {{
-                inlineMath: [['$', '$']],
-                displayMath: [['$$', '$$']]
-            }}
-        }};
-    </script>
-</body>
-</html>"""
+    <html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>{title}</title>
+        <link rel="preconnect" href="https://rsms.me/">
+        <link rel="preconnect" href="https://rsms.me/inter/inter.css">
+        <link rel="stylesheet" href="{make_offset(offset)}\\style.css">
+        {json_styles}
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    </head>
+    <body>
+        {self.navigation_builder.generate_navigation_bar(offset, headers, file_path[2:])}
+        <h1 class="file-title">{title}{'.CANVAS' if is_json else ''}</h1>
+        <{'div' if is_json else f'article data-current-file="{data_current_file}"'}>
+            <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
+            <div id="rendered-content"></div>
+        </{'div' if is_json else 'article'}>
+        <footer>
+            <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
+            <p>Last updated on {self.get_current_date()}</p>
+        </footer>
+        <script src="{make_offset(offset)}\\renderer.js"></script>
+        <script src="{make_offset(offset)}\\searcher.js"></script>
+        {json_script}
+        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script>
+            MathJax = {{
+                tex: {{
+                    inlineMath: [['$', '$']],
+                    displayMath: [['$$', '$$']]
+                }}
+            }};
+        </script>
+    </body>
+    </html>"""
         return html
 
     def escape_html(self, text):
@@ -245,12 +261,15 @@ class ObsidianMarkdownToHtml:
                     processed_content = self.process_markdown_for_client_side(raw_content)
                     headers = self.extract_headers_from_markdown(processed_content)
 
+                    # Use the full relative path for data-current-file to avoid conflicts
+                    current_file_identifier = relative_path  # This is the full relative path like "folder1/notes.md"
+
                     # Build HTML
                     html_content = self.build_html_with_raw_markdown(
                         title=file_name,
                         offset=self.offset,
                         content="",
-                        file_path=file[2:-3],
+                        file_path=current_file_identifier,  # Pass full path instead of just basename
                         headers=headers,
                         is_json=False
                     )
@@ -258,13 +277,14 @@ class ObsidianMarkdownToHtml:
                 elif extension == "canvas":
                     # Process canvas JSON via JSONViewer (uses custom renderer)
                     json_content = self.JSONViewer.json_viewer(file, self.offset)
+                    current_file_identifier = relative_path
 
                     # Build HTML
                     html_content = self.build_html_with_raw_markdown(
                         title=file_name,
                         offset=self.offset,
                         content=json_content,  # Already processed HTML
-                        file_path=file[2:] + ".html",
+                        file_path=current_file_identifier,
                         headers=[],
                         is_json=True
                     )

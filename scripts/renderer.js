@@ -34,6 +34,74 @@ class ObsidianProcessor {
         return content;
     }
 
+    unescapeHtml(text) {
+        return text
+            .replace(/&amp;/g, "&")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&quot;/g, '"')
+            .replace(/&#x27;/g, "'");
+    }
+
+    // Process canvas nodes specifically
+    async processCanvasNodes() {
+        document.getElementById('rendered-content').innerHTML = this.unescapeHtml(document.getElementById('markdown-content').innerHTML)
+        const nodeContents = document.querySelectorAll('.general-boxes');
+        console.log(`Found ${nodeContents.length} canvas nodes to process`);
+        
+        for (let i = 0; i < nodeContents.length; i++) {
+            const nodeContent = nodeContents[i];
+            const rawMarkdown = nodeContent.innerHTML;
+            const renderedDiv = nodeContent;
+            
+            console.log(`Processing node ${i + 1}/${nodeContents.length}`);
+            
+            if (!rawMarkdown) {
+                console.warn(`Node ${i + 1}: No markdown data found`);
+                if (renderedDiv) renderedDiv.innerHTML = '<p>No content</p>';
+                continue;
+            }
+            
+            if (!renderedDiv) {
+                console.warn(`Node ${i + 1}: No rendered div found`);
+                continue;
+            }
+            
+            try {
+                // Unescape the HTML-escaped markdown
+                const unescapedMarkdown = this.unescapeHtml(rawMarkdown);
+                console.log(`Node ${i + 1} raw content:`, unescapedMarkdown.substring(0, 100) + '...');
+                
+                // Process the markdown through our pipeline
+                const processedContent = await this.processMarkdown(unescapedMarkdown);
+                console.log(`Node ${i + 1} processed content:`, processedContent.substring(0, 100) + '...');
+                
+                const htmlContent = marked.parse(processedContent);
+                
+                // Apply post-processing for spacing
+                const spacedContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
+                
+                renderedDiv.innerHTML = spacedContent;
+                console.log(`Node ${i + 1}: Successfully rendered`);
+                
+            } catch (error) {
+                console.error(`Error processing canvas node ${i + 1}:`, error);
+                console.error(`Node content was:`, rawMarkdown);
+                renderedDiv.innerHTML = `<p>Error processing content: ${error.message}</p>`;
+            }
+        }
+        
+        // Re-render MathJax for any new mathematical content
+        if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+            try {
+                await MathJax.typesetPromise();
+                console.log('MathJax re-rendered for canvas nodes');
+            } catch (error) {
+                console.warn('MathJax rendering error:', error);
+            }
+        }
+    }
+
     async processTransclusions(content, currentFile = null) {
         if (this.transclusion_depth >= this.max_transclusion_depth) {
             console.log('Max transclusion depth reached');
@@ -752,6 +820,12 @@ function preProcessing(content) {
 async function renderContent() {
     let markdownContent = ''
     const article = document.querySelector("article");
+    const el = document.querySelector('.top-bar');
+    let isCanvasPage = false;
+    console.log(el.innerHTML)
+    if (el && el.innerHTML.trim().endsWith('.canvas.html')) {
+        isCanvasPage = true;
+    }
     if (article) {
         const attributeValue = article.getAttribute('data-current-file');
         markdownContent = preProcessing(fileContents[attributeValue]);
@@ -761,10 +835,19 @@ async function renderContent() {
     const processor = new ObsidianProcessor();
 
     try {
-        const processedContent = await processor.processMarkdown(markdownContent);
-        const htmlContent = marked.parse(processedContent);
-        spacedHtmlContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
-        document.getElementById('rendered-content').innerHTML = spacedHtmlContent;
+        // Process canvas nodes (for canvas pages)
+        if (isCanvasPage) {
+            console.log('Processing canvas nodes...');
+            await processor.processCanvasNodes();
+            //document.getElementById('rendered-content').innerHTML = processedContent;
+            console.log('Canvas nodes processed successfully');
+        }
+        else {
+            const processedContent = await processor.processMarkdown(markdownContent);
+            const htmlContent = marked.parse(processedContent);
+            spacedHtmlContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
+            document.getElementById('rendered-content').innerHTML = spacedHtmlContent;
+    }
     } catch (error) {
         console.error('Error processing markdown:', error);
         document.getElementById('rendered-content').innerHTML = '<p>Error processing content. Please check the console for details.</p>';
