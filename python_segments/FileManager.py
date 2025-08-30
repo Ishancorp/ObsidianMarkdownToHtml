@@ -79,11 +79,25 @@ class FileManager:
                         basename_tracker[file] = []
                     basename_tracker[file].append((full_key, file_pruned))
         
-        # Now handle basename mappings - only create them if there's no conflict
+        # Handle basename mappings - create unique names for conflicts
         for basename, file_list in basename_tracker.items():
             if len(file_list) == 1:
                 # No conflict - safe to use basename as key
                 link_to_filepath[basename] = file_list[0][1]
+            else:
+                # Conflict detected - create unique basename mappings
+                for i, (full_key, html_path) in enumerate(file_list):
+                    # Extract directory path for uniqueness
+                    dir_parts = full_key.split('/')[:-1] if '/' in full_key else []
+                    
+                    if dir_parts:
+                        # Create unique key using last directory name
+                        unique_basename = f"{dir_parts[-1]}\\{basename}"
+                        link_to_filepath[unique_basename] = html_path
+                    
+                    # Also try creating a numbered variant as fallback
+                    numbered_basename = f"{basename}-{i+1}"
+                    link_to_filepath[numbered_basename] = html_path
         
         return files, link_to_filepath
     
@@ -121,7 +135,7 @@ class FileManager:
     def file_viewer(self, file, offset, process_markdown, add_to_header_list=True):
         file_dir = self.in_directory + file[1:]
         try:
-            if file_dir.replace("/","\\") in self.cached_pages:
+            if False and file_dir.replace("/","\\") in self.cached_pages:
                 return self.cached_pages[file_dir.replace("/","\\")]
             if not exists(file_dir):
                 raise FileNotFoundError(f"File not found: {file_dir}")
