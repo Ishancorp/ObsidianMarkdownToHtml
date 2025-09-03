@@ -1,6 +1,7 @@
 import os
 import shutil
 from pathlib import Path
+import uuid
 from python_segments.html_builders.NavigationBuilder import NavigationBuilder
 from python_segments.FileManager import FileManager
 from python_segments.helpers import *
@@ -69,7 +70,8 @@ class ObsidianMarkdownToHtml:
 
         # Replace placeholders
         content = content.replace("{/*file_links*/}", json.dumps(self.link_to_filepath))
-        content = content.replace("{/*file_contents*/}", json.dumps(self.file_content_map))
+        content = content.replace("{/*file_content_map*/}", json.dumps(self.file_content_map))
+        content = content.replace("{/*file_contents*/}", json.dumps(self.file_contents))
         content = content.replace("/*in_directory*/0", json.dumps(self.in_directory))
         content = content.replace("/*out_directory*/0", json.dumps(self.out_directory))
 
@@ -79,6 +81,7 @@ class ObsidianMarkdownToHtml:
     def create_file_content_mapping(self):
         """Create a mapping of file paths to their content for client-side access"""
         self.file_content_map = {}
+        self.file_contents = {}
         filename_counts = {}  # Track how many times each filename appears
         
         for file_path in self.files:
@@ -95,18 +98,27 @@ class ObsidianMarkdownToHtml:
                 try:
                     with open(full_path, 'r', encoding='utf-8') as f:
                         content = f.read()
+
+                        unique_id = str(uuid.uuid4())
                         
                         # Get filename components
                         filename_with_ext = os.path.basename(relative_path)
                         filename_without_ext = os.path.splitext(filename_with_ext)[0]
+
+                        self.file_contents[unique_id] = content
                         
                         # Always store the full relative path (this is unique)
-                        self.file_content_map[relative_path] = content
-                        self.file_content_map[os.path.splitext(relative_path)[0]] = content
+                        self.file_content_map[relative_path] = unique_id
+                        self.file_content_map[os.path.splitext(relative_path)[0]] = unique_id
+                        
+                        # For basename keys, check for conflicts
+                        if filename_with_ext not in filename_counts:
+                            filename_counts[filename_with_ext] = []
+                        filename_counts[filename_with_ext].append((relative_path, unique_id))
                         
                         if filename_without_ext not in filename_counts:
                             filename_counts[filename_without_ext] = []
-                        filename_counts[filename_without_ext].append((relative_path, content))
+                        filename_counts[filename_without_ext].append((relative_path, unique_id))
                 
                 except Exception as e:
                     print(f"Error reading file {full_path}: {e}")

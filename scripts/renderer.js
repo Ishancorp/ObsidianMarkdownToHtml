@@ -1,6 +1,7 @@
 // Note: This file CANNOT be run in this state. It must be processed first, plopping in relevant content in these four consts here. 
 
 const fileLinks = {/*file_links*/}
+const fileContentMap = {/*file_content_map*/}
 const fileContents = {/*file_contents*/}
 const inDirectory = /*in_directory*/0
 const outDirectory = /*out_directory*/0
@@ -276,13 +277,13 @@ class ObsidianProcessor {
         // Try exact match first
         if (fileContents.hasOwnProperty(fileName)) {
             console.log('Found exact match:', fileName);
-            return fileContents[fileName];
+            return fileContents[fileContentMap[fileName]];
         }
         
         // Try with .md extension
         if (fileContents.hasOwnProperty(fileName + '.md')) {
             console.log('Found with .md extension:', fileName + '.md');
-            return fileContents[fileName + '.md'];
+            return fileContents[fileContentMap[fileName + '.md']];
         }
 
         // Try case-insensitive match
@@ -303,10 +304,10 @@ class ObsidianProcessor {
         
         if (matches.length === 1) {
             console.log('Found basename match:', matches[0]);
-            return fileContents[matches[0]];
+            return fileContents[fileContentMap[matches[0]]];
         } else if (matches.length > 1) {
             console.log('Multiple basename matches found, using first:', matches[0]);
-            return fileContents[matches[0]];
+            return fileContents[fileContentMap[matches[0]]];
         }
 
         console.log('File not found:', fileName);
@@ -875,7 +876,7 @@ async function renderContent() {
     }
     if (article) {
         const attributeValue = article.getAttribute('data-current-file');
-        markdownContent = preProcessing(fileContents[attributeValue]);
+        markdownContent = preProcessing(fileContents[fileContentMap[attributeValue]]);
     } else {
         markdownContent = document.getElementById('markdown-content').textContent;
     }
