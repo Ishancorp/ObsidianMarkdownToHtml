@@ -251,6 +251,14 @@ class ObsidianMarkdownToHtml:
                 mermaid.run();
             }});
         </script>
+        <script>
+            document.addEventListener('click', function(e) {{
+                const card = e.target.closest('.card[data-href]');
+                if (card) {{
+                    window.location.href = card.dataset.href;
+                }}
+            }});
+        </script
     </body>
     </html>"""
         return html
