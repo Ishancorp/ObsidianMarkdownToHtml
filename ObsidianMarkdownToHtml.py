@@ -183,7 +183,7 @@ class ObsidianMarkdownToHtml:
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     </head>
     <body>
-        {self.navigation_builder.generate_navigation_bar(offset, headers, file_path[2:])}
+        {self.navigation_builder.generate_navigation_bar(offset, file_path[2:])}
         <h1 class="file-title">{title}{'.CANVAS' if is_json else ''}</h1>
         <{'div' if is_json else f'article data-current-file="{data_current_file}"'}>
             <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
@@ -204,6 +204,23 @@ class ObsidianMarkdownToHtml:
                     displayMath: [['$$', '$$']]
                 }}
             }};
+        </script>
+        <script type="module">
+            import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+
+            mermaid.initialize({{
+                startOnLoad: true,
+                theme: "default"
+            }});
+
+            document.addEventListener("DOMContentLoaded", () => {{
+                // Replace only ```mermaid fences
+                document.body.innerHTML = document.body.innerHTML.replace(
+                    /```mermaid([\s\S]*?)```/g,
+                    (match, code) => `<pre class="mermaid">${{code.trim()}}</pre>`
+                );
+                mermaid.run();
+            }});
         </script>
     </body>
     </html>"""
@@ -238,11 +255,11 @@ class ObsidianMarkdownToHtml:
             relative_dir = str(Path(relative_path).parent) if Path(relative_path).parent != Path('.') else ""
             
             if extension == "md":
-                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-")
+                output_file_name = self.link_to_filepath.get(file_name, file_name + '.html').replace(" ", "-").lower()
             elif extension == "canvas":
-                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-")[:-5] + ".canvas.html"
+                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower()[:-5] + ".canvas.html"
             else:
-                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-")
+                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower()
             
             if relative_dir:
                 transformed_dir = "/".join(part.lower().replace(" ", "-") for part in relative_dir.split("/"))
@@ -252,15 +269,6 @@ class ObsidianMarkdownToHtml:
 
             try:
                 if extension == "md":
-                    # Read raw markdown content
-                    full_path = Path(self.in_directory) / file[2:]
-                    with open(full_path, 'r', encoding='utf-8') as f:
-                        raw_content = f.read()
-
-                    # Basic preprocessing (frontmatter removed)
-                    processed_content = self.process_markdown_for_client_side(raw_content)
-                    headers = self.extract_headers_from_markdown(processed_content)
-
                     # Use the full relative path for data-current-file to avoid conflicts
                     current_file_identifier = relative_path  # This is the full relative path like "folder1/notes.md"
 
@@ -270,7 +278,7 @@ class ObsidianMarkdownToHtml:
                         offset=self.offset,
                         content="",
                         file_path=current_file_identifier,  # Pass full path instead of just basename
-                        headers=headers,
+                        headers=[],
                         is_json=False
                     )
 

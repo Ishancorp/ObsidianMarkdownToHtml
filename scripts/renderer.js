@@ -789,6 +789,52 @@ class ObsidianProcessor {
 
         return processedLines.join('\n');
     }
+
+    extractHeadersFromContent(content) {
+        const headers = [];
+        const lines = content.split('\n');
+        
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('#')) {
+                const level = trimmed.length - trimmed.replace(/^#+/, '').length;
+                if (level <= 6) {
+                    const headerText = trimmed.substring(level).trim();
+                    const headerId = this.slugify(headerText);
+                    headers.push([headerText, headerId, level]);
+                }
+            }
+        }
+        
+        return headers;
+    }
+
+    buildTableOfContents(headers) {
+        if (!headers || headers.length === 0) {
+            return '';
+        }
+        
+        let tocHtml = '';
+        const stack = [];
+        
+        for (const header of headers) {
+            const [headerText, headerId, level] = header;
+            
+            // Calculate indent level
+            while (stack.length > 0 && stack[stack.length - 1] >= level) {
+                stack.pop();
+            }
+            
+            const indentClass = `indent-${stack.length}`;
+            tocHtml += `<p class="${indentClass}"><a href="#${headerId}">${headerText}</a></p>`;
+            
+            if (stack.length === 0 || stack[stack.length - 1] !== level) {
+                stack.push(level);
+            }
+        }
+        
+        return tocHtml;
+    }
 }
 
 // Configure marked.js
@@ -806,14 +852,14 @@ function postProcessing(htmlContent) {
 }
 
 function preProcessing(content) {
-  // Check if content starts with frontmatter
-  if (content.startsWith('---\n')) {
-    const endIdx = content.indexOf('\n---\n', 4);
-    if (endIdx !== -1) {
-      content = content.slice(endIdx + 5); // skip the ending '---\n'
+    // Check if content starts with frontmatter
+    if (content.startsWith('---\n')) {
+        const endIdx = content.indexOf('\n---\n', 4);
+        if (endIdx !== -1) {
+            content = content.slice(endIdx + 5); // skip the ending '---\n'
+        }
     }
-  }
-  return content.trim()
+    return content.trim()
 }
 
 // Process and render
@@ -839,15 +885,25 @@ async function renderContent() {
         if (isCanvasPage) {
             console.log('Processing canvas nodes...');
             await processor.processCanvasNodes();
-            //document.getElementById('rendered-content').innerHTML = processedContent;
             console.log('Canvas nodes processed successfully');
         }
         else {
+            // Extract headers from the original markdown
+            const headers = processor.extractHeadersFromContent(markdownContent);
+            
+            // Process the markdown
             const processedContent = await processor.processMarkdown(markdownContent);
             const htmlContent = marked.parse(processedContent);
-            spacedHtmlContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
+            const spacedHtmlContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             document.getElementById('rendered-content').innerHTML = spacedHtmlContent;
-    }
+            
+            // Build and populate table of contents
+            if (headers.length > 0) {
+                const tocHtml = processor.buildTableOfContents(headers);
+                document.getElementById('toc-content').innerHTML = tocHtml;
+                document.getElementById('table-of-contents').style.removeProperty('display');
+            }
+        }
     } catch (error) {
         console.error('Error processing markdown:', error);
         document.getElementById('rendered-content').innerHTML = '<p>Error processing content. Please check the console for details.</p>';

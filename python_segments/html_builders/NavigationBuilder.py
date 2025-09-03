@@ -21,7 +21,8 @@ class NavigationBuilder:
         for key in keys_to_delete:
             del self.search_dict[key]
 
-    def generate_navigation_bar(self, offset, header_list, nuwa_file):
+    def generate_navigation_bar(self, offset, nuwa_file):
+        """Generate navigation bar without headers - headers will be populated client-side"""
         checkbox_prefix = 1
         
         ret_str = make_opening_tag("nav")
@@ -76,19 +77,10 @@ class NavigationBuilder:
         else: nuwa_file = nuwa_file + '.html'
         ret_str += make_op_close_inline_tag("p class=\"top-bar\"", nuwa_file.replace("\\", "<span class=\"file-link\"> > </span>"))
 
-        ret_str += "<button popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
+        # Placeholder for headers - will be populated client-side
+        ret_str += "<button id=\"toc-button\" popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
         ret_str += self.other_headers
         ret_str += "</button>"
-        if header_list:
-            ret_str += "<div id=\"table-of-contents\" popover><div id=\"idk\">"
-            stack = deque()
-            for header in header_list:
-                while stack and stack[-1] >= header[2]:
-                    stack.pop()
-                ret_str += make_op_close_inline_tag(f"p class=\"indent-{len(stack)}\"", make_link("#" + header[1], header[0]).replace("[[","").replace("]]",""))
-                if not stack or stack[-1] != header[2]:
-                    stack.append(header[2])
-            ret_str += make_closing_tag("div")
-        ret_str += make_closing_tag("div")
+        ret_str += "<div id=\"table-of-contents\" style=\"display: none\" popover><div id=\"toc-content\"></div></div>"
         ret_str += make_closing_tag("nav")
         return ret_str
