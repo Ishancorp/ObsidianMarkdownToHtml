@@ -26,7 +26,7 @@ class CanvasViewer:
         except:
             return ""
 
-    def json_viewer(self, file, offset):
+    def canvas_viewer(self, file, offset):
         try:
             file_dir = self.in_directory + file[1:]
             data = self._load_json_file(file_dir)

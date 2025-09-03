@@ -67,6 +67,20 @@ class FileManager:
                         basename_tracker[name] = []
                     basename_tracker[name].append((full_key, html_pruned))
                     
+                    
+                elif extension == "base":
+                    name = file.split(".")[0] + ".base"
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    
+                    # Always store the full path (guaranteed unique)  
+                    full_key = nu_rel_dir.replace("\\", "/")[2:] + name if path != "" else name
+                    link_to_filepath[full_key] = html_pruned
+                    
+                    # Track basename usage for conflict detection
+                    if name not in basename_tracker:
+                        basename_tracker[name] = []
+                    basename_tracker[name].append((full_key, html_pruned))
+                    
                 else:
                     file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
                     

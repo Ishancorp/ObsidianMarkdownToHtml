@@ -5,6 +5,7 @@ from python_segments.html_builders.NavigationBuilder import NavigationBuilder
 from python_segments.FileManager import FileManager
 from python_segments.helpers import *
 from python_segments.CanvasViewer import CanvasViewer
+from python_segments.BaseViewer import BaseViewer
 import json
 import re
 
@@ -29,6 +30,12 @@ class ObsidianMarkdownToHtml:
         self.CanvasViewer = CanvasViewer(
             markdown_processor=None,
             custom_renderer=lambda text, offset: self.process_markdown_for_client_side(text),
+            in_directory=self.in_directory,
+            out_directory=self.out_directory
+        )
+
+        self.BaseViewer = BaseViewer(
+            link_to_filepath=self.link_to_filepath,
             in_directory=self.in_directory,
             out_directory=self.out_directory
         )
@@ -89,12 +96,6 @@ class ObsidianMarkdownToHtml:
                     with open(full_path, 'r', encoding='utf-8') as f:
                         content = f.read()
                         
-                        # Remove frontmatter
-                        if content.startswith('---\n'):
-                            end_idx = content.find('\n---\n', 4)
-                            if end_idx != -1:
-                                content = content[end_idx + 5:]
-                        
                         # Get filename components
                         filename_with_ext = os.path.basename(relative_path)
                         filename_without_ext = os.path.splitext(filename_with_ext)[0]
@@ -102,11 +103,6 @@ class ObsidianMarkdownToHtml:
                         # Always store the full relative path (this is unique)
                         self.file_content_map[relative_path] = content
                         self.file_content_map[os.path.splitext(relative_path)[0]] = content
-                        
-                        # For basename keys, check for conflicts
-                        if filename_with_ext not in filename_counts:
-                            filename_counts[filename_with_ext] = []
-                        filename_counts[filename_with_ext].append((relative_path, content))
                         
                         if filename_without_ext not in filename_counts:
                             filename_counts[filename_without_ext] = []
@@ -205,6 +201,10 @@ class ObsidianMarkdownToHtml:
                 }}
             }};
         </script>
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <script>
+            lucide.createIcons();
+        </script>
         <script type="module">
             import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
 
@@ -258,6 +258,8 @@ class ObsidianMarkdownToHtml:
                 output_file_name = self.link_to_filepath.get(file_name, file_name + '.html').replace(" ", "-").lower()
             elif extension == "canvas":
                 output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower()[:-5] + ".canvas.html"
+            elif extension == "base":
+                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower() + ".base.html"
             else:
                 output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower()
             
@@ -284,7 +286,7 @@ class ObsidianMarkdownToHtml:
 
                 elif extension == "canvas":
                     # Process canvas JSON via CanvasViewer (uses custom renderer)
-                    canvas_content = self.CanvasViewer.json_viewer(file, self.offset)
+                    canvas_content = self.CanvasViewer.canvas_viewer(file, self.offset)
                     current_file_identifier = relative_path
 
                     # Build HTML
@@ -292,6 +294,20 @@ class ObsidianMarkdownToHtml:
                         title=file_name,
                         offset=self.offset,
                         content=canvas_content,  # Already processed HTML
+                        file_path=current_file_identifier,
+                        headers=[],
+                        is_json=True
+                    )
+                
+                elif extension == "base":
+                    base_content = self.BaseViewer.base_viewer(file, self.offset)
+                    current_file_identifier = relative_path
+
+                    # Build HTML
+                    html_content = self.build_html_with_raw_markdown(
+                        title=file_name,
+                        offset=self.offset,
+                        content=base_content,  # Already processed HTML
                         file_path=current_file_identifier,
                         headers=[],
                         is_json=True

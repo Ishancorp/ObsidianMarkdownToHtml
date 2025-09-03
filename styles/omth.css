@@ -203,7 +203,7 @@ li ul {
 }
 
 input#searchInput {
-    width: 100%;
+    width: 90%;
     margin-left: 0.75em;
     margin-right: 0.75em;
     background-color: #2A2A2A;
@@ -365,25 +365,11 @@ button:hover {
     background-color: #1e1e1e;
 }
 
-svg#navicon {
+svg.lucide {
     height: 2em;
     width: 2em;
 }
-svg#searchicon {
-    height: 2em;
-    width: 2em;
-}
-svg#navicon:hover {
-    stroke: #6086ed;
-}
-svg#searchicon:hover {
-    fill: #6086ed;
-}
-svg#tocicon {
-    height: 2em;
-    width: 2em;
-}
-svg#tocicon:hover {
+svg.lucide:hover {
     stroke: #6086ed;
 }
 

@@ -849,6 +849,7 @@ marked.setOptions({
 function postProcessing(htmlContent) {
     htmlContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
     htmlContent = htmlContent.replace(/<\/table>\s*<p>/g, '</table><br><p>');
+    htmlContent = htmlContent.replace(/<\/table>\s*<table>/g, '</table><br><table>');
 }
 
 function preProcessing(content) {

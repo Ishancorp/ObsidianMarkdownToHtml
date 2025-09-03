@@ -4,9 +4,6 @@ from python_segments.helpers import *
 class NavigationBuilder:
     def __init__(self, link_to_filepath):
         self.link_to_filepath = link_to_filepath
-        with open("svg/other_pages.html", encoding='utf-8') as other_pages: self.other_pages = other_pages.read()
-        with open("svg/other_search.html", encoding='utf-8') as other_search: self.other_search = other_search.read()
-        with open("svg/other_headers.html", encoding='utf-8') as other_headers: self.other_headers = other_headers.read()
 
         self.search_dict = self.link_to_filepath.copy()
         seen_values = set()
@@ -28,7 +25,7 @@ class NavigationBuilder:
         ret_str = make_opening_tag("nav")
         ret_str += "<span>"
         ret_str += "<button popovertarget=\"navbar\" popovertargetaction=\"toggle\">\n"
-        ret_str += self.other_pages
+        ret_str += "<i data-lucide=\"align-justify\"></i>"
         ret_str += "</button>"
         ret_str += "<div id=\"navbar\" popover><div id=\"idk\">"
         ret_str += make_opening_tag("ul class=\"menu\"")
@@ -64,7 +61,7 @@ class NavigationBuilder:
         ret_str += make_closing_tag("ul") + "</div>" + make_closing_tag("div")
 
         ret_str += "<button popovertarget=\"searchbar\" popovertargetaction=\"toggle\">\n"
-        ret_str += self.other_search
+        ret_str += "<i data-lucide=\"search\"></i>"
         ret_str += "</button>"
         ret_str += f"<div id=\"searchbar\" popover><input type=\"text\" id=\"searchInput\" onkeyup=\"searchForArticle()\" placeholder=\"Search..\"><ul id=\"articles\">"
         for key in self.search_dict.keys():
@@ -79,7 +76,7 @@ class NavigationBuilder:
 
         # Placeholder for headers - will be populated client-side
         ret_str += "<button id=\"toc-button\" popovertarget=\"table-of-contents\" popovertargetaction=\"toggle\">"
-        ret_str += self.other_headers
+        ret_str += "<i data-lucide=\"table-of-contents\"></i>"
         ret_str += "</button>"
         ret_str += "<div id=\"table-of-contents\" style=\"display: none\" popover><div id=\"toc-content\"></div></div>"
         ret_str += make_closing_tag("nav")
