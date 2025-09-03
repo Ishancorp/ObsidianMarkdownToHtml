@@ -1,7 +1,7 @@
 import json
 from python_segments.helpers import *
 
-class JSONViewer:
+class CanvasViewer:
     def __init__(self, markdown_processor=None, custom_renderer=None, in_directory=None, out_directory=None):
         self.markdown_processor = markdown_processor
         self.custom_renderer = custom_renderer  # Function: (text, offset) -> HTML

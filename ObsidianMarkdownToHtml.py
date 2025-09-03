@@ -4,7 +4,7 @@ from pathlib import Path
 from python_segments.html_builders.NavigationBuilder import NavigationBuilder
 from python_segments.FileManager import FileManager
 from python_segments.helpers import *
-from python_segments.JSONViewer import JSONViewer
+from python_segments.CanvasViewer import CanvasViewer
 import json
 import re
 
@@ -25,8 +25,8 @@ class ObsidianMarkdownToHtml:
         # Initialize navigation builder
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
 
-        # Initialize JSONViewer with custom renderer
-        self.JSONViewer = JSONViewer(
+        # Initialize CanvasViewer with custom renderer
+        self.CanvasViewer = CanvasViewer(
             markdown_processor=None,
             custom_renderer=lambda text, offset: self.process_markdown_for_client_side(text),
             in_directory=self.in_directory,
@@ -216,7 +216,7 @@ class ObsidianMarkdownToHtml:
             document.addEventListener("DOMContentLoaded", () => {{
                 // Replace only ```mermaid fences
                 document.body.innerHTML = document.body.innerHTML.replace(
-                    /```mermaid([\s\S]*?)```/g,
+                    /```mermaid([\\s\\S]*?)```/g,
                     (match, code) => `<pre class="mermaid">${{code.trim()}}</pre>`
                 );
                 mermaid.run();
@@ -283,15 +283,15 @@ class ObsidianMarkdownToHtml:
                     )
 
                 elif extension == "canvas":
-                    # Process canvas JSON via JSONViewer (uses custom renderer)
-                    json_content = self.JSONViewer.json_viewer(file, self.offset)
+                    # Process canvas JSON via CanvasViewer (uses custom renderer)
+                    canvas_content = self.CanvasViewer.json_viewer(file, self.offset)
                     current_file_identifier = relative_path
 
                     # Build HTML
                     html_content = self.build_html_with_raw_markdown(
                         title=file_name,
                         offset=self.offset,
-                        content=json_content,  # Already processed HTML
+                        content=canvas_content,  # Already processed HTML
                         file_path=current_file_identifier,
                         headers=[],
                         is_json=True
