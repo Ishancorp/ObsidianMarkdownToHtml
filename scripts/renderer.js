@@ -9,6 +9,10 @@ const outDirectory = /*out_directory*/0
 // Client-side Obsidian processor with transclusions
 // Fixed version of the ObsidianProcessor with corrected transclusion logic
 
+function getFile(id){
+    return fileContents[fileContentMap[id]];
+}
+
 class ObsidianProcessor {
     constructor() {
         this.image_types = new Set(['png', 'svg', 'jpg', 'jpeg', 'gif', 'webp']);
@@ -277,13 +281,13 @@ class ObsidianProcessor {
         // Try exact match first
         if (fileContents.hasOwnProperty(fileName)) {
             console.log('Found exact match:', fileName);
-            return fileContents[fileContentMap[fileName]];
+            return getFile(fileName);
         }
         
         // Try with .md extension
         if (fileContents.hasOwnProperty(fileName + '.md')) {
             console.log('Found with .md extension:', fileName + '.md');
-            return fileContents[fileContentMap[fileName + '.md']];
+            return getFile(fileName + '.md');
         }
 
         // Try case-insensitive match
@@ -304,10 +308,10 @@ class ObsidianProcessor {
         
         if (matches.length === 1) {
             console.log('Found basename match:', matches[0]);
-            return fileContents[fileContentMap[matches[0]]];
+            return getFile(matches[0]);
         } else if (matches.length > 1) {
             console.log('Multiple basename matches found, using first:', matches[0]);
-            return fileContents[fileContentMap[matches[0]]];
+            return getFile(matches[0]);
         }
 
         console.log('File not found:', fileName);
@@ -876,7 +880,7 @@ async function renderContent() {
     }
     if (article) {
         const attributeValue = article.getAttribute('data-current-file');
-        markdownContent = preProcessing(fileContents[fileContentMap[attributeValue]]);
+        markdownContent = preProcessing(getFile(attributeValue));
     } else {
         markdownContent = document.getElementById('markdown-content').textContent;
     }
