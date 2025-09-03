@@ -24,6 +24,11 @@ class ObsidianMarkdownToHtml:
         self.FileManager = FileManager(self.in_directory, self.out_directory)
         self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict()
 
+        # Create file content mapping for client-side access
+        self.create_file_content_mapping()
+
+        self.write_renderer()
+
         # Initialize navigation builder
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
 
@@ -37,16 +42,13 @@ class ObsidianMarkdownToHtml:
 
         self.BaseViewer = BaseViewer(
             link_to_filepath=self.link_to_filepath,
+            file_properties=self.file_properties,
+            file_content_map=self.file_content_map,
             in_directory=self.in_directory,
             out_directory=self.out_directory
         )
 
         self.image_types = {'png', 'svg', 'jpg', 'jpeg', 'gif', 'webp'}
-
-        # Create file content mapping for client-side access
-        self.create_file_content_mapping()
-
-        self.write_renderer()
 
     def extract_headers_from_markdown(self, content):
         """Extract headers for navigation"""
@@ -80,45 +82,60 @@ class ObsidianMarkdownToHtml:
 
     def create_file_content_mapping(self):
         """Create a mapping of file paths to their content for client-side access"""
+        self.file_properties = {}
         self.file_content_map = {}
         self.file_contents = {}
         filename_counts = {}  # Track how many times each filename appears
         
         for file_path in self.files:
-            if file_path.endswith('.md'):
-                # Get the actual file path
-                if file_path.startswith('.\\') or file_path.startswith('./'):
+            unique_id = str(uuid.uuid4())
+            self.file_properties[unique_id] = {}
+            self.file_properties[unique_id]["path"] = file_path[1:]
+            self.file_properties[unique_id]["file"] = file_path.split('\\')[-1]
+            self.file_properties[unique_id]["folder"] = file_path.split('\\')[-2]
+            self.file_properties[unique_id]["ext"] = file_path.split('.')[-1]
+            # Get the actual file path
+            if file_path.startswith('.\\') or file_path.startswith('./'):
                     relative_path = file_path[2:]
-                else:
-                    relative_path = file_path
-                
-                full_path = os.path.join(self.in_directory, relative_path.replace('/', os.sep))
+            else:
+                relative_path = file_path
+            
+            # Always store the full relative path (this is unique)
+            self.file_content_map[relative_path] = unique_id
+            self.file_content_map[os.path.splitext(relative_path)[0]] = unique_id
+
+            # Get filename components
+            filename_with_ext = os.path.basename(relative_path)
+            filename_without_ext = os.path.splitext(filename_with_ext)[0]
+            
+            # For basename keys, check for conflicts
+            if filename_with_ext not in filename_counts:
+                filename_counts[filename_with_ext] = []
+            filename_counts[filename_with_ext].append((relative_path, unique_id))
+            
+            if filename_without_ext not in filename_counts:
+                filename_counts[filename_without_ext] = []
+            filename_counts[filename_without_ext].append((relative_path, unique_id))
+
+            full_path = os.path.join(self.in_directory, relative_path.replace('/', os.sep))
+            if file_path.endswith('.md'):
                 
                 # Read file content
                 try:
                     with open(full_path, 'r', encoding='utf-8') as f:
                         content = f.read()
 
-                        unique_id = str(uuid.uuid4())
-                        
-                        # Get filename components
-                        filename_with_ext = os.path.basename(relative_path)
-                        filename_without_ext = os.path.splitext(filename_with_ext)[0]
+                        if content.startswith('---\n'):
+                            end_idx = content.find('\n---\n', 4)
+                            if end_idx != -1:
+                                prop_set = {}
+                                for line in content[:end_idx + 5].split('\n')[1:-2]:
+                                    key, val = line.split(": ")
+                                    prop_set[key] = val
+                                self.file_properties[unique_id]["notes"] = prop_set
+                                content = content[end_idx + 5:]
 
                         self.file_contents[unique_id] = content
-                        
-                        # Always store the full relative path (this is unique)
-                        self.file_content_map[relative_path] = unique_id
-                        self.file_content_map[os.path.splitext(relative_path)[0]] = unique_id
-                        
-                        # For basename keys, check for conflicts
-                        if filename_with_ext not in filename_counts:
-                            filename_counts[filename_with_ext] = []
-                        filename_counts[filename_with_ext].append((relative_path, unique_id))
-                        
-                        if filename_without_ext not in filename_counts:
-                            filename_counts[filename_without_ext] = []
-                        filename_counts[filename_without_ext].append((relative_path, unique_id))
                 
                 except Exception as e:
                     print(f"Error reading file {full_path}: {e}")
