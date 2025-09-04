@@ -31,8 +31,9 @@ class BaseViewer:
             filtered_links = {}
             for link in self.link_to_filepath:
                 include = True
-                for filter in data['views'][0]['filters']['and']:
-                    include = include and self._evaluate_filter(filter, link)
+                if 'filters' in data['views'][0]:
+                    for filter in data['views'][0]['filters']['and']:
+                        include = include and self._evaluate_filter(filter, link)
                 if include:
                     filtered_links[link] = self.link_to_filepath[link]
             for link in filtered_links:
@@ -54,8 +55,9 @@ class BaseViewer:
             filtered_links = {}
             for link in self.link_to_filepath:
                 include = True
-                for filter_condition in view_config['filters']['and']:
-                    include = include and self._evaluate_filter(filter_condition, link)
+                if 'filters' in view_config:
+                    for filter_condition in view_config['filters']['and']:
+                        include = include and self._evaluate_filter(filter_condition, link)
                 if include:
                     filtered_links[link] = self.link_to_filepath[link]
             
@@ -79,6 +81,8 @@ class BaseViewer:
                         cards_html += f'    <div class="card-image" style="object-fit: {image_fit};">\n'
                         cards_html += f'      <img src="{self._escape_html(image_url)}" alt="{self._escape_html(link)}" style="object-fit: {image_fit};" />\n'
                         cards_html += '    </div>\n'
+                    else:
+                        cards_html += '    <div class="card-image card-image-placeholder"></div>\n'
                 
                 # Add title (using file name as default)
                 cards_html += f'      <h3 class="card-title"><a href="{file_link}">{self._escape_html(link)}</a></h3>\n'

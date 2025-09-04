@@ -108,7 +108,7 @@ class ObsidianMarkdownToHtml:
             filename_with_ext = os.path.basename(relative_path)
             filename_without_ext = os.path.splitext(filename_with_ext)[0]
             
-            # For basename keys, check for conflicts
+            # For basename keys, track all occurrences
             if filename_with_ext not in filename_counts:
                 filename_counts[filename_with_ext] = []
             filename_counts[filename_with_ext].append((relative_path, unique_id))
@@ -140,14 +140,21 @@ class ObsidianMarkdownToHtml:
                 except Exception as e:
                     print(f"Error reading file {full_path}: {e}")
         
-        # Now handle basename mappings - only create them if there's no conflict
+        # Handle basename mappings - for conflicts, map to the first occurrence
+        # but ensure ALL files remain accessible via their full paths
         for basename, file_list in filename_counts.items():
             if len(file_list) == 1:
                 # No conflict - safe to use basename as key
                 self.file_content_map[basename] = file_list[0][1]
             else:
-                # Conflict detected - don't create basename mapping
-                self.file_content_map.pop(basename, None)
+                # Conflict detected - map basename to first occurrence
+                # This preserves backward compatibility while ensuring access
+                self.file_content_map[basename] = file_list[0][1]
+                
+                # Optionally, you could add a warning or logging here
+                print(f"Warning: Multiple files with basename '{basename}' found. Using: {file_list[0][0]}")
+                print(f"  Conflicting files: {[item[0] for item in file_list]}")
+                print(f"  Access non-primary files using their full relative paths.")
 
     def slugify(self, text):
         """Convert text to URL-friendly slug"""
