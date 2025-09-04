@@ -110,7 +110,7 @@ class BaseViewer:
     
     def _sort_links(self, data, links):
         if 'sort' in data['views'][0]:
-            for sortation in data['views'][0]['sort']:
+            for sortation in data['views'][0]['sort'][::-1]:
                 def key(link):
                     if sortation['property'] == 'file.basename':
                         return self.file_properties[self.file_content_map[link]]['file']

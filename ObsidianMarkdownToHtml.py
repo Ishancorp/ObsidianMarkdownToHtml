@@ -185,13 +185,13 @@ class ObsidianMarkdownToHtml:
         
         return content.strip()
 
-    def build_html_with_raw_markdown(self, title, offset, content, file_path, headers, is_json=False):
+    def build_html_with_raw_markdown(self, title, offset, content, file_path, headers, type="md"):
         """Build HTML page with raw markdown that will be processed by marked.js"""
         # Prepare data for client-side processing
         
         json_styles = ""
         json_script = ""
-        if is_json:
+        if type == "canvas":
             try:
                 with open("styles/json_canvas.css") as json_stylesheet:
                     json_styles = f"<style>{json_stylesheet.read()}</style>"
@@ -216,11 +216,11 @@ class ObsidianMarkdownToHtml:
     </head>
     <body>
         {self.navigation_builder.generate_navigation_bar(offset, file_path[2:])}
-        <h1 class="file-title">{title}{'.CANVAS' if is_json else ''}</h1>
-        <{'div' if is_json else f'article data-current-file="{data_current_file}"'}>
+        <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
+        <{'div' if type == "canvas" or type == "base" else f'article data-current-file="{data_current_file}"'}>
             <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
             <div id="rendered-content"></div>
-        </{'div' if is_json else 'article'}>
+        </{'div' if type == "canvas" or type == "base" else 'article'}>
         <footer>
             <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
             <p>Last updated on {self.get_current_date()}</p>
@@ -325,7 +325,6 @@ class ObsidianMarkdownToHtml:
                         content="",
                         file_path=current_file_identifier,  # Pass full path instead of just basename
                         headers=[],
-                        is_json=False
                     )
 
                 elif extension == "canvas":
@@ -340,7 +339,7 @@ class ObsidianMarkdownToHtml:
                         content=canvas_content,  # Already processed HTML
                         file_path=current_file_identifier,
                         headers=[],
-                        is_json=True
+                        type="canvas"
                     )
                 
                 elif extension == "base":
@@ -354,7 +353,7 @@ class ObsidianMarkdownToHtml:
                         content=base_content,  # Already processed HTML
                         file_path=current_file_identifier,
                         headers=[],
-                        is_json=True
+                        type="base"
                     )
 
                 else:
