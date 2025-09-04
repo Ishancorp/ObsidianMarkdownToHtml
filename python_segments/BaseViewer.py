@@ -36,6 +36,7 @@ class BaseViewer:
                         include = include and self._evaluate_filter(filter, link)
                 if include:
                     filtered_links[link] = self.link_to_filepath[link]
+            filtered_links = self._sort_links(data, filtered_links)
             for link in filtered_links:
                 return_val += "|"
                 for key in props:
@@ -61,6 +62,7 @@ class BaseViewer:
                 if include:
                     filtered_links[link] = self.link_to_filepath[link]
             
+            filtered_links = self._sort_links(data, filtered_links)
             # Start building the cards HTML
             cards_html = '<div class="cards-container">\n'
             
@@ -105,6 +107,16 @@ class BaseViewer:
             return cards_html
         except Exception as e:
             return f'<div class="error">Error processing card data: {self._escape_html(str(e))}</div>'
+    
+    def _sort_links(self, data, links):
+        if 'sort' in data['views'][0]:
+            for sortation in data['views'][0]['sort']:
+                def key(link):
+                    if sortation['property'] == 'file.basename':
+                        return self.file_properties[self.file_content_map[link]]['file']
+                    return None  # fallback if needed
+                links = sorted(links, key=key, reverse=(sortation['direction'] != "ASC"))
+        return links
     
     def _add_val(self, link, offset, prop):
         if prop == 'file.name':
