@@ -279,23 +279,23 @@ class ObsidianProcessor {
         console.log('Available files:', Object.keys(fileContents));
         
         // Try exact match first
-        if (fileContents.hasOwnProperty(fileName)) {
+        if (fileContentMap.hasOwnProperty(fileName)) {
             console.log('Found exact match:', fileName);
             return getFile(fileName);
         }
         
         // Try with .md extension
-        if (fileContents.hasOwnProperty(fileName + '.md')) {
+        if (fileContentMap.hasOwnProperty(fileName + '.md')) {
             console.log('Found with .md extension:', fileName + '.md');
             return getFile(fileName + '.md');
         }
 
         // Try case-insensitive match
         const lowerFileName = fileName.toLowerCase();
-        for (const [key, content] of Object.entries(fileContents)) {
+        for (const [key, content] of Object.entries(fileContentMap)) {
             if (key.toLowerCase() === lowerFileName || key.toLowerCase() === lowerFileName + '.md') {
                 console.log('Found case-insensitive match:', key);
-                return content;
+                return fileContents[content];
             }
         }
 
@@ -528,16 +528,14 @@ class ObsidianProcessor {
 
         console.log("Target:", target);
 
-        // Split outDirectory and current file path into segments
-        const outParts = outDirectory.replace(/\\/g, '/').split('/').filter(Boolean);
-        let curParts = window.location.pathname.replace(/\\/g, '/').split('/').filter(Boolean);
-        curParts.pop(); // remove current file name
-
         // Make current file path relative to outDirectory
-        let relCurParts = curParts.slice(outParts.length);
+        const article = document.querySelector("article");
+        const attributeValue = article.getAttribute('data-current-file');
+        let relCurParts = attributeValue.replace(/\\/g, '/').replace(' ', '-').toLowerCase().split('/').slice(0, -1)
 
         // Make target path relative to outDirectory
         let relTgtParts = target.split('/').filter(Boolean);
+        console.log(relTgtParts)
 
         // Find common prefix inside outDirectory
         let i = 0;
