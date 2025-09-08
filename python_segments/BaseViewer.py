@@ -114,6 +114,10 @@ class BaseViewer:
                 def key(link):
                     if sortation['property'] == 'file.basename':
                         return self.file_properties[self.file_content_map[link]]['file']
+                    elif sortation['property'] == 'file.name':
+                        return self.file_properties[self.file_content_map[link]]['file']
+                    elif sortation['property'] == 'file.folder':
+                        return self.file_properties[self.file_content_map[link]]['folder']
                     return None  # fallback if needed
                 links = sorted(links, key=key, reverse=(sortation['direction'] != "ASC"))
         return links
@@ -173,7 +177,9 @@ class BaseViewer:
             right = post[1:-2]
             if pre == "file.path":
                 left = self.file_properties[self.file_content_map[link]]["path"][1:]
-                return left.startswith(right)
+            elif pre == "file.folder":
+                left = self.file_properties[self.file_content_map[link]]["path"][1:]
+            return left.startswith(right)
         return True
     
     def _get_props(self, data):

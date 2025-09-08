@@ -92,7 +92,7 @@ class ObsidianMarkdownToHtml:
             self.file_properties[unique_id] = {}
             self.file_properties[unique_id]["path"] = file_path[1:]
             self.file_properties[unique_id]["file"] = file_path.split('\\')[-1]
-            self.file_properties[unique_id]["folder"] = file_path.split('\\')[-2]
+            self.file_properties[unique_id]["folder"] = file_path[2:].rsplit('\\', 1)[0]
             self.file_properties[unique_id]["ext"] = file_path.split('.')[-1]
             # Get the actual file path
             if file_path.startswith('.\\') or file_path.startswith('./'):
