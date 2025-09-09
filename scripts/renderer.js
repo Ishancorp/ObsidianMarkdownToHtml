@@ -1118,18 +1118,25 @@ class BaseProcessor extends ObsidianProcessor {
         const allFileIds = Object.keys(fileProperties);
         console.log('All file IDs:', allFileIds.length);
         
-        // Convert to file names/links
+        // Convert to file names/links with deduplication
         const allLinks = [];
+        const seenLinks = new Set(); // Track duplicates
+        
         for (const fileId of allFileIds) {
             const fileProps = fileProperties[fileId];
             if (fileProps && fileProps.path) {
                 // Use the filename without extension as the link
                 const filename = fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : fileProps.path.split('/').pop().replace(/\.[^/.]+$/, "");
-                allLinks.push(filename);
+                
+                // Only add if we haven't seen this link before
+                if (!seenLinks.has(filename)) {
+                    seenLinks.add(filename);
+                    allLinks.push(filename);
+                }
             }
         }
         
-        console.log('All links before filtering:', allLinks);
+        console.log('All links before filtering (deduplicated):', allLinks);
         
         // Apply filters
         let filteredLinks = allLinks;
@@ -1426,33 +1433,60 @@ class BaseProcessor extends ObsidianProcessor {
         return true;
     }
 
+    // Fixed sorting method for BaseProcessor class
+
     sortLinks(data, links) {
         if (!data.views || !data.views[0] || !data.views[0].sort) {
             return links;
         }
         
-        const sortRules = [...data.views[0].sort].reverse(); // Reverse the array like Python's [::-1]
+        const sortRules = data.views[0].sort; // Remove the reverse - process in original order
         
         return links.sort((a, b) => {
+            // Process sort rules in order (most important first)
             for (const rule of sortRules) {
                 const prop = rule.property;
                 const isAscending = rule.direction === 'ASC';
-                const direction = isAscending ? 1 : -1;
                 
                 let aVal = this.getSortValue(a, prop);
                 let bVal = this.getSortValue(b, prop);
                 
-                // Handle null/undefined values
-                if (aVal === null || aVal === undefined) aVal = '';
-                if (bVal === null || bVal === undefined) bVal = '';
+                // Handle null/undefined values - sort them to the end
+                if ((aVal === null || aVal === undefined || aVal === '') && 
+                    (bVal === null || bVal === undefined || bVal === '')) {
+                    continue; // Both empty, check next sort rule
+                }
+                if (aVal === null || aVal === undefined || aVal === '') {
+                    return isAscending ? 1 : -1; // Empty values go to end for ASC, beginning for DESC
+                }
+                if (bVal === null || bVal === undefined || bVal === '') {
+                    return isAscending ? -1 : 1;
+                }
                 
-                // Convert to strings for comparison if they're not already
-                aVal = String(aVal).toLowerCase();
-                bVal = String(bVal).toLowerCase();
+                // Determine if values are numeric
+                const aNum = parseFloat(aVal);
+                const bNum = parseFloat(bVal);
+                const aIsNum = !isNaN(aNum) && isFinite(aNum);
+                const bIsNum = !isNaN(bNum) && isFinite(bNum);
                 
-                if (aVal < bVal) return -1 * direction;
-                if (aVal > bVal) return 1 * direction;
+                let comparison = 0;
+                
+                if (aIsNum && bIsNum) {
+                    // Numeric comparison
+                    comparison = aNum - bNum;
+                } else {
+                    // String comparison (case-insensitive)
+                    const aStr = String(aVal).toLowerCase();
+                    const bStr = String(bVal).toLowerCase();
+                    comparison = aStr.localeCompare(bStr);
+                }
+                
+                if (comparison !== 0) {
+                    return isAscending ? comparison : -comparison;
+                }
             }
+            
+            // If all sort rules result in equality, maintain original order
             return 0;
         });
     }
@@ -1468,13 +1502,14 @@ class BaseProcessor extends ObsidianProcessor {
         if (property.startsWith('file.')) {
             const fileProp = property.substring(5);
             
-            // Map some property names to match your Python logic
             if (fileProp === 'basename' || fileProp === 'name') {
-                return fileProps.file || '';
+                return fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : '';
             } else if (fileProp === 'folder') {
                 return fileProps.folder || '';
             } else if (fileProp === 'path') {
                 return fileProps.path || '';
+            } else if (fileProp === 'ext') {
+                return fileProps.ext || '';
             } else {
                 return fileProps[fileProp] || '';
             }
@@ -1484,12 +1519,26 @@ class BaseProcessor extends ObsidianProcessor {
         if (property.startsWith('note.')) {
             const noteProp = property.substring(5);
             if (!fileProps.notes) return '';
-            return fileProps.notes[noteProp] || '';
+            const noteValue = fileProps.notes[noteProp];
+            
+            // Clean up quoted values
+            if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
+                return noteValue.slice(1, -1);
+            }
+            
+            return noteValue || '';
         }
         
         // Handle direct property access from notes
         if (!fileProps.notes) return '';
-        return fileProps.notes[property] || '';
+        const noteValue = fileProps.notes[property];
+        
+        // Clean up quoted values
+        if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
+            return noteValue.slice(1, -1);
+        }
+        
+        return noteValue || '';
     }
 
     escapeHtml(text) {
