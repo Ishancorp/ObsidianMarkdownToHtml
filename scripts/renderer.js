@@ -986,7 +986,7 @@ class CanvasProcessor {
 class BaseProcessor extends ObsidianProcessor {
     async processBase(yamlContent) {
         try {
-            const data = this.parseYAML(yamlContent);
+            const data = JSON.parse(yamlContent);
             console.log('Parsed base data:', data);
             
             if (!data.views || !data.views[0]) {
@@ -1006,15 +1006,6 @@ class BaseProcessor extends ObsidianProcessor {
         } catch (error) {
             console.error('Base processing error:', error);
             return `<div class="error">Error processing base: ${this.escapeHtml(error.message)}</div>`;
-        }
-    }
-
-    parseYAML(yamlContent) {
-        try {
-            return JSON.parse(yamlContent);
-        } catch (error) {
-            console.error('JSON parsing error:', error);
-            return {};
         }
     }
 
@@ -1560,23 +1551,6 @@ marked.setOptions({
     headerPrefix: ''
 });
 
-function postProcessing(htmlContent) {
-    htmlContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
-    htmlContent = htmlContent.replace(/<\/table>\s*<p>/g, '</table><br><p>');
-    htmlContent = htmlContent.replace(/<\/table>\s*<table>/g, '</table><br><table>');
-}
-
-function preProcessing(content) {
-    // Check if content starts with frontmatter
-    if (content.startsWith('---\n')) {
-        const endIdx = content.indexOf('\n---\n', 4);
-        if (endIdx !== -1) {
-            content = content.slice(endIdx + 5); // skip the ending '---\n'
-        }
-    }
-    return content.trim()
-}
-
 // Process and render
 async function renderContent() {
     const article = document.querySelector("article");
@@ -1590,37 +1564,24 @@ async function renderContent() {
     }
 
     const processor = new ObsidianProcessor();
+    const canvasProcessor = new CanvasProcessor();
+    const baseProcessor = new BaseProcessor();
 
     try {
+        article.classList.add(fileType)
+        const attributeValue = article.getAttribute('data-current-file');
+        const content = getFile(attributeValue);
+        let processedHTML = ''
         if (fileType === "canvas") {
-            const attributeValue = article.getAttribute('data-current-file');
-            const canvasContent = getFile(attributeValue);
-            const canvasProcessor = new CanvasProcessor();
-            const processedHTML = await canvasProcessor.processCanvas(canvasContent);
-            document.getElementById('rendered-content').innerHTML = processedHTML;
-            
+            processedHTML = await canvasProcessor.processCanvas(content);
         } else if (fileType === "base") {
-            const attributeValue = article.getAttribute('data-current-file');
-            const baseContent = getFile(attributeValue);
-            const baseProcessor = new BaseProcessor();
-            const processedHTML = await baseProcessor.processBase(baseContent); // Already awaited, good
-            document.getElementById('rendered-content').innerHTML = processedHTML;
+            processedHTML = await baseProcessor.processBase(content); // Already awaited, good
         } else {
-            article.classList.add('md')
             // Regular markdown processing
-            let markdownContent = '';
-            if (article) {
-                const attributeValue = article.getAttribute('data-current-file');
-                markdownContent = preProcessing(getFile(attributeValue));
-            } else {
-                markdownContent = document.getElementById('markdown-content').textContent;
-            }
-            
-            const headers = processor.extractHeadersFromContent(markdownContent);
-            const processedContent = await processor.processMarkdown(markdownContent);
+            const headers = processor.extractHeadersFromContent(content);
+            const processedContent = await processor.processMarkdown(content);
             const htmlContent = marked.parse(processedContent);
-            const spacedHtmlContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
-            document.getElementById('rendered-content').innerHTML = spacedHtmlContent;
+            processedHTML = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             
             if (headers.length > 0) {
                 const tocHtml = processor.buildTableOfContents(headers);
@@ -1628,9 +1589,10 @@ async function renderContent() {
                 document.getElementById('table-of-contents').style.removeProperty('display');
             }
         }
+        article.innerHTML = processedHTML
     } catch (error) {
         console.error('Error processing content:', error);
-        document.getElementById('rendered-content').innerHTML = '<p>Error processing content. Please check the console for details.</p>';
+        article.innerHTML = '<p>Error processing content. Please check the console for details.</p>';
     }
 }
 

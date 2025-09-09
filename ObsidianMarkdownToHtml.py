@@ -179,7 +179,7 @@ class ObsidianMarkdownToHtml:
         
         return content.strip()
 
-    def build_html_with_raw_markdown(self, title, offset, content, file_path, headers, type="md"):
+    def build_html_with_raw_markdown(self, title, offset, file_path, type="md"):
         """Build HTML page with raw markdown that will be processed by marked.js"""
         # Prepare data for client-side processing
         
@@ -211,10 +211,7 @@ class ObsidianMarkdownToHtml:
     <body>
         {self.navigation_builder.generate_navigation_bar(offset, file_path[2:])}
         <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
-        <article data-current-file="{data_current_file}">
-            <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
-            <div id="rendered-content"></div>
-        </article>
+        <article data-current-file="{data_current_file}"></article>
         <footer>
             <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
             <p>Last updated on {self.get_current_date()}</p>
@@ -316,9 +313,7 @@ class ObsidianMarkdownToHtml:
                 html_content = self.build_html_with_raw_markdown(
                     title=file_name,
                     offset=self.offset,
-                    content="",  # Empty - content comes from fileContents
                     file_path=current_file_identifier,
-                    headers=[],
                     type=extension  # Pass the extension as type
                 )
 
