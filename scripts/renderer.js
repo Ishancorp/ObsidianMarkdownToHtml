@@ -23,6 +23,9 @@ class ObsidianProcessor {
     }
 
     async processMarkdown(content, currentFile = null) {
+        // Preprocess headers first
+        content = this.preprocessHeaders(content);
+        
         content = this.fixTableSpacing(content);
         
         // Handle transclusions first (before other processing)
@@ -795,6 +798,36 @@ class ObsidianProcessor {
         return processedLines.join('\n');
     }
 
+    preprocessHeaders(content) {
+        // Ensure headers have proper spacing after images and other elements
+        const lines = content.split('\n');
+        const processedLines = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmedLine = line.trim();
+            
+            // Check if this is a header line
+            if (trimmedLine.match(/^#{1,6}\s+.+/)) {
+                // Check if previous line is an image or other non-empty content
+                const prevLine = i > 0 ? lines[i - 1].trim() : '';
+                
+                // If previous line exists and isn't empty, ensure proper spacing
+                if (prevLine && !prevLine.startsWith('#') && processedLines.length > 0) {
+                    // Add empty line before header if not already present
+                    if (processedLines[processedLines.length - 1].trim() !== '') {
+                        processedLines.push('');
+                    }
+                }
+                processedLines.push(line);
+            } else {
+                processedLines.push(line);
+            }
+        }
+        
+        return processedLines.join('\n');
+    }
+
     extractHeadersFromContent(content) {
         const headers = [];
         const lines = content.split('\n');
@@ -1549,8 +1582,20 @@ marked.setOptions({
     gfm: true,
     tables: true,
     headerIds: true,
-    headerPrefix: ''
+    headerPrefix: '',
+    pedantic: false,
+    sanitize: false,
+    smartLists: true,
+    smartypants: false
 });
+
+// Custom renderer to ensure headers are processed correctly
+const renderer = new marked.Renderer();
+renderer.heading = function(text, level, raw) {
+    const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
+    return `<h${level} id="${escapedText}">${text}</h${level}>`;
+};
+marked.setOptions({ renderer: renderer });
 
 // Process and render
 async function renderContent() {
@@ -1573,14 +1618,19 @@ async function renderContent() {
         const attributeValue = article.getAttribute('data-current-file');
         const content = getFile(attributeValue);
         let processedHTML = ''
+        
         if (fileType === "canvas") {
             processedHTML = await canvasProcessor.processCanvas(content);
         } else if (fileType === "base") {
-            processedHTML = await baseProcessor.processBase(content); // Already awaited, good
+            processedHTML = await baseProcessor.processBase(content);
         } else {
             // Regular markdown processing
             const headers = processor.extractHeadersFromContent(content);
             const processedContent = await processor.processMarkdown(content);
+            
+            // Debug log to see what's being passed to marked
+            console.log('Processed content before marked:', processedContent.substring(0, 500));
+            
             const htmlContent = marked.parse(processedContent);
             processedHTML = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             
