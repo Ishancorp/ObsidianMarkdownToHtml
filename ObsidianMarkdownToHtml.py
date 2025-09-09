@@ -5,9 +5,8 @@ import uuid
 from python_segments.html_builders.NavigationBuilder import NavigationBuilder
 from python_segments.FileManager import FileManager
 from python_segments.helpers import *
-from python_segments.CanvasViewer import CanvasViewer
-from python_segments.BaseViewer import BaseViewer
 import json
+import yaml
 import re
 
 class ObsidianMarkdownToHtml:
@@ -31,22 +30,6 @@ class ObsidianMarkdownToHtml:
 
         # Initialize navigation builder
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
-
-        # Initialize CanvasViewer with custom renderer
-        self.CanvasViewer = CanvasViewer(
-            markdown_processor=None,
-            custom_renderer=lambda text, offset: self.process_markdown_for_client_side(text),
-            in_directory=self.in_directory,
-            out_directory=self.out_directory
-        )
-
-        self.BaseViewer = BaseViewer(
-            link_to_filepath=self.link_to_filepath,
-            file_properties=self.file_properties,
-            file_content_map=self.file_content_map,
-            in_directory=self.in_directory,
-            out_directory=self.out_directory
-        )
 
         self.image_types = {'png', 'svg', 'jpg', 'jpeg', 'gif', 'webp'}
 
@@ -74,6 +57,7 @@ class ObsidianMarkdownToHtml:
         content = content.replace("{/*file_links*/}", json.dumps(self.link_to_filepath))
         content = content.replace("{/*file_content_map*/}", json.dumps(self.file_content_map))
         content = content.replace("{/*file_contents*/}", json.dumps(self.file_contents))
+        content = content.replace("{/*file_properties*/}", json.dumps(self.file_properties))
         content = content.replace("/*in_directory*/0", json.dumps(self.in_directory))
         content = content.replace("/*out_directory*/0", json.dumps(self.out_directory))
 
@@ -90,7 +74,7 @@ class ObsidianMarkdownToHtml:
         for file_path in self.files:
             unique_id = str(uuid.uuid4())
             self.file_properties[unique_id] = {}
-            self.file_properties[unique_id]["path"] = file_path[1:]
+            self.file_properties[unique_id]["path"] = file_path[2:]
             self.file_properties[unique_id]["file"] = file_path.split('\\')[-1]
             self.file_properties[unique_id]["folder"] = file_path[2:].rsplit('\\', 1)[0]
             self.file_properties[unique_id]["ext"] = file_path.split('.')[-1]
@@ -118,7 +102,17 @@ class ObsidianMarkdownToHtml:
             filename_counts[filename_without_ext].append((relative_path, unique_id))
 
             full_path = os.path.join(self.in_directory, relative_path.replace('/', os.sep))
-            if file_path.endswith('.md'):
+            if file_path.endswith('.base'):
+                try:
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        yaml_content = f.read()
+                        parsed_yaml = yaml.load(yaml_content, Loader=yaml.FullLoader)
+                        # Store both raw and parsed content
+                        self.file_contents[unique_id] = json.dumps(parsed_yaml)  # Store as JSON string
+                except Exception as e:
+                    print(f"Error parsing YAML file {full_path}: {e}")
+                    self.file_contents[unique_id] = "{}"  # Fallback empty object
+            elif file_path.endswith(('.md', '.canvas')):
                 
                 # Read file content
                 try:
@@ -217,10 +211,10 @@ class ObsidianMarkdownToHtml:
     <body>
         {self.navigation_builder.generate_navigation_bar(offset, file_path[2:])}
         <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
-        <{'div' if type == "canvas" or type == "base" else f'article data-current-file="{data_current_file}"'}>
+        <article data-current-file="{data_current_file}">
             <div id="markdown-content" style="display:none;">{self.escape_html(content)}</div>
             <div id="rendered-content"></div>
-        </{'div' if type == "canvas" or type == "base" else 'article'}>
+        </article>
         <footer>
             <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
             <p>Last updated on {self.get_current_date()}</p>
@@ -284,7 +278,7 @@ class ObsidianMarkdownToHtml:
         return datetime.now().strftime("%m/%d/%Y")
 
     def compile_webpages(self):
-        """Compile all files (.md and .canvas) to HTML - unified pipeline with custom renderer"""
+        """Compile all files (.md, .canvas, .base) to HTML - unified pipeline with client-side processing"""
         for file in self.files:
             self.offset = self.calculate_file_depth(file)
             parts = file.rsplit(".", 1)
@@ -294,8 +288,8 @@ class ObsidianMarkdownToHtml:
             file_path, extension = parts
             file_name = os.path.basename(file_path)
 
-            # Determine output path - preserve directory structure
-            relative_path = file[2:] if file.startswith('./') else file  # Remove ./ prefix
+            # Determine output path
+            relative_path = file[2:] if file.startswith('./') else file
             relative_dir = str(Path(relative_path).parent) if Path(relative_path).parent != Path('.') else ""
             
             if extension == "md":
@@ -305,7 +299,9 @@ class ObsidianMarkdownToHtml:
             elif extension == "base":
                 output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower() + ".base.html"
             else:
-                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower()
+                # Copy non-processed files
+                self.copy_non_markdown_file(file)
+                continue
             
             if relative_dir:
                 transformed_dir = "/".join(part.lower().replace(" ", "-") for part in relative_dir.split("/"))
@@ -314,54 +310,18 @@ class ObsidianMarkdownToHtml:
                 output_path = Path(self.out_directory) / output_file_name
 
             try:
-                if extension == "md":
-                    # Use the full relative path for data-current-file to avoid conflicts
-                    current_file_identifier = relative_path  # This is the full relative path like "folder1/notes.md"
-
-                    # Build HTML
-                    html_content = self.build_html_with_raw_markdown(
-                        title=file_name,
-                        offset=self.offset,
-                        content="",
-                        file_path=current_file_identifier,  # Pass full path instead of just basename
-                        headers=[],
-                    )
-
-                elif extension == "canvas":
-                    # Process canvas JSON via CanvasViewer (uses custom renderer)
-                    canvas_content = self.CanvasViewer.canvas_viewer(file, self.offset)
-                    current_file_identifier = relative_path
-
-                    # Build HTML
-                    html_content = self.build_html_with_raw_markdown(
-                        title=file_name,
-                        offset=self.offset,
-                        content=canvas_content,  # Already processed HTML
-                        file_path=current_file_identifier,
-                        headers=[],
-                        type="canvas"
-                    )
+                current_file_identifier = relative_path
                 
-                elif extension == "base":
-                    base_content = self.BaseViewer.base_viewer(file, self.offset)
-                    current_file_identifier = relative_path
+                # All types use the same HTML structure - processing happens client-side
+                html_content = self.build_html_with_raw_markdown(
+                    title=file_name,
+                    offset=self.offset,
+                    content="",  # Empty - content comes from fileContents
+                    file_path=current_file_identifier,
+                    headers=[],
+                    type=extension  # Pass the extension as type
+                )
 
-                    # Build HTML
-                    html_content = self.build_html_with_raw_markdown(
-                        title=file_name,
-                        offset=self.offset,
-                        content=base_content,  # Already processed HTML
-                        file_path=current_file_identifier,
-                        headers=[],
-                        type="base"
-                    )
-
-                else:
-                    # Copy other files (images, etc.)
-                    self.copy_non_markdown_file(file)
-                    continue
-
-                # Write to output
                 self.FileManager.writeToFile(output_path, html_content)
 
             except Exception as e:
