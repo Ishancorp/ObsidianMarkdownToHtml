@@ -841,8 +841,9 @@ class ObsidianProcessor {
     }
 }
 
-class CanvasProcessor {
+class CanvasProcessor extends ObsidianProcessor {
     constructor() {
+        super();
         this.CANVAS_OFFSET_X = 750;
         this.CANVAS_OFFSET_Y = 400;
         this.MIN_NODE_WIDTH = 50;
@@ -875,7 +876,6 @@ class CanvasProcessor {
         let divPart = "";
         let maxX = 0;
         let maxY = 0;
-        const processor = new ObsidianProcessor();
 
         for (const node of nodes) {
             if (!node.id) continue;
@@ -895,7 +895,7 @@ class CanvasProcessor {
             let processedContent = "";
             if (text) {
                 try {
-                    const processedMarkdown = await processor.processMarkdown(text);
+                    const processedMarkdown = await this.processMarkdown(text);
                     processedContent = marked.parse(processedMarkdown);
                 } catch (error) {
                     processedContent = this.escapeHtml(text);
