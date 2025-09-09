@@ -277,7 +277,8 @@ class ObsidianProcessor {
 
     findFileContent(fileName) {
         console.log('Looking for file content:', fileName);
-        console.log('Available files:', Object.keys(fileContents));
+        console.log('Available files:', Object.keys(fileContentMap));
+        fileName = fileName.replace(/\//g, "\\");
         
         // Try exact match first
         if (fileContentMap.hasOwnProperty(fileName)) {
