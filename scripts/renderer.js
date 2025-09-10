@@ -873,6 +873,15 @@ class ObsidianProcessor {
         
         return tocHtml;
     }
+
+    escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
 }
 
 class CanvasProcessor extends ObsidianProcessor {
@@ -1005,15 +1014,6 @@ class CanvasProcessor extends ObsidianProcessor {
 <div id="innard">${arrowPart}${svgPart}${divPart}</div>
 </div>
 </div>`;
-    }
-
-    escapeHtml(text) {
-        return String(text)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
     }
 }
 
@@ -1565,15 +1565,6 @@ class BaseProcessor extends ObsidianProcessor {
         
         return noteValue || '';
     }
-
-    escapeHtml(text) {
-        return String(text)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
-    }
 }
 
 // Configure marked.js
@@ -1600,21 +1591,13 @@ marked.setOptions({ renderer: renderer });
 // Process and render
 async function renderContent() {
     const article = document.querySelector("article");
-    const el = document.querySelector('.top-bar');
-    
-    let fileType = "md";
-    if (el && el.innerHTML.trim().endsWith('.canvas.html')) {
-        fileType = "canvas";
-    } else if (el && el.innerHTML.trim().endsWith('.base.html')) {
-        fileType = "base";
-    }
 
     const processor = new ObsidianProcessor();
     const canvasProcessor = new CanvasProcessor();
     const baseProcessor = new BaseProcessor();
 
     try {
-        article.classList.add(fileType)
+        const fileType = article.getAttribute('data-type');
         const attributeValue = article.getAttribute('data-current-file');
         const content = getFile(attributeValue);
         let processedHTML = ''

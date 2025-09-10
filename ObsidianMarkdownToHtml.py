@@ -211,7 +211,7 @@ class ObsidianMarkdownToHtml:
     <body>
         {self.navigation_builder.generate_navigation_bar(offset, file_path[2:])}
         <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
-        <article data-current-file="{data_current_file}"></article>
+        <article data-current-file="{data_current_file}" data-type="{type}"></article>
         <footer>
             <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
             <p>Last updated on {self.get_current_date()}</p>
