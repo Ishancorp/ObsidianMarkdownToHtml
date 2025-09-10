@@ -16,22 +16,15 @@ class ObsidianMarkdownToHtml:
 
         self.in_directory = os.path.abspath(in_directory)
         self.out_directory = os.path.abspath(out_directory)
-        self.offset = 0
-        self.header_list = []
 
-        # Initialize FileManager and gather files
         self.FileManager = FileManager(self.in_directory, self.out_directory)
         self.files, self.link_to_filepath = self.FileManager.add_dirs_to_dict()
 
-        # Create file content mapping for client-side access
         self.create_file_content_mapping()
 
         self.write_renderer()
 
-        # Initialize navigation builder
         self.navigation_builder = NavigationBuilder(self.link_to_filepath)
-
-        self.image_types = {'png', 'svg', 'jpg', 'jpeg', 'gif', 'webp'}
 
     def extract_headers_from_markdown(self, content):
         """Extract headers for navigation"""
@@ -53,7 +46,6 @@ class ObsidianMarkdownToHtml:
         with open(src_path, "r") as f_in:
             content = f_in.read()
 
-        # Replace placeholders
         content = content.replace("{/*file_links*/}", json.dumps(self.link_to_filepath))
         content = content.replace("{/*file_content_map*/}", json.dumps(self.file_content_map))
         content = content.replace("{/*file_contents*/}", json.dumps(self.file_contents))
@@ -69,7 +61,7 @@ class ObsidianMarkdownToHtml:
         self.file_properties = {}
         self.file_content_map = {}
         self.file_contents = {}
-        filename_counts = {}  # Track how many times each filename appears
+        filename_counts = {}
         
         for file_path in self.files:
             unique_id = str(uuid.uuid4())
@@ -78,21 +70,17 @@ class ObsidianMarkdownToHtml:
             self.file_properties[unique_id]["file"] = file_path.split('\\')[-1]
             self.file_properties[unique_id]["folder"] = file_path[2:].rsplit('\\', 1)[0]
             self.file_properties[unique_id]["ext"] = file_path.split('.')[-1]
-            # Get the actual file path
             if file_path.startswith('.\\') or file_path.startswith('./'):
                     relative_path = file_path[2:]
             else:
                 relative_path = file_path
             
-            # Always store the full relative path (this is unique)
             self.file_content_map[relative_path] = unique_id
             self.file_content_map[os.path.splitext(relative_path)[0]] = unique_id
 
-            # Get filename components
             filename_with_ext = os.path.basename(relative_path)
             filename_without_ext = os.path.splitext(filename_with_ext)[0]
             
-            # For basename keys, track all occurrences
             if filename_with_ext not in filename_counts:
                 filename_counts[filename_with_ext] = []
             filename_counts[filename_with_ext].append((relative_path, unique_id))
@@ -107,14 +95,12 @@ class ObsidianMarkdownToHtml:
                     with open(full_path, 'r', encoding='utf-8') as f:
                         yaml_content = f.read()
                         parsed_yaml = yaml.load(yaml_content, Loader=yaml.FullLoader)
-                        # Store both raw and parsed content
-                        self.file_contents[unique_id] = json.dumps(parsed_yaml)  # Store as JSON string
+                        self.file_contents[unique_id] = json.dumps(parsed_yaml)
                 except Exception as e:
                     print(f"Error parsing YAML file {full_path}: {e}")
-                    self.file_contents[unique_id] = "{}"  # Fallback empty object
+                    self.file_contents[unique_id] = "{}"
             elif file_path.endswith(('.md', '.canvas')):
                 
-                # Read file content
                 try:
                     with open(full_path, 'r', encoding='utf-8') as f:
                         content = f.read()
@@ -134,18 +120,12 @@ class ObsidianMarkdownToHtml:
                 except Exception as e:
                     print(f"Error reading file {full_path}: {e}")
         
-        # Handle basename mappings - for conflicts, map to the first occurrence
-        # but ensure ALL files remain accessible via their full paths
         for basename, file_list in filename_counts.items():
             if len(file_list) == 1:
-                # No conflict - safe to use basename as key
                 self.file_content_map[basename] = file_list[0][1]
             else:
-                # Conflict detected - map basename to first occurrence
-                # This preserves backward compatibility while ensuring access
                 self.file_content_map[basename] = file_list[0][1]
                 
-                # Optionally, you could add a warning or logging here
                 print(f"Warning: Multiple files with basename '{basename}' found. Using: {file_list[0][0]}")
                 print(f"  Conflicting files: {[item[0] for item in file_list]}")
                 print(f"  Access non-primary files using their full relative paths.")
@@ -171,7 +151,6 @@ class ObsidianMarkdownToHtml:
 
     def process_markdown_for_client_side(self, content):
         """Basic markdown preprocessing - transclusions will be handled client-side"""
-        # Handle frontmatter
         if content.startswith('---\n'):
             end_idx = content.find('\n---\n', 4)
             if end_idx != -1:
@@ -181,7 +160,6 @@ class ObsidianMarkdownToHtml:
 
     def build_html_with_raw_markdown(self, title, offset, file_path, type="md"):
         """Build HTML page with raw markdown that will be processed by marked.js"""
-        # Prepare data for client-side processing
         
         json_styles = ""
         json_script = ""
@@ -193,8 +171,6 @@ class ObsidianMarkdownToHtml:
             except:
                 pass
 
-        # Use the full file_path for data-current-file attribute
-        # This ensures each file has a unique identifier even if filenames are duplicated
         data_current_file = file_path[2:]
 
         html = f"""<!DOCTYPE html>
@@ -277,7 +253,7 @@ class ObsidianMarkdownToHtml:
     def compile_webpages(self):
         """Compile all files (.md, .canvas, .base) to HTML - unified pipeline with client-side processing"""
         for file in self.files:
-            self.offset = self.calculate_file_depth(file)
+            offset = self.calculate_file_depth(file)
             parts = file.rsplit(".", 1)
             if len(parts) != 2:
                 continue
@@ -285,7 +261,6 @@ class ObsidianMarkdownToHtml:
             file_path, extension = parts
             file_name = os.path.basename(file_path)
 
-            # Determine output path
             relative_path = file[2:] if file.startswith('./') else file
             relative_dir = str(Path(relative_path).parent) if Path(relative_path).parent != Path('.') else ""
             
@@ -296,7 +271,6 @@ class ObsidianMarkdownToHtml:
             elif extension == "base":
                 output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower() + ".base.html"
             else:
-                # Copy non-processed files
                 self.copy_non_markdown_file(file)
                 continue
             
@@ -309,12 +283,11 @@ class ObsidianMarkdownToHtml:
             try:
                 current_file_identifier = relative_path
                 
-                # All types use the same HTML structure - processing happens client-side
                 html_content = self.build_html_with_raw_markdown(
                     title=file_name,
-                    offset=self.offset,
+                    offset=offset,
                     file_path=current_file_identifier,
-                    type=extension  # Pass the extension as type
+                    type=extension
                 )
 
                 self.FileManager.writeToFile(output_path, html_content)
