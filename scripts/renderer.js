@@ -810,6 +810,106 @@ class ObsidianProcessor {
         return tocHtml;
     }
 
+    generateFileTreeHTML() {
+        let ret_str = '';
+        let checkboxPrefix = 1;
+        
+        const fileTuples = Object.entries(fileLinks).sort((a, b) => {
+            const aPath = a[1];
+            const bPath = b[1];
+            
+            const aLastSlash = aPath.lastIndexOf("\\");
+            const bLastSlash = bPath.lastIndexOf("\\");
+            
+            const aDirFile = aLastSlash >= 0 ? [aPath.substring(0, aLastSlash), aPath.substring(aLastSlash + 1)] : ["", aPath];
+            const bDirFile = bLastSlash >= 0 ? [bPath.substring(0, bLastSlash), bPath.substring(bLastSlash + 1)] : ["", bPath];
+            
+            if (aDirFile[0] !== bDirFile[0]) return aDirFile[0].localeCompare(bDirFile[0]);
+            return aDirFile[1].localeCompare(bDirFile[1]);
+        });
+        
+        for (let i = 0; i < fileTuples.length; i++) {
+            const [link, filepath] = fileTuples[i];
+            
+            if (i === 0 || (i > 0 && fileTuples[i-1][1] !== filepath)) {
+                const offsetLink = this.getLinkHref(link);
+                
+                if (i > 0) {
+                    const prevLastSlash = fileTuples[i-1][1].lastIndexOf("\\");
+                    const currLastSlash = filepath.lastIndexOf("\\");
+                    
+                    let prevDir = prevLastSlash >= 0 ? fileTuples[i-1][1].substring(0, prevLastSlash) : "";
+                    let currDir = currLastSlash >= 0 ? filepath.substring(0, currLastSlash) : "";
+                    
+                    prevDir = prevDir.startsWith(".\\") && prevDir.length > 2 ? prevDir.substring(2) : "";
+                    currDir = currDir.startsWith(".\\") && currDir.length > 2 ? currDir.substring(2) : "";
+                    
+                    if (prevDir !== currDir) {
+                        let fileprev = prevDir ? prevDir + "\\" : "";
+                        let filecur = currDir ? currDir + "\\" : "";
+                        
+                        while (fileprev !== "" && filecur !== "") {
+                            const prevFirstSlash = fileprev.indexOf("\\");
+                            const curFirstSlash = filecur.indexOf("\\");
+                            
+                            if (prevFirstSlash === -1 || curFirstSlash === -1) break;
+                            
+                            const prevFirst = fileprev.substring(0, prevFirstSlash);
+                            const curFirst = filecur.substring(0, curFirstSlash);
+                            
+                            if (prevFirst !== curFirst) {
+                                break;
+                            }
+                            
+                            fileprev = fileprev.substring(prevFirstSlash + 1);
+                            filecur = filecur.substring(curFirstSlash + 1);
+                        }
+                        
+                        if (fileprev !== "" && fileprev !== "\\") {
+                            const closingCount = (fileprev.match(/\\/g) || []).length;
+                            ret_str += ("</ul></li>").repeat(closingCount);
+                        }
+                        
+                        if (filecur !== "" && filecur !== "\\") {
+                            const filecurElems = filecur.split("\\").filter(elem => elem !== "");
+                            
+                            for (let j = 0; j < filecurElems.length; j++) {
+                                ret_str += '<li class="parent">\n';
+                                const checkboxTag = `checkbox-${checkboxPrefix}-${filecurElems[j].replace(/\s+/g, "-")}`;
+                                checkboxPrefix += 1;
+                                ret_str += `<input type="checkbox" id="${checkboxTag}" name="${checkboxTag}">\n`;
+                                ret_str += `<label class="checkbox" for="${checkboxTag}">${filecurElems[j].charAt(0).toUpperCase() + filecurElems[j].slice(1)}</label>\n`;
+                                ret_str += '<ul class="child">\n';
+                            }
+                        }
+                    }
+                } else {
+                    const firstLastSlash = filepath.lastIndexOf("\\");
+                    if (firstLastSlash >= 0) {
+                        let firstDir = filepath.substring(0, firstLastSlash);
+                        
+                        firstDir = firstDir.startsWith(".\\") && firstDir.length > 2 ? firstDir.substring(2) : "";
+                        
+                        if (firstDir !== "") {
+                            const dirParts = firstDir.split("\\").filter(part => part !== "");
+                            for (let j = 0; j < dirParts.length; j++) {
+                                ret_str += '<li class="parent">\n';
+                                const checkboxTag = `checkbox-${checkboxPrefix}-${dirParts[j].replace(/\s+/g, "-")}`;
+                                checkboxPrefix += 1;
+                                ret_str += `<input type="checkbox" id="${checkboxTag}" name="${checkboxTag}">\n`;
+                                ret_str += `<label class="checkbox" for="${checkboxTag}">${dirParts[j].charAt(0).toUpperCase() + dirParts[j].slice(1)}</label>\n`;
+                                ret_str += '<ul class="child">\n';
+                            }
+                        }
+                    }
+                }
+                const fileName = link.split('/').pop().replace(/\.md$/i, '');
+                ret_str += '<li>' + `<a href="${offsetLink}">${fileName}</a>` + '</li>';
+            }
+        }
+        return "<div id=\"idk\"><ul class=\"menu\">" + ret_str + "</ul></div>";
+    }
+
     escapeHtml(text) {
         return String(text)
             .replace(/&/g, "&amp;")
@@ -1508,6 +1608,7 @@ async function renderContent() {
                 document.getElementById('table-of-contents').style.removeProperty('display');
             }
         }
+        document.getElementById("navbar").innerHTML = processor.generateFileTreeHTML();
         article.innerHTML = processedHTML
     } catch (error) {
         console.error('Error processing content:', error);
