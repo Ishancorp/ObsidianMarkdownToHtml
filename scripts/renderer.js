@@ -7,9 +7,6 @@ const fileProperties = {/*file_properties*/}
 const inDirectory = /*in_directory*/0
 const outDirectory = /*out_directory*/0
 
-// Client-side Obsidian processor with transclusions
-// Fixed version of the ObsidianProcessor with corrected transclusion logic
-
 function getFile(id){
     return fileContents[fileContentMap[id]];
 }
@@ -23,21 +20,16 @@ class ObsidianProcessor {
     }
 
     async processMarkdown(content, currentFile = null) {
-        // Preprocess headers first
         content = this.preprocessHeaders(content);
         
         content = this.fixTableSpacing(content);
         
-        // Handle transclusions first (before other processing)
         content = await this.processTransclusions(content, currentFile);
         
-        // Handle wikilinks
         content = this.processWikilinks(content);
         
-        // Handle footnotes
         content = this.processFootnotes(content);
         
-        // Handle block references
         content = this.processBlockReferences(content);
         
         return content;
@@ -52,7 +44,6 @@ class ObsidianProcessor {
             .replace(/&#x27;/g, "'");
     }
 
-    // Process canvas nodes specifically
     async processCanvasNodes() {
         document.getElementById('rendered-content').innerHTML = this.unescapeHtml(document.getElementById('markdown-content').innerHTML)
         const nodeContents = document.querySelectorAll('.general-boxes');
@@ -77,17 +68,14 @@ class ObsidianProcessor {
             }
             
             try {
-                // Unescape the HTML-escaped markdown
                 const unescapedMarkdown = this.unescapeHtml(rawMarkdown);
                 console.log(`Node ${i + 1} raw content:`, unescapedMarkdown.substring(0, 100) + '...');
                 
-                // Process the markdown through our pipeline
                 const processedContent = await this.processMarkdown(unescapedMarkdown);
                 console.log(`Node ${i + 1} processed content:`, processedContent.substring(0, 100) + '...');
                 
                 const htmlContent = marked.parse(processedContent);
                 
-                // Apply post-processing for spacing
                 const spacedContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
                 
                 renderedDiv.innerHTML = spacedContent;
@@ -100,7 +88,6 @@ class ObsidianProcessor {
             }
         }
         
-        // Re-render MathJax for any new mathematical content
         if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
             try {
                 await MathJax.typesetPromise();
@@ -119,7 +106,6 @@ class ObsidianProcessor {
 
         this.transclusion_depth++;
 
-        // Pattern for transclusions: ![[filename]] or ![[filename#section]]
         const transclusion_pattern = /!\[\[([^\]]+)\]\]/g;
         
         const matches = [...content.matchAll(transclusion_pattern)];
@@ -128,7 +114,6 @@ class ObsidianProcessor {
         let processedContent = content;
         let totalOffset = 0;
 
-        // Process each transclusion in order
         for (const match of matches) {
             const fullMatch = match[0];
             const link = match[1];
@@ -138,12 +123,10 @@ class ObsidianProcessor {
             console.log(`Processing transclusion: ${link}`);
             const replacement = await this.processTransclusion(link, currentFile);
             
-            // Replace in the content
             const before = processedContent.substring(0, matchStart);
             const after = processedContent.substring(matchEnd);
             processedContent = before + replacement + after;
 
-            // Adjust offset for next iteration
             totalOffset += replacement.length - fullMatch.length;
         }
 
@@ -152,7 +135,6 @@ class ObsidianProcessor {
     }
 
     generateTransclusionId(fileName) {
-        // Create a simple hash-like ID from filename and timestamp
         const timestamp = Date.now().toString(36);
         const nameHash = fileName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8);
         return `transcl-${nameHash}-${timestamp}`;
@@ -163,13 +145,11 @@ class ObsidianProcessor {
         let footnoteCounter = 1;
         const transclusionId = this.generateTransclusionId(fileName);
 
-        // Extract footnote definitions
         let contentWithoutFootnotes = content.replace(/^\[\^([^\]]+)\]:\s*(.*)$/gm, (match, id, text) => {
             footnotes[id] = text;
             return '';
         });
 
-        // Replace footnote references with transclusion-specific IDs
         contentWithoutFootnotes = contentWithoutFootnotes.replace(/\[\^([^\]]+)\]/g, (match, id) => {
             if (footnotes.hasOwnProperty(id)) {
                 const uniqueId = `${transclusionId}-${id}`;
@@ -180,7 +160,6 @@ class ObsidianProcessor {
             return match;
         });
 
-        // Generate footnotes HTML if any exist
         let footnotesHtml = '';
         if (Object.keys(footnotes).length > 0) {
             footnotesHtml = '<div class="transclusion-footnotes"><hr class="footnote-separator"><ol class="footnote-list">';
@@ -200,7 +179,6 @@ class ObsidianProcessor {
     async processTransclusion(link, currentFile) {
         console.log('Processing transclusion:', link);
 
-        // Check if it's an image
         if (link.includes('.')) {
             const extension = link.split('.').pop().toLowerCase();
             if (this.image_types.has(extension)) {
@@ -208,7 +186,6 @@ class ObsidianProcessor {
             }
         }
 
-        // Parse the link for file and section
         let fileName, section;
         if (link.includes('#')) {
             [fileName, section] = link.split('#', 2);
@@ -217,14 +194,12 @@ class ObsidianProcessor {
             section = null;
         }
 
-        // Find file content
         let originalFileContent = this.findFileContent(fileName);
         if (!originalFileContent) {
             console.log('File not found:', fileName);
             return `> File not found: ${link}`;
         }
 
-        // Prevent circular references
         if (this.processing_files.has(fileName)) {
             console.log('Circular reference detected:', fileName);
             return `> Circular reference detected: ${link}`;
@@ -233,7 +208,6 @@ class ObsidianProcessor {
         this.processing_files.add(fileName);
 
         let fileContent;
-        // Extract section if specified
         if (section) {
             fileContent = this.extractSectionWithFootnotes(originalFileContent, section);
             if (!fileContent) {
@@ -245,22 +219,17 @@ class ObsidianProcessor {
             fileContent = originalFileContent;
         }
 
-        // Process footnotes WITHIN this transclusion
         const { content: contentWithoutFootnotes, footnotesHtml } = this.processTransclusionFootnotes(fileContent, fileName);
 
-        // Recursively process transclusions in the transcluded content
         const processedContent = await this.processTransclusions(contentWithoutFootnotes, fileName);
 
         this.processing_files.delete(fileName);
 
-        // Format as blockquote with source link
         const lines = processedContent.split('\n');
         const blockquote = lines.map(line => line.trim() ? `> ${line}` : '>').join('\n');
 
-        // Create the transclusion display
         let result = `\n\n> <span class="transcl-bar"><span>${section ? `**${fileName}** <span class="file-link">></span> **${section}**` : `**${fileName}**`}</span> <span class="goto">[[${link}|>>]]</span></span>\n>\n${blockquote}`;
 
-        // Add footnotes at the bottom of this transclusion if they exist
         if (footnotesHtml) {
             result += `\n>\n> ${footnotesHtml.replace(/\n/g, '\n> ')}`;
         }
@@ -283,19 +252,16 @@ class ObsidianProcessor {
         console.log('Available files:', Object.keys(fileContentMap));
         fileName = fileName.replace(/\//g, "\\");
         
-        // Try exact match first
         if (fileContentMap.hasOwnProperty(fileName)) {
             console.log('Found exact match:', fileName);
             return getFile(fileName);
         }
         
-        // Try with .md extension
         if (fileContentMap.hasOwnProperty(fileName + '.md')) {
             console.log('Found with .md extension:', fileName + '.md');
             return getFile(fileName + '.md');
         }
 
-        // Try case-insensitive match
         const lowerFileName = fileName.toLowerCase();
         for (const [key, content] of Object.entries(fileContentMap)) {
             if (key.toLowerCase() === lowerFileName || key.toLowerCase() === lowerFileName + '.md') {
@@ -304,7 +270,6 @@ class ObsidianProcessor {
             }
         }
 
-        // Try basename match (last resort)
         const baseName = fileName.split('/').pop().split('\\').pop();
         const matches = Object.keys(fileContents).filter(k => {
             const keyBase = k.split('/').pop().split('\\').pop();
@@ -326,7 +291,6 @@ class ObsidianProcessor {
     extractSectionWithFootnotes(fullContent, sectionName) {
         console.log('Extracting section with footnotes:', sectionName);
 
-        // Handle block references (^blockid)
         if (sectionName.startsWith('^')) {
             const blockId = sectionName.substring(1);
             const blockContent = this.extractBlockContent(fullContent, blockId);
@@ -336,18 +300,15 @@ class ObsidianProcessor {
             return null;
         }
 
-        // Handle regular header sections
         const sectionContent = this.extractSection(fullContent, sectionName);
         if (!sectionContent) {
             return null;
         }
 
-        // Collect footnotes referenced in this section
         return this.collectFootnotesForContent(sectionContent, fullContent);
     }
 
     collectFootnotesForContent(content, fullContent) {
-        // Find all footnote references in the section content
         const footnoteRefs = new Set();
         const refMatches = content.matchAll(/\[\^([^\]]+)\]/g);
 
@@ -359,7 +320,6 @@ class ObsidianProcessor {
             return content;
         }
 
-        // Extract footnote definitions from the full file content
         const footnoteDefinitions = [];
         const lines = fullContent.split('\n');
 
@@ -373,7 +333,6 @@ class ObsidianProcessor {
             }
         }
 
-        // Combine section content with its footnote definitions
         if (footnoteDefinitions.length > 0) {
             return content + '\n\n' + footnoteDefinitions.join('\n');
         }
@@ -384,13 +343,11 @@ class ObsidianProcessor {
     extractSection(content, sectionName) {
         console.log('Extracting section:', sectionName);
 
-        // Handle block references (^blockid)
         if (sectionName.startsWith('^')) {
             const blockId = sectionName.substring(1);
             return this.extractBlockContent(content, blockId);
         }
 
-        // Handle regular header sections
         const lines = content.split('\n');
         const sectionLines = [];
         let inSection = false;
@@ -416,7 +373,6 @@ class ObsidianProcessor {
                         sectionLevel = currentLevel;
                         sectionLines.push(line);
                     } else if (inSection && currentLevel <= sectionLevel) {
-                        // We've reached the next section at the same or higher level
                         console.log('End of section reached');
                         break;
                     } else if (inSection) {
@@ -439,12 +395,10 @@ class ObsidianProcessor {
         return result;
     }
 
-    // ... rest of the methods remain the same as in your original code
     extractBlockContent(content, blockId) {
         const lines = content.split('\n');
         let blockRefLine = null;
 
-        // Find the line with the block reference
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i].trim();
             if (line.endsWith(`^${blockId}`) || line === `^${blockId}`) {
@@ -457,12 +411,10 @@ class ObsidianProcessor {
             return null;
         }
 
-        // Check if block reference is on the same line as content
         const refLine = lines[blockRefLine].trim();
         const hasContentOnSameLine = refLine !== `^${blockId}` && refLine.replace(`^${blockId}`, '').trim();
 
         if (hasContentOnSameLine) {
-            // Block reference is inline
             const [start, end] = this.findParagraphBoundaries(lines, blockRefLine);
             if (start !== null) {
                 const paragraphLines = lines.slice(start, end + 1);
@@ -473,10 +425,8 @@ class ObsidianProcessor {
             return refLine.replace(`^${blockId}`, '').trim();
         }
 
-        // Block reference is on its own line
         let contentEnd = blockRefLine - 1;
 
-        // Skip empty lines
         while (contentEnd >= 0 && !lines[contentEnd].trim()) {
             contentEnd--;
         }
@@ -485,7 +435,6 @@ class ObsidianProcessor {
             return null;
         }
 
-        // Find content boundaries
         let contentStart, contentEndFinal;
         const lastContentLine = lines[contentEnd].trim();
 
@@ -506,7 +455,6 @@ class ObsidianProcessor {
         return null;
     }
 
-    // Helper methods (keeping your existing implementations)
     slugify(text) {
         if (!text) return '';
         return text.trim().toLowerCase()
@@ -526,29 +474,24 @@ class ObsidianProcessor {
     }
 
     getLinkHref(fileName) {
-        // Get target path
         let target = (fileLinks[fileName] || fileLinks[fileName + '.md'] || '#file-not-found')
             .replace(/\\/g, '/')
             .replace(/\.md$/i, '.html');
 
         console.log("Target:", target);
 
-        // Make current file path relative to outDirectory
         const article = document.querySelector("article");
         const attributeValue = article.getAttribute('data-current-file');
         let relCurParts = attributeValue.replace(/\\/g, '/').replace(' ', '-').toLowerCase().split('/').slice(0, -1)
 
-        // Make target path relative to outDirectory
         let relTgtParts = target.split('/').filter(Boolean);
         console.log(relTgtParts)
 
-        // Find common prefix inside outDirectory
         let i = 0;
         while (i < relCurParts.length && i < relTgtParts.length && relCurParts[i] === relTgtParts[i]) {
             i++;
         }
 
-        // Build relative path
         const relativePath = [...Array(relCurParts.length - i).fill('..'), ...relTgtParts.slice(i)].join('/');
 
         console.log("Relative path:", relativePath);
@@ -556,7 +499,6 @@ class ObsidianProcessor {
         return relativePath.replace(/ /g, '-');
     }
 
-    // Keep all your other helper methods unchanged...
     findTableBoundaries(lines, endLine) {
         let start = endLine;
         let end = endLine;
@@ -799,7 +741,6 @@ class ObsidianProcessor {
     }
 
     preprocessHeaders(content) {
-        // Ensure headers have proper spacing after images and other elements
         const lines = content.split('\n');
         const processedLines = [];
         
@@ -807,14 +748,10 @@ class ObsidianProcessor {
             const line = lines[i];
             const trimmedLine = line.trim();
             
-            // Check if this is a header line
             if (trimmedLine.match(/^#{1,6}\s+.+/)) {
-                // Check if previous line is an image or other non-empty content
                 const prevLine = i > 0 ? lines[i - 1].trim() : '';
                 
-                // If previous line exists and isn't empty, ensure proper spacing
                 if (prevLine && !prevLine.startsWith('#') && processedLines.length > 0) {
-                    // Add empty line before header if not already present
                     if (processedLines[processedLines.length - 1].trim() !== '') {
                         processedLines.push('');
                     }
@@ -858,7 +795,6 @@ class ObsidianProcessor {
         for (const header of headers) {
             const [headerText, headerId, level] = header;
             
-            // Calculate indent level
             while (stack.length > 0 && stack[stack.length - 1] >= level) {
                 stack.pop();
             }
@@ -934,7 +870,6 @@ class CanvasProcessor extends ObsidianProcessor {
             const leftPos = x + this.CANVAS_OFFSET_X;
             const topPos = y + this.CANVAS_OFFSET_Y;
             
-            // Process markdown content
             let processedContent = "";
             if (text) {
                 try {
@@ -1031,9 +966,9 @@ class BaseProcessor extends ObsidianProcessor {
             console.log('Processing view type:', viewType);
             
             if (viewType === "table") {
-                return await this.processTable(data); // Add await
+                return await this.processTable(data);
             } else if (viewType === "cards") {
-                return await this.processCards(data); // Add await
+                return await this.processCards(data);
             }
             
             return '<div class="error">Unsupported view type</div>';
@@ -1072,7 +1007,7 @@ class BaseProcessor extends ObsidianProcessor {
             tableHtml += '<tr>\n';
             for (const key of propOrder) {
                 if (props[key]) {
-                    const value = await this.getPropertyValue(link, key); // Add await
+                    const value = await this.getPropertyValue(link, key);
                     tableHtml += `<td>${value}</td>\n`;
                 }
             }
@@ -1103,9 +1038,8 @@ class BaseProcessor extends ObsidianProcessor {
             cardsHtml += `<div class="card" data-href="${fileLink}">\n`;
             cardsHtml += '<div class="card-content">\n';
             
-            // Handle image if specified
             if (viewConfig.image) {
-                const imageValue = await this.getPropertyValue(link, viewConfig.image); // Add await
+                const imageValue = await this.getPropertyValue(link, viewConfig.image);
                 if (imageValue && !imageValue.includes('<a href')) {
                     const imageFit = viewConfig.imageFit || 'cover';
                     cardsHtml += `<div class="card-image">\n`;
@@ -1121,7 +1055,7 @@ class BaseProcessor extends ObsidianProcessor {
             
             for (const propKey in props) {
                 if (propKey !== 'file.name' && propKey !== viewConfig.image) {
-                    const propValue = await this.getPropertyValue(link, propKey); // Add await
+                    const propValue = await this.getPropertyValue(link, propKey);
                     if (propValue) {
                         cardsHtml += `<div class="card-property">\n`;
                         cardsHtml += `<span class="property-label">${this.escapeHtml(props[propKey])}:</span>\n`;
@@ -1139,21 +1073,17 @@ class BaseProcessor extends ObsidianProcessor {
     }
 
     getFilteredLinks(data) {
-        // Get ALL files, not just ones in fileLinks
         const allFileIds = Object.keys(fileProperties);
         console.log('All file IDs:', allFileIds.length);
         
-        // Convert to file names/links with deduplication
         const allLinks = [];
-        const seenLinks = new Set(); // Track duplicates
+        const seenLinks = new Set();
         
         for (const fileId of allFileIds) {
             const fileProps = fileProperties[fileId];
             if (fileProps && fileProps.path) {
-                // Use the filename without extension as the link
                 const filename = fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : fileProps.path.split('/').pop().replace(/\.[^/.]+$/, "");
                 
-                // Only add if we haven't seen this link before
                 if (!seenLinks.has(filename)) {
                     seenLinks.add(filename);
                     allLinks.push(filename);
@@ -1163,7 +1093,6 @@ class BaseProcessor extends ObsidianProcessor {
         
         console.log('All links before filtering (deduplicated):', allLinks);
         
-        // Apply filters
         let filteredLinks = allLinks;
         if (data.views && data.views[0] && data.views[0].filters) {
             const filters = data.views[0].filters;
@@ -1185,7 +1114,6 @@ class BaseProcessor extends ObsidianProcessor {
         
         console.log('Filtered links:', filteredLinks);
         
-        // Sort the results
         return this.sortLinks(data, filteredLinks);
     }
 
@@ -1196,7 +1124,6 @@ class BaseProcessor extends ObsidianProcessor {
                 props[key] = data.properties[key].displayName || key;
             }
         } else {
-            // If no properties defined, create default ones based on filters/order
             if (data.views && data.views[0]) {
                 const view = data.views[0];
                 if (view.order) {
@@ -1210,14 +1137,12 @@ class BaseProcessor extends ObsidianProcessor {
     }
 
     formatPropertyName(propKey) {
-        // Convert property keys to display names
         if (propKey === 'file.name') return 'Name';
         if (propKey === 'file.folder') return 'Folder';
         if (propKey === 'file.path') return 'Path';
         if (propKey === 'file.ext') return 'Extension';
         if (propKey === 'file.basename') return 'Basename';
         
-        // For note properties, just use the key
         return propKey.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
     }
 
@@ -1256,15 +1181,12 @@ class BaseProcessor extends ObsidianProcessor {
             
             if (!noteValue) return '';
             
-            // Check if this is a wikilink (like an image reference)
             if (typeof noteValue === 'string' && noteValue.startsWith('"[[') && noteValue.endsWith(']]"')) {
-                const linkContent = noteValue.slice(3, -3); // Remove "[[ ]]"
+                const linkContent = noteValue.slice(3, -3);
                 
-                // Check if it's an image
                 if (linkContent.includes('.')) {
                     const extension = linkContent.split('.').pop().toLowerCase();
                     if (this.image_types.has(extension)) {
-                        // Return the image URL directly for image properties
                         const imageUrl = this.getLinkHref(linkContent);
                         console.log(imageUrl)
                         console.log(69)
@@ -1275,7 +1197,6 @@ class BaseProcessor extends ObsidianProcessor {
                     }
                 }
                 
-                // For non-image wikilinks, convert to regular link
                 const targetUrl = this.getLinkHref(linkContent);
                 if (targetUrl !== '#file-not-found') {
                     return targetUrl;
@@ -1283,26 +1204,21 @@ class BaseProcessor extends ObsidianProcessor {
                 return '';
             }
             
-            // Process other note values through ObsidianProcessor pipeline
             const processedContent = await this.processMarkdown(noteValue, link);
             return processedContent;
         }
         
-        // Handle direct property access from notes
         if (!fileProps.notes) return '';
         
         let noteValue = fileProps.notes[propKey];
         if (!noteValue) return '';
         
-        // Check if this is a wikilink (like an image reference)
         if (typeof noteValue === 'string' && noteValue.startsWith('[[') && noteValue.endsWith(']]')) {
-            const linkContent = noteValue.slice(2, -2); // Remove [[ ]]
+            const linkContent = noteValue.slice(2, -2);
             
-            // Check if it's an image
             if (linkContent.includes('.')) {
                 const extension = linkContent.split('.').pop().toLowerCase();
                 if (this.image_types.has(extension)) {
-                    // Return the image URL directly for image properties
                     const imageUrl = this.getLinkHref(linkContent);
                     if (imageUrl !== '#file-not-found') {
                         return imageUrl;
@@ -1311,7 +1227,6 @@ class BaseProcessor extends ObsidianProcessor {
                 }
             }
             
-            // For non-image wikilinks, convert to regular link
             const targetUrl = this.getLinkHref(linkContent);
             if (targetUrl !== '#file-not-found') {
                 return targetUrl;
@@ -1319,18 +1234,15 @@ class BaseProcessor extends ObsidianProcessor {
             return '';
         }
         
-        // Process through ObsidianProcessor pipeline
         const processedContent = await this.processMarkdown(noteValue, link);
         return processedContent;
     }
 
     findFileIdByLink(link) {
-        // Try direct lookup first
         if (fileContentMap[link]) {
             return fileContentMap[link];
         }
         
-        // Search through all file properties
         for (const [fileId, props] of Object.entries(fileProperties)) {
             if (props.file) {
                 const basename = props.file.replace(/\.[^/.]+$/, "");
@@ -1344,7 +1256,6 @@ class BaseProcessor extends ObsidianProcessor {
     }
 
     getFileLinkHref(filename) {
-        // Use the same logic as getLinkHref() from ObsidianProcessor
         let target = (fileLinks[filename] || fileLinks[filename + '.md'] || '#file-not-found')
             .replace(/\\/g, '/')
             .replace(/\.md$/i, '.html');
@@ -1353,21 +1264,17 @@ class BaseProcessor extends ObsidianProcessor {
             return '#';
         }
 
-        // Make current file path relative to outDirectory
         const article = document.querySelector("article");
         const attributeValue = article.getAttribute('data-current-file');
         let relCurParts = attributeValue.replace(/\\/g, '/').replace(' ', '-').toLowerCase().split('/').slice(0, -1);
 
-        // Make target path relative to outDirectory
         let relTgtParts = target.split('/').filter(Boolean);
 
-        // Find common prefix inside outDirectory
         let i = 0;
         while (i < relCurParts.length && i < relTgtParts.length && relCurParts[i] === relTgtParts[i]) {
             i++;
         }
 
-        // Build relative path
         const relativePath = [...Array(relCurParts.length - i).fill('..'), ...relTgtParts.slice(i)].join('/');
 
         return relativePath.replace(/ /g, '-');
@@ -1388,7 +1295,6 @@ class BaseProcessor extends ObsidianProcessor {
         
         console.log(`Evaluating filter "${filter}" for file:`, fileProps);
         
-        // Handle startsWith filters
         if (filter.includes('.startsWith(')) {
             const match = filter.match(/^(.+)\.startsWith\(["'](.+)["']\)$/);
             if (match) {
@@ -1407,10 +1313,9 @@ class BaseProcessor extends ObsidianProcessor {
             return false;
         }
         
-        // Handle equality filters
         if (filter.includes(' == ')) {
             const [pre, post] = filter.split(' == ');
-            const expectedValue = post.replace(/^["']|["']$/g, ''); // Remove quotes
+            const expectedValue = post.replace(/^["']|["']$/g, '');
             
             if (pre.startsWith('file.')) {
                 const prop = pre.substring(5);
@@ -1419,7 +1324,6 @@ class BaseProcessor extends ObsidianProcessor {
                 console.log(`  ${pre} "${actualValue}" == "${expectedValue}":`, result);
                 return result;
             } else {
-                // Check in notes
                 if (!fileProps.notes) {
                     console.log(`  No notes for property "${pre}"`);
                     return false;
@@ -1431,7 +1335,6 @@ class BaseProcessor extends ObsidianProcessor {
             }
         }
         
-        // Handle inequality filters  
         if (filter.includes(' != ')) {
             const [pre, post] = filter.split(' != ');
             const expectedValue = post.replace(/^["']|["']$/g, '');
@@ -1445,7 +1348,7 @@ class BaseProcessor extends ObsidianProcessor {
             } else {
                 if (!fileProps.notes || !fileProps.notes[pre]) {
                     console.log(`  No notes for property "${pre}" - treating as != "${expectedValue}": true`);
-                    return true; // If no notes, then property doesn't exist, so != is true
+                    return true;
                 }
                 const actualValue = fileProps.notes[pre].slice(1, -1);
                 const result = !actualValue || actualValue !== expectedValue;
@@ -1458,17 +1361,14 @@ class BaseProcessor extends ObsidianProcessor {
         return true;
     }
 
-    // Fixed sorting method for BaseProcessor class
-
     sortLinks(data, links) {
         if (!data.views || !data.views[0] || !data.views[0].sort) {
             return links;
         }
         
-        const sortRules = data.views[0].sort; // Remove the reverse - process in original order
+        const sortRules = data.views[0].sort;
         
         return links.sort((a, b) => {
-            // Process sort rules in order (most important first)
             for (const rule of sortRules) {
                 const prop = rule.property;
                 const isAscending = rule.direction === 'ASC';
@@ -1476,19 +1376,17 @@ class BaseProcessor extends ObsidianProcessor {
                 let aVal = this.getSortValue(a, prop);
                 let bVal = this.getSortValue(b, prop);
                 
-                // Handle null/undefined values - sort them to the end
                 if ((aVal === null || aVal === undefined || aVal === '') && 
                     (bVal === null || bVal === undefined || bVal === '')) {
-                    continue; // Both empty, check next sort rule
+                    continue;
                 }
                 if (aVal === null || aVal === undefined || aVal === '') {
-                    return isAscending ? 1 : -1; // Empty values go to end for ASC, beginning for DESC
+                    return isAscending ? 1 : -1;
                 }
                 if (bVal === null || bVal === undefined || bVal === '') {
                     return isAscending ? -1 : 1;
                 }
                 
-                // Determine if values are numeric
                 const aNum = parseFloat(aVal);
                 const bNum = parseFloat(bVal);
                 const aIsNum = !isNaN(aNum) && isFinite(aNum);
@@ -1497,10 +1395,8 @@ class BaseProcessor extends ObsidianProcessor {
                 let comparison = 0;
                 
                 if (aIsNum && bIsNum) {
-                    // Numeric comparison
                     comparison = aNum - bNum;
                 } else {
-                    // String comparison (case-insensitive)
                     const aStr = String(aVal).toLowerCase();
                     const bStr = String(bVal).toLowerCase();
                     comparison = aStr.localeCompare(bStr);
@@ -1511,7 +1407,6 @@ class BaseProcessor extends ObsidianProcessor {
                 }
             }
             
-            // If all sort rules result in equality, maintain original order
             return 0;
         });
     }
@@ -1523,7 +1418,6 @@ class BaseProcessor extends ObsidianProcessor {
         const fileProps = fileProperties[fileId];
         if (!fileProps) return '';
         
-        // Handle file properties
         if (property.startsWith('file.')) {
             const fileProp = property.substring(5);
             
@@ -1540,13 +1434,11 @@ class BaseProcessor extends ObsidianProcessor {
             }
         }
         
-        // Handle note properties
         if (property.startsWith('note.')) {
             const noteProp = property.substring(5);
             if (!fileProps.notes) return '';
             const noteValue = fileProps.notes[noteProp];
             
-            // Clean up quoted values
             if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
                 return noteValue.slice(1, -1);
             }
@@ -1554,11 +1446,9 @@ class BaseProcessor extends ObsidianProcessor {
             return noteValue || '';
         }
         
-        // Handle direct property access from notes
         if (!fileProps.notes) return '';
         const noteValue = fileProps.notes[property];
         
-        // Clean up quoted values
         if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
             return noteValue.slice(1, -1);
         }
@@ -1567,7 +1457,6 @@ class BaseProcessor extends ObsidianProcessor {
     }
 }
 
-// Configure marked.js
 marked.setOptions({
     breaks: true,
     gfm: true,
@@ -1580,7 +1469,6 @@ marked.setOptions({
     smartypants: false
 });
 
-// Custom renderer to ensure headers are processed correctly
 const renderer = new marked.Renderer();
 renderer.heading = function(text, level, raw) {
     const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
@@ -1588,7 +1476,6 @@ renderer.heading = function(text, level, raw) {
 };
 marked.setOptions({ renderer: renderer });
 
-// Process and render
 async function renderContent() {
     const article = document.querySelector("article");
 
@@ -1607,11 +1494,9 @@ async function renderContent() {
         } else if (fileType === "base") {
             processedHTML = await baseProcessor.processBase(content);
         } else {
-            // Regular markdown processing
             const headers = processor.extractHeadersFromContent(content);
             const processedContent = await processor.processMarkdown(content);
             
-            // Debug log to see what's being passed to marked
             console.log('Processed content before marked:', processedContent.substring(0, 500));
             
             const htmlContent = marked.parse(processedContent);
@@ -1630,5 +1515,4 @@ async function renderContent() {
     }
 }
 
-// Render when page loads
 document.addEventListener('DOMContentLoaded', renderContent);
