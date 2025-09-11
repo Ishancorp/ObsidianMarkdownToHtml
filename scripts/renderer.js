@@ -17,6 +17,18 @@ class ObsidianProcessor {
         this.transclusion_depth = 0;
         this.max_transclusion_depth = 5;
         this.processing_files = new Set();
+        this.canvas_constants = {
+            CANVAS_OFFSET_X: 750,
+            CANVAS_OFFSET_Y: 400,
+            MIN_NODE_WIDTH: 50,
+            MIN_NODE_HEIGHT: 30,
+            DEFAULT_NODE_WIDTH: 200,
+            DEFAULT_NODE_HEIGHT: 100,
+            MIN_CANVAS_WIDTH: 1500,
+            MIN_CANVAS_HEIGHT: 1000,
+            CANVAS_PADDING: 1000,
+            VALID_SIDES: new Set(["left", "right", "top", "bottom"]),
+        }
     }
 
     async processMarkdown(content, currentFile = null) {
@@ -42,60 +54,6 @@ class ObsidianProcessor {
             .replace(/&gt;/g, ">")
             .replace(/&quot;/g, '"')
             .replace(/&#x27;/g, "'");
-    }
-
-    async processCanvasNodes() {
-        document.getElementById('rendered-content').innerHTML = this.unescapeHtml(document.getElementById('markdown-content').innerHTML)
-        const nodeContents = document.querySelectorAll('.general-boxes');
-        console.log(`Found ${nodeContents.length} canvas nodes to process`);
-        
-        for (let i = 0; i < nodeContents.length; i++) {
-            const nodeContent = nodeContents[i];
-            const rawMarkdown = nodeContent.innerHTML;
-            const renderedDiv = nodeContent;
-            
-            console.log(`Processing node ${i + 1}/${nodeContents.length}`);
-            
-            if (!rawMarkdown) {
-                console.warn(`Node ${i + 1}: No markdown data found`);
-                if (renderedDiv) renderedDiv.innerHTML = '<p>No content</p>';
-                continue;
-            }
-            
-            if (!renderedDiv) {
-                console.warn(`Node ${i + 1}: No rendered div found`);
-                continue;
-            }
-            
-            try {
-                const unescapedMarkdown = this.unescapeHtml(rawMarkdown);
-                console.log(`Node ${i + 1} raw content:`, unescapedMarkdown.substring(0, 100) + '...');
-                
-                const processedContent = await this.processMarkdown(unescapedMarkdown);
-                console.log(`Node ${i + 1} processed content:`, processedContent.substring(0, 100) + '...');
-                
-                const htmlContent = marked.parse(processedContent);
-                
-                const spacedContent = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
-                
-                renderedDiv.innerHTML = spacedContent;
-                console.log(`Node ${i + 1}: Successfully rendered`);
-                
-            } catch (error) {
-                console.error(`Error processing canvas node ${i + 1}:`, error);
-                console.error(`Node content was:`, rawMarkdown);
-                renderedDiv.innerHTML = `<p>Error processing content: ${error.message}</p>`;
-            }
-        }
-        
-        if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
-            try {
-                await MathJax.typesetPromise();
-                console.log('MathJax re-rendered for canvas nodes');
-            } catch (error) {
-                console.warn('MathJax rendering error:', error);
-            }
-        }
     }
 
     async processTransclusions(content, currentFile = null) {
@@ -921,134 +879,101 @@ class ObsidianProcessor {
 }
 
 class CanvasProcessor extends ObsidianProcessor {
-    constructor() {
-        super();
-        this.CANVAS_OFFSET_X = 750;
-        this.CANVAS_OFFSET_Y = 400;
-        this.MIN_NODE_WIDTH = 50;
-        this.MIN_NODE_HEIGHT = 30;
-        this.DEFAULT_NODE_WIDTH = 200;
-        this.DEFAULT_NODE_HEIGHT = 100;
-        this.MIN_CANVAS_WIDTH = 1500;
-        this.MIN_CANVAS_HEIGHT = 1000;
-        this.CANVAS_PADDING = 1000;
-        this.VALID_SIDES = new Set(["left", "right", "top", "bottom"]);
-    }
-
     async processCanvas(jsonContent) {
         try {
             const data = JSON.parse(jsonContent);
             const nodes = data.nodes || [];
             const edges = data.edges || [];
-            
-            const { nodesById, divPart, maxX, maxY } = await this.processNodes(nodes);
-            const { svgPart, arrowPart } = this.processEdges(edges, nodesById, maxX, maxY);
-            
-            return this.buildFinalHTML(divPart, svgPart, arrowPart);
-        } catch (error) {
-            return `<div class="error">Error processing canvas: ${this.escapeHtml(error.message)}</div>`;
-        }
-    }
 
-    async processNodes(nodes) {
-        const nodesById = {};
-        let divPart = "";
-        let maxX = 0;
-        let maxY = 0;
+            //process nodes
+            const nodesById = {};
+            let divPart = "";
+            let maxX = 0;
+            let maxY = 0;
 
-        for (const node of nodes) {
-            if (!node.id) continue;
+            for (const node of nodes) {
+                if (!node.id) continue;
+                
+                const x = parseFloat(node.x || 0);
+                const y = parseFloat(node.y || 0);
+                const width = Math.max(parseFloat(node.width || this.canvas_constants.DEFAULT_NODE_WIDTH), this.canvas_constants.MIN_NODE_WIDTH);
+                const height = Math.max(parseFloat(node.height || this.canvas_constants.DEFAULT_NODE_HEIGHT), this.canvas_constants.MIN_NODE_HEIGHT);
+                const text = node.text || "";
+                const color = node.color || "";
+                
+                const divClasses = ["general-boxes"];
+                if (color && typeof color === 'string') {
+                    const sanitized = color.replace(/[^a-zA-Z0-9\-_]/g, '');
+                    if (sanitized) divClasses.push(`color-${sanitized}`);
+                }
+                const leftPos = x + this.canvas_constants.CANVAS_OFFSET_X;
+                const topPos = y + this.canvas_constants.CANVAS_OFFSET_Y;
+                
+                let processedContent = "";
+                if (text) {
+                    try {
+                        const processedMarkdown = await this.processMarkdown(text);
+                        processedContent = marked.parse(processedMarkdown);
+                    } catch (error) {
+                        processedContent = this.escapeHtml(text);
+                    }
+                }
+                
+                divPart += `<div class="${divClasses.join(' ')}" id="${this.escapeHtml(node.id)}" style="left:${leftPos}px;top:${topPos}px;width:${width}px;height:${height}px">\n${processedContent}\n</div>\n`;
+                
+                nodesById[node.id] = {
+                    left: [x, y + height/2],
+                    right: [x + width, y + height/2],
+                    top: [x + width/2, y],
+                    bottom: [x + width/2, y + height]
+                };
+                
+                maxX = Math.max(maxX, x + width);
+                maxY = Math.max(maxY, y + height);
+            }
             
-            const x = parseFloat(node.x || 0);
-            const y = parseFloat(node.y || 0);
-            const width = Math.max(parseFloat(node.width || this.DEFAULT_NODE_WIDTH), this.MIN_NODE_WIDTH);
-            const height = Math.max(parseFloat(node.height || this.DEFAULT_NODE_HEIGHT), this.MIN_NODE_HEIGHT);
-            const text = node.text || "";
-            const color = node.color || "";
+
+            //process edges
+            const svgWidth = Math.max(maxX + this.canvas_constants.CANVAS_PADDING, this.canvas_constants.MIN_CANVAS_WIDTH);
+            const svgHeight = Math.max(maxY + this.canvas_constants.CANVAS_PADDING, this.canvas_constants.MIN_CANVAS_HEIGHT);
             
-            const divClasses = this.generateNodeClasses(color);
-            const leftPos = x + this.CANVAS_OFFSET_X;
-            const topPos = y + this.CANVAS_OFFSET_Y;
+            let svgPart = `<svg id="svg" width="${svgWidth}" height="${svgHeight}">\n`;
+            let arrowPart = "";
             
-            let processedContent = "";
-            if (text) {
-                try {
-                    const processedMarkdown = await this.processMarkdown(text);
-                    processedContent = marked.parse(processedMarkdown);
-                } catch (error) {
-                    processedContent = this.escapeHtml(text);
+            for (const edge of edges) {
+                if (!edge.fromNode || !edge.toNode || !nodesById[edge.fromNode] || !nodesById[edge.toNode]) {
+                    continue;
+                }
+                
+                const fromSide = this.canvas_constants.VALID_SIDES.has(edge.fromSide) ? edge.fromSide : "right";
+                const toSide = this.canvas_constants.VALID_SIDES.has(edge.toSide) ? edge.toSide : "left";
+                
+                const nodeFrom = nodesById[edge.fromNode];
+                const nodeTo = nodesById[edge.toNode];
+                
+                const x1 = nodeFrom[fromSide][0] + this.canvas_constants.CANVAS_OFFSET_X;
+                const y1 = nodeFrom[fromSide][1] + this.canvas_constants.CANVAS_OFFSET_Y;
+                const x2 = nodeTo[toSide][0] + this.canvas_constants.CANVAS_OFFSET_X;
+                const y2 = nodeTo[toSide][1] + this.canvas_constants.CANVAS_OFFSET_Y;
+                
+                svgPart += `<line class="line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>\n`;
+                if (toSide === "left") {
+                    arrowPart += `<i class="arrow ${toSide}" style="left:${x2 - 10}px;top:${y2 - 5}px;"></i>\n`;
+                }
+                else {
+                    arrowPart += `<i class="arrow ${toSide}" style="left:${x2 - 5}px;top:${y2 - 10}px;"></i>\n`;
                 }
             }
+            svgPart += "</svg>\n";
             
-            divPart += `<div class="${divClasses.join(' ')}" id="${this.escapeHtml(node.id)}" style="left:${leftPos}px;top:${topPos}px;width:${width}px;height:${height}px">\n${processedContent}\n</div>\n`;
-            
-            nodesById[node.id] = {
-                left: [x, y + height/2],
-                right: [x + width, y + height/2],
-                top: [x + width/2, y],
-                bottom: [x + width/2, y + height]
-            };
-            
-            maxX = Math.max(maxX, x + width);
-            maxY = Math.max(maxY, y + height);
-        }
-        
-        return { nodesById, divPart, maxX, maxY };
-    }
-
-    processEdges(edges, nodesById, maxX, maxY) {
-        const svgWidth = Math.max(maxX + this.CANVAS_PADDING, this.MIN_CANVAS_WIDTH);
-        const svgHeight = Math.max(maxY + this.CANVAS_PADDING, this.MIN_CANVAS_HEIGHT);
-        
-        let svgPart = `<svg id="svg" width="${svgWidth}" height="${svgHeight}">\n`;
-        let arrowPart = "";
-        
-        for (const edge of edges) {
-            if (!edge.fromNode || !edge.toNode || !nodesById[edge.fromNode] || !nodesById[edge.toNode]) {
-                continue;
-            }
-            
-            const fromSide = this.VALID_SIDES.has(edge.fromSide) ? edge.fromSide : "right";
-            const toSide = this.VALID_SIDES.has(edge.toSide) ? edge.toSide : "left";
-            
-            const nodeFrom = nodesById[edge.fromNode];
-            const nodeTo = nodesById[edge.toNode];
-            
-            const x1 = nodeFrom[fromSide][0] + this.CANVAS_OFFSET_X;
-            const y1 = nodeFrom[fromSide][1] + this.CANVAS_OFFSET_Y;
-            const x2 = nodeTo[toSide][0] + this.CANVAS_OFFSET_X;
-            const y2 = nodeTo[toSide][1] + this.CANVAS_OFFSET_Y;
-            
-            svgPart += `<line class="line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>\n`;
-            arrowPart += this.generateArrowHTML(toSide, x2, y2);
-        }
-        
-        svgPart += "</svg>\n";
-        return { svgPart, arrowPart };
-    }
-
-    generateNodeClasses(color) {
-        const classes = ["general-boxes"];
-        if (color && typeof color === 'string') {
-            const sanitized = color.replace(/[^a-zA-Z0-9\-_]/g, '');
-            if (sanitized) classes.push(`color-${sanitized}`);
-        }
-        return classes;
-    }
-
-    generateArrowHTML(toSide, arrowX, arrowY) {
-        if (toSide === "left") {
-            return `<i class="arrow ${toSide}" style="left:${arrowX - 10}px;top:${arrowY - 5}px;"></i>\n`;
-        }
-        return `<i class="arrow ${toSide}" style="left:${arrowX - 5}px;top:${arrowY - 10}px;"></i>\n`;
-    }
-
-    buildFinalHTML(divPart, svgPart, arrowPart) {
-        return `<div id="outer-box">
+            return `<div id="outer-box">
 <div id="scrollable-box">
 <div id="innard">${arrowPart}${svgPart}${divPart}</div>
 </div>
 </div>`;
+        } catch (error) {
+            return `<div class="error">Error processing canvas: ${this.escapeHtml(error.message)}</div>`;
+        }
     }
 }
 

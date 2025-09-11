@@ -1,11 +1,8 @@
-from collections import deque
 from python_segments.helpers import *
 
 class NavigationBuilder:
     def __init__(self, link_to_filepath):
-        self.link_to_filepath = link_to_filepath
-
-        self.search_dict = self.link_to_filepath.copy()
+        self.search_dict = link_to_filepath.copy()
         seen_values = set()
         keys_to_delete = []
 
