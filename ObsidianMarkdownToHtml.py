@@ -249,7 +249,7 @@ class ObsidianMarkdownToHtml:
                     window.location.href = card.dataset.href;
                 }}
             }});
-        </script
+        </script>
     </body>
     </html>"""
         return html
