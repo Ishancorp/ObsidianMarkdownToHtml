@@ -185,14 +185,11 @@ class ObsidianProcessor {
             for (const fileId of allFileIds) {
                 const fileProps = fileProperties[fileId];
                 if (fileProps && fileProps.path) {
-                    // For non-markdown files, keep the extension
                     let filename;
                     if (fileProps.file && fileProps.ext && 
                         !['md', 'canvas', 'base'].includes(fileProps.ext.toLowerCase())) {
-                        // Keep extension for non-markdown files
                         filename = fileProps.file;
                     } else {
-                        // Remove extension for markdown files
                         filename = fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : fileProps.path.split('/').pop().replace(/\.[^/.]+$/, "");
                     }
                     
@@ -1040,25 +1037,20 @@ class ObsidianProcessor {
     }
 
     findFileIdByLink(link) {
-        // First try exact match with the link as provided
         if (fileContentMap[link]) {
             return fileContentMap[link];
         }
         
-        // Try with .md extension if not already present
         if (!link.includes('.') && fileContentMap[link + '.md']) {
             return fileContentMap[link + '.md'];
         }
         
-        // Search through file properties for matches
         for (const [fileId, props] of Object.entries(fileProperties)) {
             if (props.file) {
-                // For non-markdown files, match the full filename including extension
                 if (props.file === link) {
                     return fileId;
                 }
                 
-                // For markdown files, also try matching without extension
                 const basename = props.file.replace(/\.[^/.]+$/, "");
                 if (basename === link) {
                     return fileId;
@@ -1484,7 +1476,6 @@ class ObsidianProcessor {
         const searchDict = {};
         const seenValues = new Set();
         
-        // Create search dictionary similar to Python NavigationBuilder
         for (const [key, value] of Object.entries(fileLinks)) {
             if (!seenValues.has(value)) {
                 searchDict[key] = value;

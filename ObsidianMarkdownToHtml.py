@@ -2,7 +2,6 @@ import os
 import shutil
 from pathlib import Path
 import uuid
-from python_segments.html_builders.NavigationBuilder import NavigationBuilder
 from python_segments.FileManager import FileManager
 import json
 import yaml
@@ -22,8 +21,6 @@ class ObsidianMarkdownToHtml:
         self.create_file_content_mapping()
 
         self.write_renderer()
-
-        self.navigation_builder = NavigationBuilder()
 
     def make_offset(self, offset):
         if offset == 0:
@@ -218,7 +215,17 @@ class ObsidianMarkdownToHtml:
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     </head>
     <body>
-        {self.navigation_builder.generate_navigation_bar(file_path[2:])}
+        <nav>
+            <span>
+                <button popovertarget="navbar" popovertargetaction="toggle"><i data-lucide="align-justify"></i></button>
+                <div id="navbar" popover></div>
+                <button popovertarget="searchbar" popovertargetaction="toggle"><i data-lucide="search"></i></button>
+                <div id="searchbar" popover><input type="text" id="searchInput" onkeyup="searchForArticle()" placeholder="Search.."></div>
+            </span>
+            <p class="top-bar">{(data_current_file.split('.')[0] + '.html' if data_current_file.split('.')[-1] == "md" else data_current_file + '.html').replace("\\", "<span class=\"file-link\"> > </span>")}</p>
+            <button popovertarget="table-of-contents" popovertargetaction="toggle"><i data-lucide="table-of-contents"></i></button>
+            <div id=\"table-of-contents\" style=\"display: none\" popover><div id=\"toc-content\"></div></div>
+        </nav>
         <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
         <article data-current-file="{data_current_file}" data-type="{type}"></article>
         <footer>

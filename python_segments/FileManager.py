@@ -12,7 +12,6 @@ class FileManager:
             ("scripts/json_canvas.js", "canvas.js"),
             ("scripts/searcher.js", "searcher.js")
         ]
-        self.cached_pages = {}
         self.in_directory = in_directory
         self.out_directory = out_directory
 
@@ -149,8 +148,6 @@ class FileManager:
     def file_viewer(self, file, offset, process_markdown, add_to_header_list=True):
         file_dir = self.in_directory + file[1:]
         try:
-            if False and file_dir.replace("/","\\") in self.cached_pages:
-                return self.cached_pages[file_dir.replace("/","\\")]
             if not exists(file_dir):
                 raise FileNotFoundError(f"File not found: {file_dir}")
             file_text = self.read_raw(file[1:])
@@ -162,7 +159,6 @@ class FileManager:
                     if second_marker_pos != -1:
                         opening = second_marker_pos + 4
             new_file = process_markdown(file_text[opening:], offset, add_to_header_list)
-            (self.cached_pages)[file_dir] = new_file
             return new_file
         except (FileNotFoundError, PermissionError, UnicodeDecodeError) as e:
             print(f"Error processing {file_dir}: {e}")
