@@ -4,7 +4,6 @@ from pathlib import Path
 import uuid
 from python_segments.html_builders.NavigationBuilder import NavigationBuilder
 from python_segments.FileManager import FileManager
-from python_segments.helpers import *
 import json
 import yaml
 import re
@@ -24,7 +23,15 @@ class ObsidianMarkdownToHtml:
 
         self.write_renderer()
 
-        self.navigation_builder = NavigationBuilder(self.link_to_filepath)
+        self.navigation_builder = NavigationBuilder()
+
+    def make_offset(self, offset):
+        if offset == 0:
+            return '.'
+        elif offset == 1:
+            return '..'
+        else:
+            return ((offset-1) * "../") + ".."
 
     def extract_headers_from_markdown(self, content):
         """Extract headers for navigation"""
@@ -193,7 +200,7 @@ class ObsidianMarkdownToHtml:
             try:
                 with open("styles/json_canvas.css") as json_stylesheet:
                     json_styles = f"<style>{json_stylesheet.read()}</style>"
-                json_script = f'<script src="{make_offset(offset)}\\canvas.js"></script>'
+                json_script = f'<script src="{self.make_offset(offset)}\\canvas.js"></script>'
             except:
                 pass
 
@@ -206,20 +213,20 @@ class ObsidianMarkdownToHtml:
         <title>{title}</title>
         <link rel="preconnect" href="https://rsms.me/">
         <link rel="preconnect" href="https://rsms.me/inter/inter.css">
-        <link rel="stylesheet" href="{make_offset(offset)}\\style.css">
+        <link rel="stylesheet" href="{self.make_offset(offset)}\\style.css">
         {json_styles}
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     </head>
     <body>
-        {self.navigation_builder.generate_navigation_bar(offset, file_path[2:])}
+        {self.navigation_builder.generate_navigation_bar(file_path[2:])}
         <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
         <article data-current-file="{data_current_file}" data-type="{type}"></article>
         <footer>
             <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
             <p>Last updated on {self.get_current_date()}</p>
         </footer>
-        <script src="{make_offset(offset)}\\renderer.js"></script>
-        <script src="{make_offset(offset)}\\searcher.js"></script>
+        <script src="{self.make_offset(offset)}\\renderer.js"></script>
+        <script src="{self.make_offset(offset)}\\searcher.js"></script>
         {json_script}
         <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script>

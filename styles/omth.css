@@ -518,6 +518,10 @@ footer {
 .card-title {
     margin: 0 0 10px 0;
     font-size: 1.2em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #333;
 }
 
 .card-title a {
@@ -525,7 +529,7 @@ footer {
     color: #333;
 }
 
-.card-title a:hover {
+.card-title:hover {
     color: #007bff;
 }
 

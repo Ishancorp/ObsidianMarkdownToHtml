@@ -1480,6 +1480,34 @@ class ObsidianProcessor {
         return "<div id=\"idk\"><ul class=\"menu\">" + ret_str + "</ul></div>";
     }
 
+    generateSearchBarHTML() {
+        const searchDict = {};
+        const seenValues = new Set();
+        
+        // Create search dictionary similar to Python NavigationBuilder
+        for (const [key, value] of Object.entries(fileLinks)) {
+            if (!seenValues.has(value)) {
+                searchDict[key] = value;
+                seenValues.add(value);
+            }
+        }
+        
+        let searchHtml = '<input type="text" id="searchInput" onkeyup="searchForArticle()" placeholder="Search..">';
+        searchHtml += '<ul id="articles">';
+        
+        for (const [key, value] of Object.entries(searchDict)) {
+            const rightPartLink = value.substring(1).replace(/ /g, "-");
+            const link = this.getLinkHref(key);
+            const displayPath = rightPartLink.substring(1).replace(/\\/g, " > ");
+            const fileName = key.split('/').pop();
+            
+            searchHtml += `<li><a searchText="${link}" href="${link}">${fileName}<br><sub class="fileloc">${displayPath}</sub></a></li>`;
+        }
+        
+        searchHtml += '</ul>';
+        return searchHtml;
+    }
+
     escapeHtml(text) {
         return String(text)
             .replace(/&/g, "&amp;")
@@ -1521,6 +1549,8 @@ async function renderContent() {
         
         const [processedHTML, headers] = await processor.processFile(content, fileType);
 
+        const searchBarHtml = processor.generateSearchBarHTML();
+        document.getElementById("searchbar").innerHTML = searchBarHtml;
         if (headers.length > 0) {
             const tocHtml = processor.buildTableOfContents(headers);
             document.getElementById('toc-content').innerHTML = tocHtml;
