@@ -29,20 +29,6 @@ class ObsidianMarkdownToHtml:
             return '..'
         else:
             return ((offset-1) * "../") + ".."
-
-    def extract_headers_from_markdown(self, content):
-        """Extract headers for navigation"""
-        headers = []
-        lines = content.split('\n')
-        for line in lines:
-            line = line.strip()
-            if line.startswith('#'):
-                level = len(line) - len(line.lstrip('#'))
-                if level <= 6:
-                    header_text = line[level:].strip()
-                    header_id = self.slugify(header_text)
-                    headers.append([header_text, header_id, level])
-        return headers
     
     def write_renderer(self):
         src_path = (Path(__file__).resolve().parent / "scripts/renderer.js").resolve()
@@ -159,15 +145,6 @@ class ObsidianMarkdownToHtml:
                     print(f"Warning: Multiple files with basename '{basename}' found. Using: {file_list[0][0]}")
                     print(f"  Conflicting files: {[item[0] for item in file_list]}")
                     print(f"  Access other files using their full names with extensions.")
-
-    def slugify(self, text):
-        """Convert text to URL-friendly slug"""
-        if not text:
-            return ""
-        text = text.strip().lower()
-        text = re.sub(r'[^\w\s-]', '', text)
-        text = re.sub(r'\s+', '-', text)
-        return text
 
     def calculate_file_depth(self, file_path):
         """Calculate the correct depth/offset for a file"""

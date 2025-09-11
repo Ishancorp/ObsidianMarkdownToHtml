@@ -886,7 +886,7 @@ class ObsidianProcessor {
         let inSection = false;
         let sectionLevel = 0;
 
-        const sectionSlug = this.slugify(sectionName);
+        const sectionSlug = slugify(sectionName);
         console.log('Looking for section slug:', sectionSlug);
 
         for (let i = 0; i < lines.length; i++) {
@@ -896,7 +896,7 @@ class ObsidianProcessor {
                 if (headerMatch) {
                     const currentLevel = headerMatch[1].length;
                     const currentHeader = headerMatch[2].trim();
-                    const currentSlug = this.slugify(currentHeader);
+                    const currentSlug = slugify(currentHeader);
 
                     console.log(`Found header: "${currentHeader}" (slug: "${currentSlug}") at level ${currentLevel}`);
 
@@ -986,13 +986,6 @@ class ObsidianProcessor {
         }
 
         return null;
-    }
-
-    slugify(text) {
-        if (!text) return '';
-        return text.trim().toLowerCase()
-            .replace(/[^\w\s-]/g, '')
-            .replace(/\s+/g, '-');
     }
 
     escapeTooltipContent(text) {
@@ -1337,7 +1330,7 @@ class ObsidianProcessor {
                 const level = trimmed.length - trimmed.replace(/^#+/, '').length;
                 if (level <= 6) {
                     const headerText = trimmed.substring(level).trim();
-                    const headerId = this.slugify(headerText);
+                    const headerId = slugify(headerText);
                     headers.push([headerText, headerId, level]);
                 }
             }
@@ -1509,6 +1502,16 @@ class ObsidianProcessor {
     }
 }
 
+function slugify(text) {
+    if (!text) return '';
+    return text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '') // Normalize accented chars (NFKD), remove diacritics
+    .trim().toLowerCase() // Trim, lowercase
+    .replace(/[^a-z0-9 \-()]/g, '') // Remove characters that are not alphanumeric, space, or hyphen
+    .replace(/\s+/g, '-') // Replace spaces (one or more) with a hyphen
+    .replace(/-+/g, '-') // Collapse multiple hyphens
+    .replace(/^-+/, '').replace(/-+$/, ''); // Remove leading/trailing hyphens
+}
+
 marked.setOptions({
     breaks: true,
     gfm: true,
@@ -1523,7 +1526,7 @@ marked.setOptions({
 
 const renderer = new marked.Renderer();
 renderer.heading = function(text, level, raw) {
-    const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
+    const escapedText = slugify(text);
     return `<h${level} id="${escapedText}">${text}</h${level}>`;
 };
 marked.setOptions({ renderer: renderer });
