@@ -62,6 +62,7 @@ class ObsidianMarkdownToHtml:
         self.file_content_map = {}
         self.file_contents = {}
         filename_counts = {}
+        basename_counts = {}  # Track basenames separately
         
         for file_path in self.files:
             unique_id = str(uuid.uuid4())
@@ -75,9 +76,10 @@ class ObsidianMarkdownToHtml:
             else:
                 relative_path = file_path
             
+            # Always map the full relative path
             self.file_content_map[relative_path] = unique_id
-            self.file_content_map[os.path.splitext(relative_path)[0]] = unique_id
-
+            
+            # Track filename with extension
             filename_with_ext = os.path.basename(relative_path)
             filename_without_ext = os.path.splitext(filename_with_ext)[0]
             
@@ -85,9 +87,9 @@ class ObsidianMarkdownToHtml:
                 filename_counts[filename_with_ext] = []
             filename_counts[filename_with_ext].append((relative_path, unique_id))
             
-            if filename_without_ext not in filename_counts:
-                filename_counts[filename_without_ext] = []
-            filename_counts[filename_without_ext].append((relative_path, unique_id))
+            if filename_without_ext not in basename_counts:
+                basename_counts[filename_without_ext] = []
+            basename_counts[filename_without_ext].append((relative_path, unique_id))
 
             full_path = os.path.join(self.in_directory, relative_path.replace('/', os.sep))
             if file_path.endswith('.base'):
@@ -119,16 +121,40 @@ class ObsidianMarkdownToHtml:
                 
                 except Exception as e:
                     print(f"Error reading file {full_path}: {e}")
+            else:
+                # For non-markdown files, store empty content but keep the mapping
+                self.file_contents[unique_id] = ""
         
-        for basename, file_list in filename_counts.items():
+        # Handle filename mappings - prefer full filename with extension
+        for filename_with_ext, file_list in filename_counts.items():
             if len(file_list) == 1:
+                self.file_content_map[filename_with_ext] = file_list[0][1]
+            else:
+                # Multiple files with same name+extension - use first one and warn
+                self.file_content_map[filename_with_ext] = file_list[0][1]
+                print(f"Warning: Multiple files with name '{filename_with_ext}' found. Using: {file_list[0][0]}")
+                print(f"  Conflicting files: {[item[0] for item in file_list]}")
+        
+        # Handle basename mappings - only if no conflicts with extensions
+        for basename, file_list in basename_counts.items():
+            if len(file_list) == 1:
+                # Only one file with this basename - safe to map without extension
                 self.file_content_map[basename] = file_list[0][1]
             else:
-                self.file_content_map[basename] = file_list[0][1]
-                
-                print(f"Warning: Multiple files with basename '{basename}' found. Using: {file_list[0][0]}")
-                print(f"  Conflicting files: {[item[0] for item in file_list]}")
-                print(f"  Access non-primary files using their full relative paths.")
+                # Multiple files with same basename - check if any are .md
+                md_files = [item for item in file_list if item[0].endswith('.md')]
+                if len(md_files) == 1:
+                    # Only one .md file with this basename - use it for extension-less mapping
+                    self.file_content_map[basename] = md_files[0][1]
+                    print(f"Info: Multiple files with basename '{basename}' found. Using .md file for extension-less access: {md_files[0][0]}")
+                    print(f"  Other files: {[item[0] for item in file_list if item != md_files[0]]}")
+                    print(f"  Access non-md files using their full names with extensions.")
+                else:
+                    # Multiple files, no single .md - use first one but warn
+                    self.file_content_map[basename] = file_list[0][1]
+                    print(f"Warning: Multiple files with basename '{basename}' found. Using: {file_list[0][0]}")
+                    print(f"  Conflicting files: {[item[0] for item in file_list]}")
+                    print(f"  Access other files using their full names with extensions.")
 
     def slugify(self, text):
         """Convert text to URL-friendly slug"""

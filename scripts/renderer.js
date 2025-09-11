@@ -47,6 +47,120 @@ class ObsidianProcessor {
         return content;
     }
 
+    async processCanvas(jsonContent) {
+        try {
+            const data = JSON.parse(jsonContent);
+            const nodes = data.nodes || [];
+            const edges = data.edges || [];
+
+            //process nodes
+            const nodesById = {};
+            let divPart = "";
+            let maxX = 0;
+            let maxY = 0;
+
+            for (const node of nodes) {
+                if (!node.id) continue;
+                
+                const x = parseFloat(node.x || 0);
+                const y = parseFloat(node.y || 0);
+                const width = Math.max(parseFloat(node.width || this.canvas_constants.DEFAULT_NODE_WIDTH), this.canvas_constants.MIN_NODE_WIDTH);
+                const height = Math.max(parseFloat(node.height || this.canvas_constants.DEFAULT_NODE_HEIGHT), this.canvas_constants.MIN_NODE_HEIGHT);
+                const text = node.text || "";
+                const color = node.color || "";
+                
+                const divClasses = ["general-boxes"];
+                if (color && typeof color === 'string') {
+                    const sanitized = color.replace(/[^a-zA-Z0-9\-_]/g, '');
+                    if (sanitized) divClasses.push(`color-${sanitized}`);
+                }
+                const leftPos = x + this.canvas_constants.CANVAS_OFFSET_X;
+                const topPos = y + this.canvas_constants.CANVAS_OFFSET_Y;
+                
+                let processedContent = "";
+                if (text) {
+                    try {
+                        const processedMarkdown = await this.processMarkdown(text);
+                        processedContent = marked.parse(processedMarkdown);
+                    } catch (error) {
+                        processedContent = this.escapeHtml(text);
+                    }
+                }
+                
+                divPart += `<div class="${divClasses.join(' ')}" id="${this.escapeHtml(node.id)}" style="left:${leftPos}px;top:${topPos}px;width:${width}px;height:${height}px">\n${processedContent}\n</div>\n`;
+                
+                nodesById[node.id] = {
+                    left: [x, y + height/2],
+                    right: [x + width, y + height/2],
+                    top: [x + width/2, y],
+                    bottom: [x + width/2, y + height]
+                };
+                
+                maxX = Math.max(maxX, x + width);
+                maxY = Math.max(maxY, y + height);
+            }
+            
+
+            //process edges
+            const svgWidth = Math.max(maxX + this.canvas_constants.CANVAS_PADDING, this.canvas_constants.MIN_CANVAS_WIDTH);
+            const svgHeight = Math.max(maxY + this.canvas_constants.CANVAS_PADDING, this.canvas_constants.MIN_CANVAS_HEIGHT);
+            
+            let svgPart = `<svg id="svg" width="${svgWidth}" height="${svgHeight}">\n`;
+            let arrowPart = "";
+            
+            for (const edge of edges) {
+                if (!edge.fromNode || !edge.toNode || !nodesById[edge.fromNode] || !nodesById[edge.toNode]) {
+                    continue;
+                }
+                
+                const fromSide = this.canvas_constants.VALID_SIDES.has(edge.fromSide) ? edge.fromSide : "right";
+                const toSide = this.canvas_constants.VALID_SIDES.has(edge.toSide) ? edge.toSide : "left";
+                
+                const nodeFrom = nodesById[edge.fromNode];
+                const nodeTo = nodesById[edge.toNode];
+                
+                const x1 = nodeFrom[fromSide][0] + this.canvas_constants.CANVAS_OFFSET_X;
+                const y1 = nodeFrom[fromSide][1] + this.canvas_constants.CANVAS_OFFSET_Y;
+                const x2 = nodeTo[toSide][0] + this.canvas_constants.CANVAS_OFFSET_X;
+                const y2 = nodeTo[toSide][1] + this.canvas_constants.CANVAS_OFFSET_Y;
+                
+                svgPart += `<line class="line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>\n`;
+                if (toSide === "left") {
+                    arrowPart += `<i class="arrow ${toSide}" style="left:${x2 - 10}px;top:${y2 - 5}px;"></i>\n`;
+                }
+                else {
+                    arrowPart += `<i class="arrow ${toSide}" style="left:${x2 - 5}px;top:${y2 - 10}px;"></i>\n`;
+                }
+            }
+            svgPart += "</svg>\n";
+            
+            return `<div id="outer-box">
+<div id="scrollable-box">
+<div id="innard">${arrowPart}${svgPart}${divPart}</div>
+</div>
+</div>`;
+        } catch (error) {
+            return `<div class="error">Error processing canvas: ${this.escapeHtml(error.message)}</div>`;
+        }
+    }
+
+    async processFile(content, fileType) {
+        if (fileType == "canvas") {
+            return [await this.processCanvas(content), []];
+        }
+        else {
+            const headers = this.extractHeadersFromContent(content);
+            const processedContent = await this.processMarkdown(content);
+            
+            console.log('Processed content before marked:', processedContent.substring(0, 500));
+            
+            const htmlContent = marked.parse(processedContent);
+            const processedHTML = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
+            
+            return [processedHTML, headers];
+        }
+    }
+
     unescapeHtml(text) {
         return text
             .replace(/&amp;/g, "&")
@@ -435,6 +549,10 @@ class ObsidianProcessor {
         let target = (fileLinks[fileName] || fileLinks[fileName + '.md'] || '#file-not-found')
             .replace(/\\/g, '/')
             .replace(/\.md$/i, '.html');
+        
+        if (target === '#file-not-found'){
+            console.log(fileName)
+        }
 
         console.log("Target:", target);
 
@@ -455,6 +573,36 @@ class ObsidianProcessor {
         console.log("Relative path:", relativePath);
 
         return relativePath.replace(/ /g, '-');
+    }
+
+    findFileIdByLink(link) {
+        // First try exact match with the link as provided
+        if (fileContentMap[link]) {
+            return fileContentMap[link];
+        }
+        
+        // Try with .md extension if not already present
+        if (!link.includes('.') && fileContentMap[link + '.md']) {
+            return fileContentMap[link + '.md'];
+        }
+        
+        // Search through file properties for matches
+        for (const [fileId, props] of Object.entries(fileProperties)) {
+            if (props.file) {
+                // For non-markdown files, match the full filename including extension
+                if (props.file === link) {
+                    return fileId;
+                }
+                
+                // For markdown files, also try matching without extension
+                const basename = props.file.replace(/\.[^/.]+$/, "");
+                if (basename === link) {
+                    return fileId;
+                }
+            }
+        }
+        
+        return null;
     }
 
     findTableBoundaries(lines, endLine) {
@@ -878,105 +1026,6 @@ class ObsidianProcessor {
     }
 }
 
-class CanvasProcessor extends ObsidianProcessor {
-    async processCanvas(jsonContent) {
-        try {
-            const data = JSON.parse(jsonContent);
-            const nodes = data.nodes || [];
-            const edges = data.edges || [];
-
-            //process nodes
-            const nodesById = {};
-            let divPart = "";
-            let maxX = 0;
-            let maxY = 0;
-
-            for (const node of nodes) {
-                if (!node.id) continue;
-                
-                const x = parseFloat(node.x || 0);
-                const y = parseFloat(node.y || 0);
-                const width = Math.max(parseFloat(node.width || this.canvas_constants.DEFAULT_NODE_WIDTH), this.canvas_constants.MIN_NODE_WIDTH);
-                const height = Math.max(parseFloat(node.height || this.canvas_constants.DEFAULT_NODE_HEIGHT), this.canvas_constants.MIN_NODE_HEIGHT);
-                const text = node.text || "";
-                const color = node.color || "";
-                
-                const divClasses = ["general-boxes"];
-                if (color && typeof color === 'string') {
-                    const sanitized = color.replace(/[^a-zA-Z0-9\-_]/g, '');
-                    if (sanitized) divClasses.push(`color-${sanitized}`);
-                }
-                const leftPos = x + this.canvas_constants.CANVAS_OFFSET_X;
-                const topPos = y + this.canvas_constants.CANVAS_OFFSET_Y;
-                
-                let processedContent = "";
-                if (text) {
-                    try {
-                        const processedMarkdown = await this.processMarkdown(text);
-                        processedContent = marked.parse(processedMarkdown);
-                    } catch (error) {
-                        processedContent = this.escapeHtml(text);
-                    }
-                }
-                
-                divPart += `<div class="${divClasses.join(' ')}" id="${this.escapeHtml(node.id)}" style="left:${leftPos}px;top:${topPos}px;width:${width}px;height:${height}px">\n${processedContent}\n</div>\n`;
-                
-                nodesById[node.id] = {
-                    left: [x, y + height/2],
-                    right: [x + width, y + height/2],
-                    top: [x + width/2, y],
-                    bottom: [x + width/2, y + height]
-                };
-                
-                maxX = Math.max(maxX, x + width);
-                maxY = Math.max(maxY, y + height);
-            }
-            
-
-            //process edges
-            const svgWidth = Math.max(maxX + this.canvas_constants.CANVAS_PADDING, this.canvas_constants.MIN_CANVAS_WIDTH);
-            const svgHeight = Math.max(maxY + this.canvas_constants.CANVAS_PADDING, this.canvas_constants.MIN_CANVAS_HEIGHT);
-            
-            let svgPart = `<svg id="svg" width="${svgWidth}" height="${svgHeight}">\n`;
-            let arrowPart = "";
-            
-            for (const edge of edges) {
-                if (!edge.fromNode || !edge.toNode || !nodesById[edge.fromNode] || !nodesById[edge.toNode]) {
-                    continue;
-                }
-                
-                const fromSide = this.canvas_constants.VALID_SIDES.has(edge.fromSide) ? edge.fromSide : "right";
-                const toSide = this.canvas_constants.VALID_SIDES.has(edge.toSide) ? edge.toSide : "left";
-                
-                const nodeFrom = nodesById[edge.fromNode];
-                const nodeTo = nodesById[edge.toNode];
-                
-                const x1 = nodeFrom[fromSide][0] + this.canvas_constants.CANVAS_OFFSET_X;
-                const y1 = nodeFrom[fromSide][1] + this.canvas_constants.CANVAS_OFFSET_Y;
-                const x2 = nodeTo[toSide][0] + this.canvas_constants.CANVAS_OFFSET_X;
-                const y2 = nodeTo[toSide][1] + this.canvas_constants.CANVAS_OFFSET_Y;
-                
-                svgPart += `<line class="line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>\n`;
-                if (toSide === "left") {
-                    arrowPart += `<i class="arrow ${toSide}" style="left:${x2 - 10}px;top:${y2 - 5}px;"></i>\n`;
-                }
-                else {
-                    arrowPart += `<i class="arrow ${toSide}" style="left:${x2 - 5}px;top:${y2 - 10}px;"></i>\n`;
-                }
-            }
-            svgPart += "</svg>\n";
-            
-            return `<div id="outer-box">
-<div id="scrollable-box">
-<div id="innard">${arrowPart}${svgPart}${divPart}</div>
-</div>
-</div>`;
-        } catch (error) {
-            return `<div class="error">Error processing canvas: ${this.escapeHtml(error.message)}</div>`;
-        }
-    }
-}
-
 class BaseProcessor extends ObsidianProcessor {
     async processBase(yamlContent) {
         try {
@@ -990,10 +1039,203 @@ class BaseProcessor extends ObsidianProcessor {
             const viewType = data.views[0].type;
             console.log('Processing view type:', viewType);
             
+            const props = {};
+            if (data.properties) {
+                for (const key in data.properties) {
+                    props[key] = data.properties[key].displayName || key;
+                }
+            } else {
+                if (data.views && data.views[0]) {
+                    const view = data.views[0];
+                    if (view.order) {
+                        for (const prop of view.order) {
+                            if (prop === 'file.name') props[prop] = 'Name';
+                            if (prop === 'file.folder') props[prop] = 'Folder';
+                            if (prop === 'file.path') props[prop] = 'Path';
+                            if (prop === 'file.ext') props[prop] = 'Extension';
+                            if (prop === 'file.basename') props[prop] = 'Basename';
+                            else props[prop] = prop.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        }
+                    }
+                }
+            }
+            const allFileIds = Object.keys(fileProperties);
+            console.log('All file IDs:', allFileIds.length);
+            
+            const allLinks = [];
+            const seenLinks = new Set();
+            
+            for (const fileId of allFileIds) {
+                const fileProps = fileProperties[fileId];
+                if (fileProps && fileProps.path) {
+                    // For non-markdown files, keep the extension
+                    let filename;
+                    if (fileProps.file && fileProps.ext && 
+                        !['md', 'canvas', 'base'].includes(fileProps.ext.toLowerCase())) {
+                        // Keep extension for non-markdown files
+                        filename = fileProps.file;
+                    } else {
+                        // Remove extension for markdown files
+                        filename = fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : fileProps.path.split('/').pop().replace(/\.[^/.]+$/, "");
+                    }
+                    
+                    if (!seenLinks.has(filename)) {
+                        seenLinks.add(filename);
+                        allLinks.push(filename);
+                    }
+                }
+            }
+            
+            console.log('All links before filtering (deduplicated):', allLinks);
+            
+            let filteredLinks = allLinks;
+            if (data.views && data.views[0] && data.views[0].filters) {
+                const filters = data.views[0].filters;
+                
+                filteredLinks = allLinks.filter(link => {
+                    let include = true;
+                    
+                    if (filters.and) {
+                        for (const filter of filters.and) {
+                            const result = this.evaluateFilter(filter, link);
+                            console.log(`Filter "${filter}" on "${link}":`, result);
+                            include = include && result;
+                        }
+                    }
+                    
+                    return include;
+                });
+            }
+            
+            console.log('Filtered links:', filteredLinks);
+            
+            const sortRules = data.views[0].sort || [];
+            
+            const sortedLinks = filteredLinks.sort((a, b) => {
+                for (const rule of sortRules) {
+                    const prop = rule.property;
+                    const isAscending = rule.direction === 'ASC';
+                    
+                    let aVal = this.getSortValue(a, prop);
+                    let bVal = this.getSortValue(b, prop);
+                    
+                    if ((aVal === null || aVal === undefined || aVal === '') && 
+                        (bVal === null || bVal === undefined || bVal === '')) {
+                        continue;
+                    }
+                    if (aVal === null || aVal === undefined || aVal === '') {
+                        return isAscending ? 1 : -1;
+                    }
+                    if (bVal === null || bVal === undefined || bVal === '') {
+                        return isAscending ? -1 : 1;
+                    }
+                    
+                    const aNum = parseFloat(aVal);
+                    const bNum = parseFloat(bVal);
+                    const aIsNum = !isNaN(aNum) && isFinite(aNum);
+                    const bIsNum = !isNaN(bNum) && isFinite(bNum);
+                    
+                    let comparison = 0;
+                    
+                    if (aIsNum && bIsNum) {
+                        comparison = aNum - bNum;
+                    } else {
+                        const aStr = String(aVal).toLowerCase();
+                        const bStr = String(bVal).toLowerCase();
+                        comparison = aStr.localeCompare(bStr);
+                    }
+                    
+                    if (comparison !== 0) {
+                        return isAscending ? comparison : -comparison;
+                    }
+                }
+                
+                return 0;
+            });
+
+            const viewConfig = data.views ? data.views[0] : {};
+            
+            console.log('Props:', props);
+            console.log('Sorted links:', sortedLinks);
+            
             if (viewType === "table") {
-                return await this.processTable(data);
+                if (sortedLinks.length === 0) {
+                    return '<div class="info">No files match the specified filters</div>';
+                }
+                
+                let propOrder = Object.keys(props);
+                if (data.views && viewConfig && viewConfig.order) {
+                    propOrder = viewConfig.order;
+                }
+                
+                let tableHtml = '<table>\n<thead>\n<tr>\n';
+                
+                for (const key of propOrder) {
+                    if (props[key]) {
+                        tableHtml += `<th>${this.escapeHtml(props[key])}</th>\n`;
+                    }
+                }
+                tableHtml += '</tr>\n</thead>\n<tbody>\n';
+                
+                for (const link of sortedLinks) {
+                    tableHtml += '<tr>\n';
+                    for (const key of propOrder) {
+                        if (props[key]) {
+                            const value = await this.getPropertyValue(link, key);
+                            tableHtml += `<td>${value}</td>\n`;
+                        }
+                    }
+                    tableHtml += '</tr>\n';
+                }
+                
+                tableHtml += '</tbody>\n</table>\n';
+                return tableHtml;
             } else if (viewType === "cards") {
-                return await this.processCards(data);
+                
+                if (sortedLinks.length === 0) {
+                    return '<div class="info">No files match the specified filters</div>';
+                }
+                
+                let cardsHtml = '<div class="cards-container">\n';
+                
+                for (const link of sortedLinks) {
+                    const fileLink = this.getLinkHref(link);
+                    
+                    cardsHtml += `<div class="card" data-href="${fileLink}">\n`;
+                    cardsHtml += '<div class="card-content">\n';
+                    
+                    if (viewConfig.image) {
+                        const imageValue = await this.getPropertyValue(link, viewConfig.image);
+                        if (imageValue && !imageValue.includes('<a href')) {
+                            const imageFit = viewConfig.imageFit || 'cover';
+                            cardsHtml += `<div class="card-image">\n`;
+                            cardsHtml += `<img src="${imageValue}" alt="${this.escapeHtml(link)}" style="object-fit: ${imageFit};" />\n`;
+                            cardsHtml += `</div>\n`;
+                        }
+                        else {
+                            cardsHtml += `<div class="card-image">\n</div>`
+                        }
+                    }
+                    
+                    cardsHtml += `<h3 class="card-title"><a href="${fileLink}">${this.escapeHtml(link)}</a></h3>\n`;
+                    
+                    for (const propKey in props) {
+                        if (propKey !== 'file.name' && propKey !== viewConfig.image) {
+                            const propValue = await this.getPropertyValue(link, propKey);
+                            if (propValue) {
+                                cardsHtml += `<div class="card-property">\n`;
+                                cardsHtml += `<span class="property-label">${this.escapeHtml(props[propKey])}:</span>\n`;
+                                cardsHtml += `<span class="property-value">${propValue}</span>\n`;
+                                cardsHtml += `</div>\n`;
+                            }
+                        }
+                    }
+                    
+                    cardsHtml += '</div>\n</div>\n';
+                }
+                
+                cardsHtml += '</div>\n';
+                return cardsHtml;
             }
             
             return '<div class="error">Unsupported view type</div>';
@@ -1001,174 +1243,6 @@ class BaseProcessor extends ObsidianProcessor {
             console.error('Base processing error:', error);
             return `<div class="error">Error processing base: ${this.escapeHtml(error.message)}</div>`;
         }
-    }
-
-    async processTable(data) {
-        const props = this.getProps(data);
-        const filteredLinks = this.getFilteredLinks(data);
-        
-        console.log('Props:', props);
-        console.log('Filtered links:', filteredLinks);
-        
-        if (filteredLinks.length === 0) {
-            return '<div class="info">No files match the specified filters</div>';
-        }
-        
-        let propOrder = Object.keys(props);
-        if (data.views && data.views[0] && data.views[0].order) {
-            propOrder = data.views[0].order;
-        }
-        
-        let tableHtml = '<table>\n<thead>\n<tr>\n';
-        
-        for (const key of propOrder) {
-            if (props[key]) {
-                tableHtml += `<th>${this.escapeHtml(props[key])}</th>\n`;
-            }
-        }
-        tableHtml += '</tr>\n</thead>\n<tbody>\n';
-        
-        for (const link of filteredLinks) {
-            tableHtml += '<tr>\n';
-            for (const key of propOrder) {
-                if (props[key]) {
-                    const value = await this.getPropertyValue(link, key);
-                    tableHtml += `<td>${value}</td>\n`;
-                }
-            }
-            tableHtml += '</tr>\n';
-        }
-        
-        tableHtml += '</tbody>\n</table>\n';
-        return tableHtml;
-    }
-
-    async processCards(data) {
-        const props = this.getProps(data);
-        const filteredLinks = this.getFilteredLinks(data);
-        const viewConfig = data.views[0];
-        
-        console.log('Cards - Props:', props);
-        console.log('Cards - Filtered links:', filteredLinks);
-        
-        if (filteredLinks.length === 0) {
-            return '<div class="info">No files match the specified filters</div>';
-        }
-        
-        let cardsHtml = '<div class="cards-container">\n';
-        
-        for (const link of filteredLinks) {
-            const fileLink = this.getFileLinkHref(link);
-            
-            cardsHtml += `<div class="card" data-href="${fileLink}">\n`;
-            cardsHtml += '<div class="card-content">\n';
-            
-            if (viewConfig.image) {
-                const imageValue = await this.getPropertyValue(link, viewConfig.image);
-                if (imageValue && !imageValue.includes('<a href')) {
-                    const imageFit = viewConfig.imageFit || 'cover';
-                    cardsHtml += `<div class="card-image">\n`;
-                    cardsHtml += `<img src="${imageValue}" alt="${this.escapeHtml(link)}" style="object-fit: ${imageFit};" />\n`;
-                    cardsHtml += `</div>\n`;
-                }
-                else {
-                    cardsHtml += `<div class="card-image">\n</div>`
-                }
-            }
-            
-            cardsHtml += `<h3 class="card-title"><a href="${fileLink}">${this.escapeHtml(link)}</a></h3>\n`;
-            
-            for (const propKey in props) {
-                if (propKey !== 'file.name' && propKey !== viewConfig.image) {
-                    const propValue = await this.getPropertyValue(link, propKey);
-                    if (propValue) {
-                        cardsHtml += `<div class="card-property">\n`;
-                        cardsHtml += `<span class="property-label">${this.escapeHtml(props[propKey])}:</span>\n`;
-                        cardsHtml += `<span class="property-value">${propValue}</span>\n`;
-                        cardsHtml += `</div>\n`;
-                    }
-                }
-            }
-            
-            cardsHtml += '</div>\n</div>\n';
-        }
-        
-        cardsHtml += '</div>\n';
-        return cardsHtml;
-    }
-
-    getFilteredLinks(data) {
-        const allFileIds = Object.keys(fileProperties);
-        console.log('All file IDs:', allFileIds.length);
-        
-        const allLinks = [];
-        const seenLinks = new Set();
-        
-        for (const fileId of allFileIds) {
-            const fileProps = fileProperties[fileId];
-            if (fileProps && fileProps.path) {
-                const filename = fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : fileProps.path.split('/').pop().replace(/\.[^/.]+$/, "");
-                
-                if (!seenLinks.has(filename)) {
-                    seenLinks.add(filename);
-                    allLinks.push(filename);
-                }
-            }
-        }
-        
-        console.log('All links before filtering (deduplicated):', allLinks);
-        
-        let filteredLinks = allLinks;
-        if (data.views && data.views[0] && data.views[0].filters) {
-            const filters = data.views[0].filters;
-            
-            filteredLinks = allLinks.filter(link => {
-                let include = true;
-                
-                if (filters.and) {
-                    for (const filter of filters.and) {
-                        const result = this.evaluateFilter(filter, link);
-                        console.log(`Filter "${filter}" on "${link}":`, result);
-                        include = include && result;
-                    }
-                }
-                
-                return include;
-            });
-        }
-        
-        console.log('Filtered links:', filteredLinks);
-        
-        return this.sortLinks(data, filteredLinks);
-    }
-
-    getProps(data) {
-        const props = {};
-        if (data.properties) {
-            for (const key in data.properties) {
-                props[key] = data.properties[key].displayName || key;
-            }
-        } else {
-            if (data.views && data.views[0]) {
-                const view = data.views[0];
-                if (view.order) {
-                    for (const prop of view.order) {
-                        props[prop] = this.formatPropertyName(prop);
-                    }
-                }
-            }
-        }
-        return props;
-    }
-
-    formatPropertyName(propKey) {
-        if (propKey === 'file.name') return 'Name';
-        if (propKey === 'file.folder') return 'Folder';
-        if (propKey === 'file.path') return 'Path';
-        if (propKey === 'file.ext') return 'Extension';
-        if (propKey === 'file.basename') return 'Basename';
-        
-        return propKey.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
     }
 
     async getPropertyValue(link, propKey) {
@@ -1185,7 +1259,7 @@ class BaseProcessor extends ObsidianProcessor {
         }
         
         if (propKey === 'file.name') {
-            const targetLink = this.getFileLinkHref(link);
+            const targetLink = this.getLinkHref(link);
             return `<a href="${targetLink}">${this.escapeHtml(link)}</a>`;
         }
         
@@ -1263,64 +1337,16 @@ class BaseProcessor extends ObsidianProcessor {
         return processedContent;
     }
 
-    findFileIdByLink(link) {
-        if (fileContentMap[link]) {
-            return fileContentMap[link];
-        }
-        
-        for (const [fileId, props] of Object.entries(fileProperties)) {
-            if (props.file) {
-                const basename = props.file.replace(/\.[^/.]+$/, "");
-                if (basename === link) {
-                    return fileId;
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    getFileLinkHref(filename) {
-        let target = (fileLinks[filename] || fileLinks[filename + '.md'] || '#file-not-found')
-            .replace(/\\/g, '/')
-            .replace(/\.md$/i, '.html');
-
-        if (target === '#file-not-found') {
-            return '#';
-        }
-
-        const article = document.querySelector("article");
-        const attributeValue = article.getAttribute('data-current-file');
-        let relCurParts = attributeValue.replace(/\\/g, '/').replace(' ', '-').toLowerCase().split('/').slice(0, -1);
-
-        let relTgtParts = target.split('/').filter(Boolean);
-
-        let i = 0;
-        while (i < relCurParts.length && i < relTgtParts.length && relCurParts[i] === relTgtParts[i]) {
-            i++;
-        }
-
-        const relativePath = [...Array(relCurParts.length - i).fill('..'), ...relTgtParts.slice(i)].join('/');
-
-        return relativePath.replace(/ /g, '-');
-    }
-
     evaluateFilter(filter, link) {
         const fileId = this.findFileIdByLink(link);
+        const fileProps = fileId ? fileProperties[fileId] : "";
         if (!fileId) {
             console.log(`No file ID for link ${link} in filter evaluation`);
             return false;
-        }
-        
-        const fileProps = fileProperties[fileId];
-        if (!fileProps) {
+        } else if (!fileProps) {
             console.log(`No file properties for ID ${fileId} in filter evaluation`);
             return false;
-        }
-        
-        console.log(`Evaluating filter "${filter}" for file:`, fileProps);
-        
-        if (filter.includes('.startsWith(')) {
+        } else if (filter.includes('.startsWith(')) {
             const match = filter.match(/^(.+)\.startsWith\(["'](.+)["']\)$/);
             if (match) {
                 const [, property, value] = match;
@@ -1336,9 +1362,7 @@ class BaseProcessor extends ObsidianProcessor {
                 }
             }
             return false;
-        }
-        
-        if (filter.includes(' == ')) {
+        } else if (filter.includes(' == ')) {
             const [pre, post] = filter.split(' == ');
             const expectedValue = post.replace(/^["']|["']$/g, '');
             
@@ -1358,9 +1382,7 @@ class BaseProcessor extends ObsidianProcessor {
                 console.log(`  note.${pre} "${actualValue}" == "${expectedValue}":`, result);
                 return result;
             }
-        }
-        
-        if (filter.includes(' != ')) {
+        } else if (filter.includes(' != ')) {
             const [pre, post] = filter.split(' != ');
             const expectedValue = post.replace(/^["']|["']$/g, '');
             
@@ -1380,60 +1402,10 @@ class BaseProcessor extends ObsidianProcessor {
                 console.log(`  note.${pre} "${actualValue}" != "${expectedValue}":`, result);
                 return result;
             }
+        } else {
+            console.log(`  Unknown filter format: "${filter}"`);
+            return true;
         }
-        
-        console.log(`  Unknown filter format: "${filter}"`);
-        return true;
-    }
-
-    sortLinks(data, links) {
-        if (!data.views || !data.views[0] || !data.views[0].sort) {
-            return links;
-        }
-        
-        const sortRules = data.views[0].sort;
-        
-        return links.sort((a, b) => {
-            for (const rule of sortRules) {
-                const prop = rule.property;
-                const isAscending = rule.direction === 'ASC';
-                
-                let aVal = this.getSortValue(a, prop);
-                let bVal = this.getSortValue(b, prop);
-                
-                if ((aVal === null || aVal === undefined || aVal === '') && 
-                    (bVal === null || bVal === undefined || bVal === '')) {
-                    continue;
-                }
-                if (aVal === null || aVal === undefined || aVal === '') {
-                    return isAscending ? 1 : -1;
-                }
-                if (bVal === null || bVal === undefined || bVal === '') {
-                    return isAscending ? -1 : 1;
-                }
-                
-                const aNum = parseFloat(aVal);
-                const bNum = parseFloat(bVal);
-                const aIsNum = !isNaN(aNum) && isFinite(aNum);
-                const bIsNum = !isNaN(bNum) && isFinite(bNum);
-                
-                let comparison = 0;
-                
-                if (aIsNum && bIsNum) {
-                    comparison = aNum - bNum;
-                } else {
-                    const aStr = String(aVal).toLowerCase();
-                    const bStr = String(bVal).toLowerCase();
-                    comparison = aStr.localeCompare(bStr);
-                }
-                
-                if (comparison !== 0) {
-                    return isAscending ? comparison : -comparison;
-                }
-            }
-            
-            return 0;
-        });
     }
 
     getSortValue(link, property) {
@@ -1505,7 +1477,6 @@ async function renderContent() {
     const article = document.querySelector("article");
 
     const processor = new ObsidianProcessor();
-    const canvasProcessor = new CanvasProcessor();
     const baseProcessor = new BaseProcessor();
 
     try {
@@ -1513,25 +1484,18 @@ async function renderContent() {
         const attributeValue = article.getAttribute('data-current-file');
         const content = getFile(attributeValue);
         let processedHTML = ''
+        let headers = []
         
-        if (fileType === "canvas") {
-            processedHTML = await canvasProcessor.processCanvas(content);
-        } else if (fileType === "base") {
+        if (fileType === "base") {
             processedHTML = await baseProcessor.processBase(content);
         } else {
-            const headers = processor.extractHeadersFromContent(content);
-            const processedContent = await processor.processMarkdown(content);
-            
-            console.log('Processed content before marked:', processedContent.substring(0, 500));
-            
-            const htmlContent = marked.parse(processedContent);
-            processedHTML = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
-            
-            if (headers.length > 0) {
-                const tocHtml = processor.buildTableOfContents(headers);
-                document.getElementById('toc-content').innerHTML = tocHtml;
-                document.getElementById('table-of-contents').style.removeProperty('display');
-            }
+            [processedHTML, headers] = await processor.processFile(content, fileType);;
+        }
+
+        if (headers.length > 0) {
+            const tocHtml = processor.buildTableOfContents(headers);
+            document.getElementById('toc-content').innerHTML = tocHtml;
+            document.getElementById('table-of-contents').style.removeProperty('display');
         }
         document.getElementById("navbar").innerHTML = processor.generateFileTreeHTML();
         article.innerHTML = processedHTML
