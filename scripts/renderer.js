@@ -647,7 +647,7 @@ class ObsidianProcessor {
             footnotesHtml = '<div class="transclusion-footnotes"><hr class="footnote-separator"><ol class="footnote-list">';
             for (const [id, text] of Object.entries(footnotes)) {
                 const uniqueId = `${transclusionId}-${id}`;
-                footnotesHtml += `<li id="fn-${uniqueId}">${text} <a href="#fnref-${uniqueId}" class="footnote-backref">&#8617;</a></li>`;
+                footnotesHtml += `<li id="fn-${uniqueId}">${text} <a href="#fnref-${uniqueId}" class="footnote-backref">↩</a></li>`;
             }
             footnotesHtml += '</ol></div>';
         }
@@ -1226,7 +1226,7 @@ class ObsidianProcessor {
         if (Object.keys(footnotes).length > 0) {
             let footnotesHtml = '<div class="footnotes"><hr><ol>';
             for (const [id, text] of Object.entries(footnotes)) {
-                footnotesHtml += `<li id="fn-${id}">${text} <a href="#fnref-${id}" class="footnote-backref">&#8617;</a></li>`;
+                footnotesHtml += `<li id="fn-${id}">${text} <a href="#fnref-${id}" class="footnote-backref">↩</a></li>`;
             }
             footnotesHtml += '</ol></div>';
             processedContent += footnotesHtml;

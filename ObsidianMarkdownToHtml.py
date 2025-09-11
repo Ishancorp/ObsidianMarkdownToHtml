@@ -183,7 +183,7 @@ class ObsidianMarkdownToHtml:
         html = f"""<!DOCTYPE html>
     <html>
     <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
         <title>{title}</title>
         <link rel="preconnect" href="https://rsms.me/">
         <link rel="preconnect" href="https://rsms.me/inter/inter.css">
@@ -197,7 +197,7 @@ class ObsidianMarkdownToHtml:
                 <button popovertarget="navbar" popovertargetaction="toggle"><i data-lucide="align-justify"></i></button>
                 <div id="navbar" popover></div>
                 <button popovertarget="searchbar" popovertargetaction="toggle"><i data-lucide="search"></i></button>
-                <div id="searchbar" popover><input type="text" id="searchInput" onkeyup="searchForArticle()" placeholder="Search.."></div>
+                <div id="searchbar" popover></div>
             </span>
             <p class="top-bar">{(data_current_file.split('.')[0] + '.html' if data_current_file.split('.')[-1] == "md" else data_current_file + '.html').replace("\\", "<span class=\"file-link\"> > </span>")}</p>
             <button popovertarget="table-of-contents" popovertargetaction="toggle"><i data-lucide="table-of-contents"></i></button>
@@ -253,14 +253,6 @@ class ObsidianMarkdownToHtml:
     </body>
     </html>"""
         return html
-
-    def escape_html(self, text):
-        """Escape HTML special characters in markdown content"""
-        return (text.replace('&', '&amp;')
-                .replace('<', '&lt;')
-                .replace('>', '&gt;')
-                .replace('"', '&quot;')
-                .replace("'", '&#x27;'))
 
     def get_current_date(self):
         """Get current date formatted"""
