@@ -5,7 +5,6 @@ import uuid
 from python_segments.FileManager import FileManager
 import json
 import yaml
-import re
 
 class ObsidianMarkdownToHtml:
     def __init__(self, in_directory, out_directory):
@@ -22,7 +21,13 @@ class ObsidianMarkdownToHtml:
 
         self.write_renderer()
 
-    def make_offset(self, offset):
+    def make_offset(self, file_path):
+        if file_path.startswith('.\\') or file_path.startswith('./'):
+            clean_path = file_path[2:]
+        else:
+            clean_path = file_path
+        offset = clean_path.count('/') + clean_path.count('\\')
+
         if offset == 0:
             return '.'
         elif offset == 1:
@@ -146,46 +151,18 @@ class ObsidianMarkdownToHtml:
                     print(f"  Conflicting files: {[item[0] for item in file_list]}")
                     print(f"  Access other files using their full names with extensions.")
 
-    def calculate_file_depth(self, file_path):
-        """Calculate the correct depth/offset for a file"""
-        if file_path.startswith('.\\') or file_path.startswith('./'):
-            clean_path = file_path[2:]
-        else:
-            clean_path = file_path
-        
-        depth = clean_path.count('/') + clean_path.count('\\')
-        return depth
-
-    def process_markdown_for_client_side(self, content):
-        """Basic markdown preprocessing - transclusions will be handled client-side"""
-        if content.startswith('---\n'):
-            end_idx = content.find('\n---\n', 4)
-            if end_idx != -1:
-                content = content[end_idx + 5:]
-        
-        return content.strip()
-
-    def build_html_with_raw_markdown(self, title, offset, file_path, type="md"):
+    def build_html_with_raw_markdown(self, title, offset, data_current_file, type="md"):
         """Build HTML page with raw markdown that will be processed by marked.js"""
-        
-        json_script = ""
-        if type == "canvas":
-            try:
-                json_script = f'<script src="{self.make_offset(offset)}\\canvas.js"></script>'
-            except:
-                pass
 
-        data_current_file = file_path[2:]
-
-        html = f"""<!DOCTYPE html>
+        return f"""<!DOCTYPE html>
     <html>
     <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
         <title>{title}</title>
         <link rel="preconnect" href="https://rsms.me/">
         <link rel="preconnect" href="https://rsms.me/inter/inter.css">
-        <link rel="stylesheet" href="{self.make_offset(offset)}\\style.css">
-        {f'<link rel="stylesheet" href="{self.make_offset(offset)}\\canvas.css">' if type == "canvas" else ''}
+        <link rel="stylesheet" href="{offset}\\style.css">
+        {f'<link rel="stylesheet" href="{offset}\\canvas.css">' if type == "canvas" else ''}
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     </head>
     <body>
@@ -206,9 +183,9 @@ class ObsidianMarkdownToHtml:
             <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
             <p>Last updated on {self.get_current_date()}</p>
         </footer>
-        <script src="{self.make_offset(offset)}\\renderer.js"></script>
-        <script src="{self.make_offset(offset)}\\searcher.js"></script>
-        {json_script}
+        <script src="{offset}\\renderer.js"></script>
+        <script src="{offset}\\searcher.js"></script>
+        {f'<script src="{offset}\\canvas.js"></script>' if type == "canvas" else ''}
         <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script>
             MathJax = {{
@@ -249,7 +226,6 @@ class ObsidianMarkdownToHtml:
         </script>
     </body>
     </html>"""
-        return html
 
     def get_current_date(self):
         """Get current date formatted"""
@@ -259,7 +235,7 @@ class ObsidianMarkdownToHtml:
     def compile_webpages(self):
         """Compile all files (.md, .canvas, .base) to HTML - unified pipeline with client-side processing"""
         for file in self.files:
-            offset = self.calculate_file_depth(file)
+            offset = self.make_offset(file)
             parts = file.rsplit(".", 1)
             if len(parts) != 2:
                 continue
@@ -292,7 +268,7 @@ class ObsidianMarkdownToHtml:
                 html_content = self.build_html_with_raw_markdown(
                     title=file_name,
                     offset=offset,
-                    file_path=current_file_identifier,
+                    data_current_file=current_file_identifier[2:],
                     type=extension
                 )
 

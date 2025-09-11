@@ -1267,18 +1267,61 @@ class ObsidianProcessor {
                     }
                 }
 
-                if (!alreadyProcessed && contentStart < processedLines.length) {
-                    processedLines[contentStart] = `<span class="anchor" id="^${blockId}"></span>${processedLines[contentStart]}`;
-                } else if (!alreadyProcessed && contentStart === processedLines.length) {
-                    processedLines.push(`<span class="anchor" id="^${blockId}"></span>${lineWithoutRef}`);
+                if (!alreadyProcessed) {
+                    if (lineWithoutRef.trim().includes('|') && contentStart < processedLines.length) {
+                        processedLines[contentStart] = `<div><span class="anchor" id="^${blockId}"></span></div>\n\n${processedLines[contentStart]}`;
+                    }
+                    else if (contentStart === processedLines.length) {
+                        processedLines.push(`<div><span class="anchor" id="^${blockId}"></span></div>\n\n${lineWithoutRef}`);
+                    }
+                    else if (contentStart < processedLines.length) {
+                        processedLines[contentStart] = `<div><span class="anchor" id="^${blockId}"></span></div>\n\n${processedLines[contentStart]}`;
+                        if (contentStart !== i) {
+                            processedLines.push(lineWithoutRef);
+                        }
+                    }
                 } else {
                     processedLines.push(lineWithoutRef);
                 }
-
-                if (contentStart !== i && !alreadyProcessed) {
-                    processedLines.push(lineWithoutRef);
-                }
             } else {
+                const standaloneMatch = line.match(/^\s*\^([a-zA-Z0-9]{6})\s*$/);
+                if (standaloneMatch) {
+                    const blockId = standaloneMatch[1];
+                    
+                    let contentEnd = i - 1;
+                    while (contentEnd >= 0 && !lines[contentEnd].trim()) {
+                        contentEnd--;
+                    }
+
+                    if (contentEnd >= 0) {
+                        let contentStart, contentEndFinal;
+                        const lastContentLine = lines[contentEnd].trim();
+
+                        if (lastContentLine.includes('|')) {
+                            [contentStart, contentEndFinal] = this.findTableBoundaries(lines, contentEnd);
+                        } else if (this.isListItem(lastContentLine)) {
+                            [contentStart, contentEndFinal] = this.findListBoundaries(lines, contentEnd);
+                        } else if (lines[contentEnd].trim() === '```') {
+                            [contentStart, contentEndFinal] = this.findCodeBlockBoundaries(lines, contentEnd);
+                        } else {
+                            [contentStart, contentEndFinal] = this.findParagraphBoundaries(lines, contentEnd);
+                        }
+
+                        let alreadyProcessed = false;
+                        for (let j = contentStart; j <= Math.min(contentEndFinal, processedLines.length - 1); j++) {
+                            if (processedLines[j]?.includes(`id="^${blockId}"`)) {
+                                alreadyProcessed = true;
+                                break;
+                            }
+                        }
+
+                        if (!alreadyProcessed && contentStart < processedLines.length) {
+                            processedLines[contentStart] = `<div><span class="anchor" id="^${blockId}"></span></div>\n\n${processedLines[contentStart]}`;
+                        }
+                    }
+                    continue;
+                }
+                
                 processedLines.push(line);
             }
         }
