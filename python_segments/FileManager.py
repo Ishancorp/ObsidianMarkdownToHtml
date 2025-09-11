@@ -9,6 +9,7 @@ class FileManager:
     def __init__(self, in_directory, out_directory):
         self.files = [
             ("styles/omth.css", "style.css"),
+            ("styles/json_canvas.css", "canvas.css"),
             ("scripts/json_canvas.js", "canvas.js"),
             ("scripts/searcher.js", "searcher.js")
         ]

@@ -168,12 +168,9 @@ class ObsidianMarkdownToHtml:
     def build_html_with_raw_markdown(self, title, offset, file_path, type="md"):
         """Build HTML page with raw markdown that will be processed by marked.js"""
         
-        json_styles = ""
         json_script = ""
         if type == "canvas":
             try:
-                with open("styles/json_canvas.css") as json_stylesheet:
-                    json_styles = f"<style>{json_stylesheet.read()}</style>"
                 json_script = f'<script src="{self.make_offset(offset)}\\canvas.js"></script>'
             except:
                 pass
@@ -188,7 +185,7 @@ class ObsidianMarkdownToHtml:
         <link rel="preconnect" href="https://rsms.me/">
         <link rel="preconnect" href="https://rsms.me/inter/inter.css">
         <link rel="stylesheet" href="{self.make_offset(offset)}\\style.css">
-        {json_styles}
+        {f'<link rel="stylesheet" href="{self.make_offset(offset)}\\canvas.css">' if type == "canvas" else ''}
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     </head>
     <body>
