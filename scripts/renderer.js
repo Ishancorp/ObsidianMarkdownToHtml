@@ -610,7 +610,7 @@ class ObsidianProcessor {
 
         for (const match of matches) {
             const fullMatch = match[0];
-            const link = match[1];
+            const link = match[1].split('|')[0];
             const matchStart = match.index + totalOffset;
             const matchEnd = matchStart + fullMatch.length;
 
@@ -689,6 +689,8 @@ class ObsidianProcessor {
         }
 
         let originalFileContent = this.findFileContent(fileName);
+        let fileType = this.getFileType(fileName);
+        
         if (!originalFileContent) {
             console.log('File not found:', fileName);
             return `> File not found: ${link}`;
@@ -701,36 +703,76 @@ class ObsidianProcessor {
 
         this.processing_files.add(fileName);
 
-        let fileContent;
-        if (section) {
-            fileContent = this.extractSectionWithFootnotes(originalFileContent, section);
-            if (!fileContent) {
-                console.log('Section not found:', section, 'in file:', fileName);
-                this.processing_files.delete(fileName);
-                return `> Section not found: ${link}`;
+        let processedContent;
+        let footnotesHtml = '';
+
+        try {
+            if (fileType === 'canvas') {
+                processedContent = await this.processCanvas(originalFileContent);
+            } else if (fileType === 'base') {
+                processedContent = await this.processBase(originalFileContent);
+            } else {
+                let fileContent;
+                if (section) {
+                    fileContent = this.extractSectionWithFootnotes(originalFileContent, section);
+                    if (!fileContent) {
+                        console.log('Section not found:', section, 'in file:', fileName);
+                        this.processing_files.delete(fileName);
+                        return `> Section not found: ${link}`;
+                    }
+                } else {
+                    fileContent = originalFileContent;
+                }
+
+                const { content: contentWithoutFootnotes, footnotesHtml: footnotes } = 
+                    this.processTransclusionFootnotes(fileContent, fileName);
+                footnotesHtml = footnotes;
+
+                processedContent = await this.processTransclusions(contentWithoutFootnotes, fileName);
             }
-        } else {
-            fileContent = originalFileContent;
+
+            this.processing_files.delete(fileName);
+
+            if (fileType === 'canvas' || fileType === 'base') {
+                const headerHtml = `<span class="transcl-bar"><span><strong>${section ? `${fileName} <span class="file-link">></span> ${section}` : `${fileName}`}</strong></span> <span class="goto">[[${link}|>>]]</span></span>`;
+                
+                return `\n\n<blockquote class="transclusion">
+    <div class="transclusion-header">${headerHtml}</div>
+    <div class="transclusion-content">${processedContent}</div>
+    </blockquote>\n\n`;
+            } else {
+                const lines = processedContent.split('\n');
+                const blockquote = lines.map(line => line.trim() ? `> ${line}` : '>').join('\n');
+
+                let result = `\n\n> <span class="transcl-bar"><span>${section ? `**${fileName}** <span class="file-link">></span> **${section}**` : `**${fileName}**`}</span> <span class="goto">[[${link}|>>]]</span></span>\n>\n${blockquote}`;
+
+                if (footnotesHtml) {
+                    result += `\n>\n> ${footnotesHtml.replace(/\n/g, '\n> ')}`;
+                }
+
+                result += '\n\n';
+                return result;
+            }
+
+        } catch (error) {
+            this.processing_files.delete(fileName);
+            console.error('Error processing transclusion:', error);
+            return `> Error processing ${link}: ${error.message}`;
         }
+    }
 
-        const { content: contentWithoutFootnotes, footnotesHtml } = this.processTransclusionFootnotes(fileContent, fileName);
-
-        const processedContent = await this.processTransclusions(contentWithoutFootnotes, fileName);
-
-        this.processing_files.delete(fileName);
-
-        const lines = processedContent.split('\n');
-        const blockquote = lines.map(line => line.trim() ? `> ${line}` : '>').join('\n');
-
-        let result = `\n\n> <span class="transcl-bar"><span>${section ? `**${fileName}** <span class="file-link">></span> **${section}**` : `**${fileName}**`}</span> <span class="goto">[[${link}|>>]]</span></span>\n>\n${blockquote}`;
-
-        if (footnotesHtml) {
-            result += `\n>\n> ${footnotesHtml.replace(/\n/g, '\n> ')}`;
+    getFileType(fileName) {
+        const fileId = this.findFileIdByLink(fileName);
+        if (fileId && fileProperties[fileId]) {
+            const ext = fileProperties[fileId].ext;
+            if (ext === 'canvas') return 'canvas';
+            if (ext === 'base') return 'base';
+            if (ext === 'md') return 'markdown';
         }
-
-        result += '\n\n';
-
-        return result;
+        
+        if (fileName.endsWith('.canvas')) return 'canvas';
+        if (fileName.endsWith('.base')) return 'base';
+        return 'markdown';
     }
 
     processImageTransclusion(imageLink) {
