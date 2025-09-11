@@ -580,15 +580,6 @@ class ObsidianProcessor {
         return noteValue || '';
     }
 
-    unescapeHtml(text) {
-        return text
-            .replace(/&amp;/g, "&")
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .replace(/&quot;/g, '"')
-            .replace(/&#x27;/g, "'");
-    }
-
     async processTransclusions(content, currentFile = null) {
         if (this.transclusion_depth >= this.max_transclusion_depth) {
             console.log('Max transclusion depth reached');
