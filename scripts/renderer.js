@@ -1495,12 +1495,27 @@ class ObsidianProcessor {
 
 function slugify(text) {
     if (!text) return '';
-    return text.normalize('NFKD').replace(/[\u0300-\u036f]/g, '') // Normalize accented chars (NFKD), remove diacritics
-    .trim().toLowerCase() // Trim, lowercase
-    .replace(/[^a-z0-9 \-()†]/g, '') // Remove characters that are not alphanumeric, space, or hyphen
-    .replace(/\s+/g, '-') // Replace spaces (one or more) with a hyphen
-    .replace(/-+/g, '-') // Collapse multiple hyphens
-    .replace(/^-+/, '').replace(/-+$/, ''); // Remove leading/trailing hyphens
+    
+    // Strip HTML tags first
+    const cleanText = text.replace(/<[^>]*>/g, '');
+    
+    // Strip markdown formatting
+    const noMarkdown = cleanText
+        .replace(/\*\*(.*?)\*\*/g, '$1')  // Remove bold **text**
+        .replace(/\*(.*?)\*/g, '$1')      // Remove italic *text*
+        .replace(/\[(.*?)\]\([^)]*\)/g, '$1')  // Remove links [text](url)
+        .replace(/\[\[([^\]|]+)(\|[^\]]*)?\]\]/g, '$1');  // Remove wikilinks [[text|alias]]
+    
+    return noMarkdown
+        .normalize('NFKD')               // Normalize accented chars (NFKD)
+        .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9 \-()†]/g, '') // Keep only alphanumeric, space, hyphen, parentheses, dagger
+        .replace(/\s+/g, '-')            // Replace spaces with hyphens
+        .replace(/-+/g, '-')             // Collapse multiple hyphens
+        .replace(/^-+/, '')              // Remove leading hyphens
+        .replace(/-+$/, '');             // Remove trailing hyphens
 }
 
 marked.setOptions({
@@ -1518,7 +1533,7 @@ marked.setOptions({
 const renderer = new marked.Renderer();
 renderer.heading = function(text, level, raw) {
     const escapedText = slugify(text);
-    return `<h${level} id="${escapedText}">${text}</h${level}>`;
+    return `<span class="anchor" id="${escapedText}"></span><h${level}>${text}</h${level}>`;
 };
 marked.setOptions({ renderer: renderer });
 
