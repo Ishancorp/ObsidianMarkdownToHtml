@@ -144,8 +144,297 @@ class ObsidianProcessor {
         }
     }
 
+    async processBase(yamlContent) {
+        try {
+            const data = JSON.parse(yamlContent);
+            console.log('Parsed base data:', data);
+            
+            if (!data.views || !data.views[0]) {
+                return '<div class="error">Invalid base file: No views defined</div>';
+            }
+            
+            const viewType = data.views[0].type;
+            console.log('Processing view type:', viewType);
+            
+            const props = {};
+            if (data.properties) {
+                for (const key in data.properties) {
+                    props[key] = data.properties[key].displayName || key;
+                }
+            } else {
+                if (data.views && data.views[0]) {
+                    const view = data.views[0];
+                    if (view.order) {
+                        for (const prop of view.order) {
+                            if (prop === 'file.name') props[prop] = 'Name';
+                            if (prop === 'file.folder') props[prop] = 'Folder';
+                            if (prop === 'file.path') props[prop] = 'Path';
+                            if (prop === 'file.ext') props[prop] = 'Extension';
+                            if (prop === 'file.basename') props[prop] = 'Basename';
+                            else props[prop] = prop.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+                        }
+                    }
+                }
+            }
+            const allFileIds = Object.keys(fileProperties);
+            console.log('All file IDs:', allFileIds.length);
+            
+            const allLinks = [];
+            const seenLinks = new Set();
+            
+            for (const fileId of allFileIds) {
+                const fileProps = fileProperties[fileId];
+                if (fileProps && fileProps.path) {
+                    // For non-markdown files, keep the extension
+                    let filename;
+                    if (fileProps.file && fileProps.ext && 
+                        !['md', 'canvas', 'base'].includes(fileProps.ext.toLowerCase())) {
+                        // Keep extension for non-markdown files
+                        filename = fileProps.file;
+                    } else {
+                        // Remove extension for markdown files
+                        filename = fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : fileProps.path.split('/').pop().replace(/\.[^/.]+$/, "");
+                    }
+                    
+                    if (!seenLinks.has(filename)) {
+                        seenLinks.add(filename);
+                        allLinks.push(filename);
+                    }
+                }
+            }
+            
+            console.log('All links before filtering (deduplicated):', allLinks);
+            
+            let filteredLinks = allLinks;
+            if (data.views && data.views[0] && data.views[0].filters) {
+                const filters = data.views[0].filters;
+                
+                filteredLinks = allLinks.filter(link => {
+                    let include = true;
+                    
+                    if (filters.and) {
+                        for (const filter of filters.and) {
+                            const fileId = this.findFileIdByLink(link);
+                            const result = (function () {
+                                const fileProps = fileId ? fileProperties[fileId] : "";
+                                if (!fileId) {
+                                    console.log(`No file ID for link ${link} in filter evaluation`);
+                                    return false;
+                                } else if (!fileProps) {
+                                    console.log(`No file properties for ID ${fileId} in filter evaluation`);
+                                    return false;
+                                } else if (filter.includes('.startsWith(')) {
+                                    const match = filter.match(/^(.+)\.startsWith\(["'](.+)["']\)$/);
+                                    if (match) {
+                                        const [, property, value] = match;
+                                        
+                                        if (property === 'file.folder') {
+                                            const result = fileProps.folder && fileProps.folder.startsWith(value);
+                                            console.log(`  file.folder "${fileProps.folder}" startsWith "${value}":`, result);
+                                            return result;
+                                        } else if (property === 'file.path') {
+                                            const result = fileProps.path && fileProps.path.startsWith(value);
+                                            console.log(`  file.path "${fileProps.path}" startsWith "${value}":`, result);
+                                            return result;
+                                        }
+                                    } else {
+                                        return false;
+                                    }
+                                } else if (filter.includes(' == ')) {
+                                    const [pre, post] = filter.split(' == ');
+                                    const expectedValue = post.replace(/^["']|["']$/g, '');
+                                    
+                                    if (pre.startsWith('file.')) {
+                                        const prop = pre.substring(5);
+                                        const actualValue = fileProps[prop];
+                                        const result = actualValue === expectedValue;
+                                        console.log(`  ${pre} "${actualValue}" == "${expectedValue}":`, result);
+                                        return result;
+                                    } else {
+                                        if (!fileProps.notes) {
+                                            console.log(`  No notes for property "${pre}"`);
+                                            return false;
+                                        }
+                                        const actualValue = fileProps.notes[pre];
+                                        const result = actualValue === expectedValue;
+                                        console.log(`  note.${pre} "${actualValue}" == "${expectedValue}":`, result);
+                                        return result;
+                                    }
+                                } else if (filter.includes(' != ')) {
+                                    const [pre, post] = filter.split(' != ');
+                                    const expectedValue = post.replace(/^["']|["']$/g, '');
+                                    
+                                    if (pre.startsWith('file.')) {
+                                        const prop = pre.substring(5);
+                                        const actualValue = fileProps[prop];
+                                        const result = actualValue !== expectedValue;
+                                        console.log(`  ${pre} "${actualValue}" != "${expectedValue}":`, result);
+                                        return result;
+                                    } else {
+                                        if (!fileProps.notes || !fileProps.notes[pre]) {
+                                            console.log(`  No notes for property "${pre}" - treating as != "${expectedValue}": true`);
+                                            return true;
+                                        }
+                                        const actualValue = fileProps.notes[pre].slice(1, -1);
+                                        const result = !actualValue || actualValue !== expectedValue;
+                                        console.log(`  note.${pre} "${actualValue}" != "${expectedValue}":`, result);
+                                        return result;
+                                    }
+                                } else {
+                                    console.log(`  Unknown filter format: "${filter}"`);
+                                    return true;
+                                }
+                            })()
+                            console.log(`Filter "${filter}" on "${link}":`, result);
+                            include = include && result;
+                        }
+                    }
+                    return include;
+                });
+            }
+            
+            console.log('Filtered links:', filteredLinks);
+            
+            const sortRules = data.views[0].sort || [];
+            
+            const sortedLinks = filteredLinks.sort((a, b) => {
+                for (const rule of sortRules) {
+                    const prop = rule.property;
+                    const isAscending = rule.direction === 'ASC';
+                    
+                    let aVal = this.getSortValue(a, prop);
+                    let bVal = this.getSortValue(b, prop);
+                    
+                    if ((aVal === null || aVal === undefined || aVal === '') && 
+                        (bVal === null || bVal === undefined || bVal === '')) {
+                        continue;
+                    }
+                    if (aVal === null || aVal === undefined || aVal === '') {
+                        return isAscending ? 1 : -1;
+                    }
+                    if (bVal === null || bVal === undefined || bVal === '') {
+                        return isAscending ? -1 : 1;
+                    }
+                    
+                    const aNum = parseFloat(aVal);
+                    const bNum = parseFloat(bVal);
+                    const aIsNum = !isNaN(aNum) && isFinite(aNum);
+                    const bIsNum = !isNaN(bNum) && isFinite(bNum);
+                    
+                    let comparison = 0;
+                    
+                    if (aIsNum && bIsNum) {
+                        comparison = aNum - bNum;
+                    } else {
+                        const aStr = String(aVal).toLowerCase();
+                        const bStr = String(bVal).toLowerCase();
+                        comparison = aStr.localeCompare(bStr);
+                    }
+                    
+                    if (comparison !== 0) {
+                        return isAscending ? comparison : -comparison;
+                    }
+                }
+                
+                return 0;
+            });
+
+            const viewConfig = data.views ? data.views[0] : {};
+            
+            console.log('Props:', props);
+            console.log('Sorted links:', sortedLinks);
+            
+            if (viewType === "table") {
+                if (sortedLinks.length === 0) {
+                    return '<div class="info">No files match the specified filters</div>';
+                }
+                
+                let propOrder = Object.keys(props);
+                if (data.views && viewConfig && viewConfig.order) {
+                    propOrder = viewConfig.order;
+                }
+                
+                let tableHtml = '<table>\n<thead>\n<tr>\n';
+                
+                for (const key of propOrder) {
+                    if (props[key]) {
+                        tableHtml += `<th>${this.escapeHtml(props[key])}</th>\n`;
+                    }
+                }
+                tableHtml += '</tr>\n</thead>\n<tbody>\n';
+                
+                for (const link of sortedLinks) {
+                    tableHtml += '<tr>\n';
+                    for (const key of propOrder) {
+                        if (props[key]) {
+                            const value = await this.getPropertyValue(link, key);
+                            tableHtml += `<td>${value}</td>\n`;
+                        }
+                    }
+                    tableHtml += '</tr>\n';
+                }
+                
+                tableHtml += '</tbody>\n</table>\n';
+                return tableHtml;
+            } else if (viewType === "cards") {
+                
+                if (sortedLinks.length === 0) {
+                    return '<div class="info">No files match the specified filters</div>';
+                }
+                
+                let cardsHtml = '<div class="cards-container">\n';
+                
+                for (const link of sortedLinks) {
+                    const fileLink = this.getLinkHref(link);
+                    
+                    cardsHtml += `<div class="card" data-href="${fileLink}">\n`;
+                    cardsHtml += '<div class="card-content">\n';
+                    
+                    if (viewConfig.image) {
+                        const imageValue = await this.getPropertyValue(link, viewConfig.image);
+                        if (imageValue && !imageValue.includes('<a href')) {
+                            const imageFit = viewConfig.imageFit || 'cover';
+                            cardsHtml += `<div class="card-image">\n`;
+                            cardsHtml += `<img src="${imageValue}" alt="${this.escapeHtml(link)}" style="object-fit: ${imageFit};" />\n`;
+                            cardsHtml += `</div>\n`;
+                        }
+                        else {
+                            cardsHtml += `<div class="card-image">\n</div>`
+                        }
+                    }
+                    
+                    cardsHtml += `<h3 class="card-title"><a href="${fileLink}">${this.escapeHtml(link)}</a></h3>\n`;
+                    
+                    for (const propKey in props) {
+                        if (propKey !== 'file.name' && propKey !== viewConfig.image) {
+                            const propValue = await this.getPropertyValue(link, propKey);
+                            if (propValue) {
+                                cardsHtml += `<div class="card-property">\n`;
+                                cardsHtml += `<span class="property-label">${this.escapeHtml(props[propKey])}:</span>\n`;
+                                cardsHtml += `<span class="property-value">${propValue}</span>\n`;
+                                cardsHtml += `</div>\n`;
+                            }
+                        }
+                    }
+                    
+                    cardsHtml += '</div>\n</div>\n';
+                }
+                
+                cardsHtml += '</div>\n';
+                return cardsHtml;
+            }
+            
+            return '<div class="error">Unsupported view type</div>';
+        } catch (error) {
+            console.error('Base processing error:', error);
+            return `<div class="error">Error processing base: ${this.escapeHtml(error.message)}</div>`;
+        }
+    }
+
     async processFile(content, fileType) {
-        if (fileType == "canvas") {
+        if (fileType == "base") {
+            return [await this.processBase(content), []]
+        } if (fileType == "canvas") {
             return [await this.processCanvas(content), []];
         }
         else {
@@ -159,6 +448,139 @@ class ObsidianProcessor {
             
             return [processedHTML, headers];
         }
+    }
+
+    async getPropertyValue(link, propKey) {
+        const fileId = this.findFileIdByLink(link);
+        if (!fileId) {
+            console.log(`No file ID found for link: ${link}`);
+            return '';
+        }
+        
+        const fileProps = fileProperties[fileId];
+        if (!fileProps) {
+            console.log(`No file properties found for ID: ${fileId}`);
+            return '';
+        }
+        
+        if (propKey === 'file.name') {
+            const targetLink = this.getLinkHref(link);
+            return `<a href="${targetLink}">${this.escapeHtml(link)}</a>`;
+        }
+        
+        if (propKey.startsWith('file.')) {
+            const fileProp = propKey.substring(5);
+            const value = fileProps[fileProp];
+            return this.escapeHtml(value || '');
+        }
+        
+        if (propKey.startsWith('note.')) {
+            if (!fileProps.notes) return '';
+            
+            const noteProp = propKey.substring(5);
+            let noteValue = fileProps.notes[noteProp];
+            console.log(noteValue)
+            
+            if (!noteValue) return '';
+            
+            if (typeof noteValue === 'string' && noteValue.startsWith('"[[') && noteValue.endsWith(']]"')) {
+                const linkContent = noteValue.slice(3, -3);
+                
+                if (linkContent.includes('.')) {
+                    const extension = linkContent.split('.').pop().toLowerCase();
+                    if (this.image_types.has(extension)) {
+                        const imageUrl = this.getLinkHref(linkContent);
+                        if (imageUrl !== '#file-not-found') {
+                            return imageUrl;
+                        }
+                        return '';
+                    }
+                }
+                
+                const targetUrl = this.getLinkHref(linkContent);
+                if (targetUrl !== '#file-not-found') {
+                    return targetUrl;
+                }
+                return '';
+            }
+            
+            const processedContent = await this.processMarkdown(noteValue, link);
+            return processedContent;
+        }
+        
+        if (!fileProps.notes) return '';
+        
+        let noteValue = fileProps.notes[propKey];
+        if (!noteValue) return '';
+        
+        if (typeof noteValue === 'string' && noteValue.startsWith('[[') && noteValue.endsWith(']]')) {
+            const linkContent = noteValue.slice(2, -2);
+            
+            if (linkContent.includes('.')) {
+                const extension = linkContent.split('.').pop().toLowerCase();
+                if (this.image_types.has(extension)) {
+                    const imageUrl = this.getLinkHref(linkContent);
+                    if (imageUrl !== '#file-not-found') {
+                        return imageUrl;
+                    }
+                    return '';
+                }
+            }
+            
+            const targetUrl = this.getLinkHref(linkContent);
+            if (targetUrl !== '#file-not-found') {
+                return targetUrl;
+            }
+            return '';
+        }
+        
+        const processedContent = await this.processMarkdown(noteValue, link);
+        return processedContent;
+    }
+
+    getSortValue(link, property) {
+        const fileId = this.findFileIdByLink(link);
+        if (!fileId) return '';
+        
+        const fileProps = fileProperties[fileId];
+        if (!fileProps) return '';
+        
+        if (property.startsWith('file.')) {
+            const fileProp = property.substring(5);
+            
+            if (fileProp === 'basename' || fileProp === 'name') {
+                return fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : '';
+            } else if (fileProp === 'folder') {
+                return fileProps.folder || '';
+            } else if (fileProp === 'path') {
+                return fileProps.path || '';
+            } else if (fileProp === 'ext') {
+                return fileProps.ext || '';
+            } else {
+                return fileProps[fileProp] || '';
+            }
+        }
+        
+        if (property.startsWith('note.')) {
+            const noteProp = property.substring(5);
+            if (!fileProps.notes) return '';
+            const noteValue = fileProps.notes[noteProp];
+            
+            if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
+                return noteValue.slice(1, -1);
+            }
+            
+            return noteValue || '';
+        }
+        
+        if (!fileProps.notes) return '';
+        const noteValue = fileProps.notes[property];
+        
+        if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
+            return noteValue.slice(1, -1);
+        }
+        
+        return noteValue || '';
     }
 
     unescapeHtml(text) {
@@ -1026,434 +1448,6 @@ class ObsidianProcessor {
     }
 }
 
-class BaseProcessor extends ObsidianProcessor {
-    async processBase(yamlContent) {
-        try {
-            const data = JSON.parse(yamlContent);
-            console.log('Parsed base data:', data);
-            
-            if (!data.views || !data.views[0]) {
-                return '<div class="error">Invalid base file: No views defined</div>';
-            }
-            
-            const viewType = data.views[0].type;
-            console.log('Processing view type:', viewType);
-            
-            const props = {};
-            if (data.properties) {
-                for (const key in data.properties) {
-                    props[key] = data.properties[key].displayName || key;
-                }
-            } else {
-                if (data.views && data.views[0]) {
-                    const view = data.views[0];
-                    if (view.order) {
-                        for (const prop of view.order) {
-                            if (prop === 'file.name') props[prop] = 'Name';
-                            if (prop === 'file.folder') props[prop] = 'Folder';
-                            if (prop === 'file.path') props[prop] = 'Path';
-                            if (prop === 'file.ext') props[prop] = 'Extension';
-                            if (prop === 'file.basename') props[prop] = 'Basename';
-                            else props[prop] = prop.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                        }
-                    }
-                }
-            }
-            const allFileIds = Object.keys(fileProperties);
-            console.log('All file IDs:', allFileIds.length);
-            
-            const allLinks = [];
-            const seenLinks = new Set();
-            
-            for (const fileId of allFileIds) {
-                const fileProps = fileProperties[fileId];
-                if (fileProps && fileProps.path) {
-                    // For non-markdown files, keep the extension
-                    let filename;
-                    if (fileProps.file && fileProps.ext && 
-                        !['md', 'canvas', 'base'].includes(fileProps.ext.toLowerCase())) {
-                        // Keep extension for non-markdown files
-                        filename = fileProps.file;
-                    } else {
-                        // Remove extension for markdown files
-                        filename = fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : fileProps.path.split('/').pop().replace(/\.[^/.]+$/, "");
-                    }
-                    
-                    if (!seenLinks.has(filename)) {
-                        seenLinks.add(filename);
-                        allLinks.push(filename);
-                    }
-                }
-            }
-            
-            console.log('All links before filtering (deduplicated):', allLinks);
-            
-            let filteredLinks = allLinks;
-            if (data.views && data.views[0] && data.views[0].filters) {
-                const filters = data.views[0].filters;
-                
-                filteredLinks = allLinks.filter(link => {
-                    let include = true;
-                    
-                    if (filters.and) {
-                        for (const filter of filters.and) {
-                            const result = this.evaluateFilter(filter, link);
-                            console.log(`Filter "${filter}" on "${link}":`, result);
-                            include = include && result;
-                        }
-                    }
-                    
-                    return include;
-                });
-            }
-            
-            console.log('Filtered links:', filteredLinks);
-            
-            const sortRules = data.views[0].sort || [];
-            
-            const sortedLinks = filteredLinks.sort((a, b) => {
-                for (const rule of sortRules) {
-                    const prop = rule.property;
-                    const isAscending = rule.direction === 'ASC';
-                    
-                    let aVal = this.getSortValue(a, prop);
-                    let bVal = this.getSortValue(b, prop);
-                    
-                    if ((aVal === null || aVal === undefined || aVal === '') && 
-                        (bVal === null || bVal === undefined || bVal === '')) {
-                        continue;
-                    }
-                    if (aVal === null || aVal === undefined || aVal === '') {
-                        return isAscending ? 1 : -1;
-                    }
-                    if (bVal === null || bVal === undefined || bVal === '') {
-                        return isAscending ? -1 : 1;
-                    }
-                    
-                    const aNum = parseFloat(aVal);
-                    const bNum = parseFloat(bVal);
-                    const aIsNum = !isNaN(aNum) && isFinite(aNum);
-                    const bIsNum = !isNaN(bNum) && isFinite(bNum);
-                    
-                    let comparison = 0;
-                    
-                    if (aIsNum && bIsNum) {
-                        comparison = aNum - bNum;
-                    } else {
-                        const aStr = String(aVal).toLowerCase();
-                        const bStr = String(bVal).toLowerCase();
-                        comparison = aStr.localeCompare(bStr);
-                    }
-                    
-                    if (comparison !== 0) {
-                        return isAscending ? comparison : -comparison;
-                    }
-                }
-                
-                return 0;
-            });
-
-            const viewConfig = data.views ? data.views[0] : {};
-            
-            console.log('Props:', props);
-            console.log('Sorted links:', sortedLinks);
-            
-            if (viewType === "table") {
-                if (sortedLinks.length === 0) {
-                    return '<div class="info">No files match the specified filters</div>';
-                }
-                
-                let propOrder = Object.keys(props);
-                if (data.views && viewConfig && viewConfig.order) {
-                    propOrder = viewConfig.order;
-                }
-                
-                let tableHtml = '<table>\n<thead>\n<tr>\n';
-                
-                for (const key of propOrder) {
-                    if (props[key]) {
-                        tableHtml += `<th>${this.escapeHtml(props[key])}</th>\n`;
-                    }
-                }
-                tableHtml += '</tr>\n</thead>\n<tbody>\n';
-                
-                for (const link of sortedLinks) {
-                    tableHtml += '<tr>\n';
-                    for (const key of propOrder) {
-                        if (props[key]) {
-                            const value = await this.getPropertyValue(link, key);
-                            tableHtml += `<td>${value}</td>\n`;
-                        }
-                    }
-                    tableHtml += '</tr>\n';
-                }
-                
-                tableHtml += '</tbody>\n</table>\n';
-                return tableHtml;
-            } else if (viewType === "cards") {
-                
-                if (sortedLinks.length === 0) {
-                    return '<div class="info">No files match the specified filters</div>';
-                }
-                
-                let cardsHtml = '<div class="cards-container">\n';
-                
-                for (const link of sortedLinks) {
-                    const fileLink = this.getLinkHref(link);
-                    
-                    cardsHtml += `<div class="card" data-href="${fileLink}">\n`;
-                    cardsHtml += '<div class="card-content">\n';
-                    
-                    if (viewConfig.image) {
-                        const imageValue = await this.getPropertyValue(link, viewConfig.image);
-                        if (imageValue && !imageValue.includes('<a href')) {
-                            const imageFit = viewConfig.imageFit || 'cover';
-                            cardsHtml += `<div class="card-image">\n`;
-                            cardsHtml += `<img src="${imageValue}" alt="${this.escapeHtml(link)}" style="object-fit: ${imageFit};" />\n`;
-                            cardsHtml += `</div>\n`;
-                        }
-                        else {
-                            cardsHtml += `<div class="card-image">\n</div>`
-                        }
-                    }
-                    
-                    cardsHtml += `<h3 class="card-title"><a href="${fileLink}">${this.escapeHtml(link)}</a></h3>\n`;
-                    
-                    for (const propKey in props) {
-                        if (propKey !== 'file.name' && propKey !== viewConfig.image) {
-                            const propValue = await this.getPropertyValue(link, propKey);
-                            if (propValue) {
-                                cardsHtml += `<div class="card-property">\n`;
-                                cardsHtml += `<span class="property-label">${this.escapeHtml(props[propKey])}:</span>\n`;
-                                cardsHtml += `<span class="property-value">${propValue}</span>\n`;
-                                cardsHtml += `</div>\n`;
-                            }
-                        }
-                    }
-                    
-                    cardsHtml += '</div>\n</div>\n';
-                }
-                
-                cardsHtml += '</div>\n';
-                return cardsHtml;
-            }
-            
-            return '<div class="error">Unsupported view type</div>';
-        } catch (error) {
-            console.error('Base processing error:', error);
-            return `<div class="error">Error processing base: ${this.escapeHtml(error.message)}</div>`;
-        }
-    }
-
-    async getPropertyValue(link, propKey) {
-        const fileId = this.findFileIdByLink(link);
-        if (!fileId) {
-            console.log(`No file ID found for link: ${link}`);
-            return '';
-        }
-        
-        const fileProps = fileProperties[fileId];
-        if (!fileProps) {
-            console.log(`No file properties found for ID: ${fileId}`);
-            return '';
-        }
-        
-        if (propKey === 'file.name') {
-            const targetLink = this.getLinkHref(link);
-            return `<a href="${targetLink}">${this.escapeHtml(link)}</a>`;
-        }
-        
-        if (propKey.startsWith('file.')) {
-            const fileProp = propKey.substring(5);
-            const value = fileProps[fileProp];
-            return this.escapeHtml(value || '');
-        }
-        
-        if (propKey.startsWith('note.')) {
-            console.log(21414)
-            console.log(propKey)
-            if (!fileProps.notes) return '';
-            
-            const noteProp = propKey.substring(5);
-            let noteValue = fileProps.notes[noteProp];
-            console.log(noteValue)
-            
-            if (!noteValue) return '';
-            
-            if (typeof noteValue === 'string' && noteValue.startsWith('"[[') && noteValue.endsWith(']]"')) {
-                const linkContent = noteValue.slice(3, -3);
-                
-                if (linkContent.includes('.')) {
-                    const extension = linkContent.split('.').pop().toLowerCase();
-                    if (this.image_types.has(extension)) {
-                        const imageUrl = this.getLinkHref(linkContent);
-                        console.log(imageUrl)
-                        console.log(69)
-                        if (imageUrl !== '#file-not-found') {
-                            return imageUrl;
-                        }
-                        return '';
-                    }
-                }
-                
-                const targetUrl = this.getLinkHref(linkContent);
-                if (targetUrl !== '#file-not-found') {
-                    return targetUrl;
-                }
-                return '';
-            }
-            
-            const processedContent = await this.processMarkdown(noteValue, link);
-            return processedContent;
-        }
-        
-        if (!fileProps.notes) return '';
-        
-        let noteValue = fileProps.notes[propKey];
-        if (!noteValue) return '';
-        
-        if (typeof noteValue === 'string' && noteValue.startsWith('[[') && noteValue.endsWith(']]')) {
-            const linkContent = noteValue.slice(2, -2);
-            
-            if (linkContent.includes('.')) {
-                const extension = linkContent.split('.').pop().toLowerCase();
-                if (this.image_types.has(extension)) {
-                    const imageUrl = this.getLinkHref(linkContent);
-                    if (imageUrl !== '#file-not-found') {
-                        return imageUrl;
-                    }
-                    return '';
-                }
-            }
-            
-            const targetUrl = this.getLinkHref(linkContent);
-            if (targetUrl !== '#file-not-found') {
-                return targetUrl;
-            }
-            return '';
-        }
-        
-        const processedContent = await this.processMarkdown(noteValue, link);
-        return processedContent;
-    }
-
-    evaluateFilter(filter, link) {
-        const fileId = this.findFileIdByLink(link);
-        const fileProps = fileId ? fileProperties[fileId] : "";
-        if (!fileId) {
-            console.log(`No file ID for link ${link} in filter evaluation`);
-            return false;
-        } else if (!fileProps) {
-            console.log(`No file properties for ID ${fileId} in filter evaluation`);
-            return false;
-        } else if (filter.includes('.startsWith(')) {
-            const match = filter.match(/^(.+)\.startsWith\(["'](.+)["']\)$/);
-            if (match) {
-                const [, property, value] = match;
-                
-                if (property === 'file.folder') {
-                    const result = fileProps.folder && fileProps.folder.startsWith(value);
-                    console.log(`  file.folder "${fileProps.folder}" startsWith "${value}":`, result);
-                    return result;
-                } else if (property === 'file.path') {
-                    const result = fileProps.path && fileProps.path.startsWith(value);
-                    console.log(`  file.path "${fileProps.path}" startsWith "${value}":`, result);
-                    return result;
-                }
-            }
-            return false;
-        } else if (filter.includes(' == ')) {
-            const [pre, post] = filter.split(' == ');
-            const expectedValue = post.replace(/^["']|["']$/g, '');
-            
-            if (pre.startsWith('file.')) {
-                const prop = pre.substring(5);
-                const actualValue = fileProps[prop];
-                const result = actualValue === expectedValue;
-                console.log(`  ${pre} "${actualValue}" == "${expectedValue}":`, result);
-                return result;
-            } else {
-                if (!fileProps.notes) {
-                    console.log(`  No notes for property "${pre}"`);
-                    return false;
-                }
-                const actualValue = fileProps.notes[pre];
-                const result = actualValue === expectedValue;
-                console.log(`  note.${pre} "${actualValue}" == "${expectedValue}":`, result);
-                return result;
-            }
-        } else if (filter.includes(' != ')) {
-            const [pre, post] = filter.split(' != ');
-            const expectedValue = post.replace(/^["']|["']$/g, '');
-            
-            if (pre.startsWith('file.')) {
-                const prop = pre.substring(5);
-                const actualValue = fileProps[prop];
-                const result = actualValue !== expectedValue;
-                console.log(`  ${pre} "${actualValue}" != "${expectedValue}":`, result);
-                return result;
-            } else {
-                if (!fileProps.notes || !fileProps.notes[pre]) {
-                    console.log(`  No notes for property "${pre}" - treating as != "${expectedValue}": true`);
-                    return true;
-                }
-                const actualValue = fileProps.notes[pre].slice(1, -1);
-                const result = !actualValue || actualValue !== expectedValue;
-                console.log(`  note.${pre} "${actualValue}" != "${expectedValue}":`, result);
-                return result;
-            }
-        } else {
-            console.log(`  Unknown filter format: "${filter}"`);
-            return true;
-        }
-    }
-
-    getSortValue(link, property) {
-        const fileId = this.findFileIdByLink(link);
-        if (!fileId) return '';
-        
-        const fileProps = fileProperties[fileId];
-        if (!fileProps) return '';
-        
-        if (property.startsWith('file.')) {
-            const fileProp = property.substring(5);
-            
-            if (fileProp === 'basename' || fileProp === 'name') {
-                return fileProps.file ? fileProps.file.replace(/\.[^/.]+$/, "") : '';
-            } else if (fileProp === 'folder') {
-                return fileProps.folder || '';
-            } else if (fileProp === 'path') {
-                return fileProps.path || '';
-            } else if (fileProp === 'ext') {
-                return fileProps.ext || '';
-            } else {
-                return fileProps[fileProp] || '';
-            }
-        }
-        
-        if (property.startsWith('note.')) {
-            const noteProp = property.substring(5);
-            if (!fileProps.notes) return '';
-            const noteValue = fileProps.notes[noteProp];
-            
-            if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
-                return noteValue.slice(1, -1);
-            }
-            
-            return noteValue || '';
-        }
-        
-        if (!fileProps.notes) return '';
-        const noteValue = fileProps.notes[property];
-        
-        if (typeof noteValue === 'string' && noteValue.startsWith('"') && noteValue.endsWith('"')) {
-            return noteValue.slice(1, -1);
-        }
-        
-        return noteValue || '';
-    }
-}
-
 marked.setOptions({
     breaks: true,
     gfm: true,
@@ -1477,20 +1471,13 @@ async function renderContent() {
     const article = document.querySelector("article");
 
     const processor = new ObsidianProcessor();
-    const baseProcessor = new BaseProcessor();
 
     try {
         const fileType = article.getAttribute('data-type');
         const attributeValue = article.getAttribute('data-current-file');
         const content = getFile(attributeValue);
-        let processedHTML = ''
-        let headers = []
         
-        if (fileType === "base") {
-            processedHTML = await baseProcessor.processBase(content);
-        } else {
-            [processedHTML, headers] = await processor.processFile(content, fileType);;
-        }
+        const [processedHTML, headers] = await processor.processFile(content, fileType);
 
         if (headers.length > 0) {
             const tocHtml = processor.buildTableOfContents(headers);
