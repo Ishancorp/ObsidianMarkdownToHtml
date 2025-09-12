@@ -547,6 +547,188 @@ footer {
     color: #666;
 }
 
+.base-tabs-container {
+    width: 100%;
+    margin: 20px 0;
+}
+
+.base-tab-headers {
+    display: flex;
+    border-bottom: 2px solid #363636;
+    background-color: #242424;
+    margin-bottom: 0;
+    border-radius: 8px 8px 0 0;
+}
+
+.base-tab-header {
+    background-color: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 20px;
+    transition: all 0.3s ease;
+    font-size: 16px;
+    border-bottom: 3px solid transparent;
+    color: #DADADA;
+    font-family: Inter, sans-serif;
+    font-weight: 500;
+    border-radius: 8px 8px 0 0;
+}
+
+.base-tab-header:hover {
+    background-color: #363636;
+    color: #DADADA;
+}
+
+.base-tab-header.active {
+    background-color: #1E1E1E;
+    border-bottom: 3px solid #6086ED;
+    color: #6086ED;
+    font-weight: 600;
+}
+
+.base-tab-contents {
+    border: 1px solid #363636;
+    border-top: none;
+    background-color: #1E1E1E;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+}
+
+.base-tab-content {
+    display: none;
+    padding: 20px;
+    animation: fadeIn 0.3s ease-in;
+    color: #DADADA;
+}
+
+.base-tab-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Ensure tables display properly in tabs with dark theme */
+.base-tab-content table {
+    width: 100%;
+    margin: 0;
+    border-collapse: collapse;
+    border: 1px solid #363636;
+}
+
+.base-tab-content td, 
+.base-tab-content th {
+    text-align: left;
+    border: 1px solid #363636;
+    padding: 0.4em;
+    color: #DADADA;
+}
+
+.base-tab-content th {
+    background-color: #242424;
+    font-weight: 600;
+}
+
+/* Cards container styling to match existing cards */
+.base-tab-content .cards-container {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    padding: 0;
+}
+
+.base-tab-content .card {
+    border: 1px solid #363636;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    cursor: pointer;
+    background-color: #242424;
+}
+
+.base-tab-content .card:hover {
+    border-color: #6086ED;
+}
+
+.base-tab-content .card-content {
+    padding: 15px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.base-tab-content .card-title {
+    margin: 0 0 10px 0;
+    font-size: 1.2em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #DADADA;
+}
+
+.base-tab-content .card-title a {
+    text-decoration: none;
+    color: #6086ED;
+}
+
+.base-tab-content .card-title a:hover {
+    color: #87B6F6;
+}
+
+.base-tab-content .card-property {
+    margin: 8px 0;
+    font-size: 0.9em;
+}
+
+.base-tab-content .property-label {
+    font-weight: 600;
+    margin-right: 8px;
+    color: #DADADA;
+}
+
+.base-tab-content .property-value {
+    color: #DADADA;
+}
+
+.base-tab-content .card-image {
+    width: 100%;
+    height: 200px;
+    overflow: hidden;
+    background-color: #1E1E1E;
+}
+
+.base-tab-content .card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Info/error messages in tabs */
+.base-tab-content .info,
+.base-tab-content .error {
+    padding: 1em;
+    border-radius: 5px;
+    margin: 1em 0;
+}
+
+.base-tab-content .info {
+    background-color: #242424;
+    border: 1px solid #363636;
+    color: #DADADA;
+}
+
+.base-tab-content .error {
+    background-color: #2A1E1E;
+    border: 1px solid #6B3636;
+    color: #FF8A8A;
+}
+
+
 
 
 @media screen and (max-width: 768px) {
@@ -594,4 +776,18 @@ footer {
     footer {
         margin-top: 4em;
     }
+    .base-tab-header {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    
+    .base-tab-content {
+        padding: 15px;
+    }
+    
+    .base-tab-content .cards-container {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
 }

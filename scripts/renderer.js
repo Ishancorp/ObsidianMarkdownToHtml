@@ -149,32 +149,34 @@ class ObsidianProcessor {
             const data = JSON.parse(yamlContent);
             console.log('Parsed base data:', data);
             
-            if (!data.views || !data.views[0]) {
+            if (!data.views || data.views.length === 0) {
                 return '<div class="error">Invalid base file: No views defined</div>';
             }
             
+            // Extract properties configuration
             const props = {};
             if (data.properties) {
                 for (const key in data.properties) {
                     props[key] = data.properties[key].displayName || key;
                 }
             } else {
-                if (data.views && data.views[0]) {
-                    const view = data.views[0];
-                    if (view.order) {
-                        for (const prop of view.order) {
-                            if (prop === 'file.name') props[prop] = 'Name';
-                            if (prop === 'file.folder') props[prop] = 'Folder';
-                            if (prop === 'file.path') props[prop] = 'Path';
-                            if (prop === 'file.ext') props[prop] = 'Extension';
-                            if (prop === 'file.basename') props[prop] = 'Basename';
-                            else props[prop] = prop.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-                        }
-                    } else {
-                        props['file.name'] = 'file name';
+                // Fallback to default properties from first view
+                const firstView = data.views[0];
+                if (firstView && firstView.order) {
+                    for (const prop of firstView.order) {
+                        if (prop === 'file.name') props[prop] = 'Name';
+                        else if (prop === 'file.folder') props[prop] = 'Folder';
+                        else if (prop === 'file.path') props[prop] = 'Path';
+                        else if (prop === 'file.ext') props[prop] = 'Extension';
+                        else if (prop === 'file.basename') props[prop] = 'Basename';
+                        else props[prop] = prop.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                     }
+                } else {
+                    props['file.name'] = 'file name';
                 }
             }
+
+            // Get all file data once
             const allFileIds = Object.keys(fileProperties);
             console.log('All file IDs:', allFileIds.length);
             
@@ -198,115 +200,152 @@ class ObsidianProcessor {
                     }
                 }
             }
-            
-            console.log('All links before filtering (deduplicated):', allLinks);
-            
-            let filteredLinks = allLinks;
-            if (data.filters) {
-                filteredLinks = this.processFilters(allLinks, data.filters);
-            }
-            if (data.views && data.views[0] && data.views[0].filters) {
-                filteredLinks = this.processFilters(filteredLinks, data.views[0].filters);
-            }
-            
-            console.log('Filtered links:', filteredLinks);
-            
-            const sortRules = data.views[0].sort || [];
-            const sortedLinks = this.sortLinks(filteredLinks, sortRules);
 
-            const viewConfig = data.views ? data.views[0] : {};
-            
-            console.log('Props:', props);
-            console.log('Sorted links:', sortedLinks);
-            
-            const viewType = data.views[0].type;
-            console.log('Processing view type:', viewType);
-            
-            if (viewType === "table") {
-                if (sortedLinks.length === 0) {
-                    return '<div class="info">No files match the specified filters</div>';
-                }
-                
-                let propOrder = Object.keys(props);
-                if (data.views && viewConfig && viewConfig.order) {
-                    propOrder = viewConfig.order;
-                }
-                
-                let tableHtml = '<table>\n<thead>\n<tr>\n';
-                
-                for (const key of propOrder) {
-                    if (props[key]) {
-                        tableHtml += `<th>${this.escapeHtml(props[key])}</th>\n`;
-                    }
-                }
-                tableHtml += '</tr>\n</thead>\n<tbody>\n';
-                
-                for (const link of sortedLinks) {
-                    tableHtml += '<tr>\n';
-                    for (const key of propOrder) {
-                        if (props[key]) {
-                            const value = await this.getPropertyValue(link, key);
-                            tableHtml += `<td>${value}</td>\n`;
-                        }
-                    }
-                    tableHtml += '</tr>\n';
-                }
-                
-                tableHtml += '</tbody>\n</table>\n';
-                return tableHtml;
-            } else if (viewType === "cards") {
-                
-                if (sortedLinks.length === 0) {
-                    return '<div class="info">No files match the specified filters</div>';
-                }
-                
-                let cardsHtml = '<div class="cards-container">\n';
-                
-                for (const link of sortedLinks) {
-                    const fileLink = this.getLinkHref(link);
-                    
-                    cardsHtml += `<div class="card" data-href="${fileLink}">\n`;
-                    cardsHtml += '<div class="card-content">\n';
-                    
-                    if (viewConfig.image) {
-                        const imageValue = await this.getPropertyValue(link, viewConfig.image);
-                        if (imageValue && !imageValue.includes('<a href')) {
-                            const imageFit = viewConfig.imageFit || 'cover';
-                            cardsHtml += `<div class="card-image">\n`;
-                            cardsHtml += `<img src="${imageValue}" alt="${this.escapeHtml(link)}" style="object-fit: ${imageFit};" />\n`;
-                            cardsHtml += `</div>\n`;
-                        }
-                        else {
-                            cardsHtml += `<div class="card-image">\n</div>`
-                        }
-                    }
-                    
-                    cardsHtml += `<h3 class="card-title"><a href="${fileLink}">${this.escapeHtml(link)}</a></h3>\n`;
-                    
-                    for (const propKey in props) {
-                        if (propKey !== 'file.name' && propKey !== viewConfig.image) {
-                            const propValue = await this.getPropertyValue(link, propKey);
-                            if (propValue) {
-                                cardsHtml += `<div class="card-property">\n`;
-                                cardsHtml += `<span class="property-label">${this.escapeHtml(props[propKey])}:</span>\n`;
-                                cardsHtml += `<span class="property-value">${propValue}</span>\n`;
-                                cardsHtml += `</div>\n`;
-                            }
-                        }
-                    }
-                    
-                    cardsHtml += '</div>\n</div>\n';
-                }
-                
-                cardsHtml += '</div>\n';
-                return cardsHtml;
+            // If only one view, render without tabs
+            if (data.views.length === 1) {
+                return await this.renderSingleView(data.views[0], allLinks, props, data.filters);
             }
+
+            // Multiple views - create tabbed interface
+            let tabsHtml = '<div class="base-tabs-container">';
             
-            return '<div class="error">Unsupported view type</div>';
+            // Tab headers
+            tabsHtml += '<div class="base-tab-headers">';
+            for (let i = 0; i < data.views.length; i++) {
+                const view = data.views[i];
+                const viewName = view.name || `View ${i + 1}`;
+                const activeClass = i === 0 ? ' active' : '';
+                tabsHtml += `<button class="base-tab-header${activeClass}" onclick="switchBaseTab(event, 'base-tab-${i}')">${this.escapeHtml(viewName)}</button>`;
+            }
+            tabsHtml += '</div>';
+
+            // Tab contents
+            tabsHtml += '<div class="base-tab-contents">';
+            for (let i = 0; i < data.views.length; i++) {
+                const view = data.views[i];
+                const activeClass = i === 0 ? ' active' : '';
+                tabsHtml += `<div id="base-tab-${i}" class="base-tab-content${activeClass}">`;
+                
+                // Render the view content
+                const viewContent = await this.renderSingleView(view, allLinks, props, data.filters);
+                tabsHtml += viewContent;
+                
+                tabsHtml += '</div>';
+            }
+            tabsHtml += '</div>';
+            tabsHtml += '</div>';
+
+            return tabsHtml;
+            
         } catch (error) {
             console.error('Base processing error:', error);
             return `<div class="error">Error processing base: ${this.escapeHtml(error.message)}</div>`;
         }
+    }
+
+    async renderSingleView(viewConfig, allLinks, props, globalFilters) {
+        console.log('Processing view:', viewConfig);
+        
+        // Apply global filters first
+        let filteredLinks = allLinks;
+        if (globalFilters) {
+            filteredLinks = this.processFilters(allLinks, globalFilters);
+        }
+        
+        // Apply view-specific filters
+        if (viewConfig.filters) {
+            filteredLinks = this.processFilters(filteredLinks, viewConfig.filters);
+        }
+        
+        console.log('Filtered links for view:', filteredLinks);
+        
+        // Sort the links
+        const sortRules = viewConfig.sort || [];
+        const sortedLinks = this.sortLinks(filteredLinks, sortRules);
+        
+        const viewType = viewConfig.type;
+        console.log('Processing view type:', viewType);
+        
+        if (viewType === "table") {
+            if (sortedLinks.length === 0) {
+                return '<div class="info">No files match the specified filters</div>';
+            }
+            
+            let propOrder = Object.keys(props);
+            if (viewConfig.order) {
+                propOrder = viewConfig.order;
+            }
+            
+            let tableHtml = '<table>\n<thead>\n<tr>\n';
+            
+            for (const key of propOrder) {
+                if (props[key]) {
+                    tableHtml += `<th>${this.escapeHtml(props[key])}</th>\n`;
+                }
+            }
+            tableHtml += '</tr>\n</thead>\n<tbody>\n';
+            
+            for (const link of sortedLinks) {
+                tableHtml += '<tr>\n';
+                for (const key of propOrder) {
+                    if (props[key]) {
+                        const value = await this.getPropertyValue(link, key);
+                        tableHtml += `<td>${value}</td>\n`;
+                    }
+                }
+                tableHtml += '</tr>\n';
+            }
+            
+            tableHtml += '</tbody>\n</table>\n';
+            return tableHtml;
+            
+        } else if (viewType === "cards") {
+            if (sortedLinks.length === 0) {
+                return '<div class="info">No files match the specified filters</div>';
+            }
+            
+            let cardsHtml = '<div class="cards-container">\n';
+            
+            for (const link of sortedLinks) {
+                const fileLink = this.getLinkHref(link);
+                
+                cardsHtml += `<div class="card" data-href="${fileLink}">\n`;
+                cardsHtml += '<div class="card-content">\n';
+                
+                if (viewConfig.image) {
+                    const imageValue = await this.getPropertyValue(link, viewConfig.image);
+                    if (imageValue && !imageValue.includes('<a href')) {
+                        const imageFit = viewConfig.imageFit || 'cover';
+                        cardsHtml += `<div class="card-image">\n`;
+                        cardsHtml += `<img src="${imageValue}" alt="${this.escapeHtml(link)}" style="object-fit: ${imageFit};" />\n`;
+                        cardsHtml += `</div>\n`;
+                    } else {
+                        cardsHtml += `<div class="card-image">\n</div>`;
+                    }
+                }
+                
+                cardsHtml += `<h3 class="card-title"><a href="${fileLink}">${this.escapeHtml(link)}</a></h3>\n`;
+                
+                for (const propKey in props) {
+                    if (propKey !== 'file.name' && propKey !== viewConfig.image) {
+                        const propValue = await this.getPropertyValue(link, propKey);
+                        if (propValue) {
+                            cardsHtml += `<div class="card-property">\n`;
+                            cardsHtml += `<span class="property-label">${this.escapeHtml(props[propKey])}:</span>\n`;
+                            cardsHtml += `<span class="property-value">${propValue}</span>\n`;
+                            cardsHtml += `</div>\n`;
+                        }
+                    }
+                }
+                
+                cardsHtml += '</div>\n</div>\n';
+            }
+            
+            cardsHtml += '</div>\n';
+            return cardsHtml;
+        }
+        
+        return '<div class="error">Unsupported view type</div>';
     }
 
     async processFile(content, fileType) {
@@ -1631,3 +1670,25 @@ async function renderContent() {
 }
 
 document.addEventListener('DOMContentLoaded', renderContent);
+
+
+
+
+window.switchBaseTabAdded = true;
+function switchBaseTab(evt, tabId) {
+    // Hide all tab contents
+    const tabContents = document.getElementsByClassName('base-tab-content');
+    for (let i = 0; i < tabContents.length; i++) {
+        tabContents[i].classList.remove('active');
+    }
+    
+    // Remove active class from all tab headers
+    const tabHeaders = document.getElementsByClassName('base-tab-header');
+    for (let i = 0; i < tabHeaders.length; i++) {
+        tabHeaders[i].classList.remove('active');
+    }
+    
+    // Show selected tab and mark header as active
+    document.getElementById(tabId).classList.add('active');
+    evt.currentTarget.classList.add('active');
+}
