@@ -173,6 +173,8 @@ class ObsidianProcessor {
                             if (prop === 'file.basename') props[prop] = 'Basename';
                             else props[prop] = prop.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                         }
+                    } else {
+                        props['file.name'] = 'file name';
                     }
                 }
             }
@@ -232,6 +234,23 @@ class ObsidianProcessor {
                                         } else if (property === 'file.path') {
                                             const result = fileProps.path && fileProps.path.startsWith(value);
                                             console.log(`  file.path "${fileProps.path}" startsWith "${value}":`, result);
+                                            return result;
+                                        }
+                                    } else {
+                                        return false;
+                                    }
+                                } else if (filter.includes('.endsWith(')) {
+                                    const match = filter.match(/^(.+)\.endsWith\(["'](.+)["']\)$/);
+                                    if (match) {
+                                        const [, property, value] = match;
+                                        
+                                        if (property === 'file.folder') {
+                                            const result = fileProps.folder && fileProps.folder.endsWith(value);
+                                            console.log(`  file.folder "${fileProps.folder}" endsWith "${value}":`, result);
+                                            return result;
+                                        } else if (property === 'file.path') {
+                                            const result = fileProps.path && fileProps.path.startsWith(value);
+                                            console.log(`  file.path "${fileProps.path}" endsWith "${value}":`, result);
                                             return result;
                                         }
                                     } else {
@@ -996,17 +1015,14 @@ class ObsidianProcessor {
             .replace(/\.md$/i, '.html');
         
         if (target === '#file-not-found'){
-            console.log(fileName)
+            console.log("Not found: " + fileName)
         }
-
-        console.log("Target:", target);
 
         const article = document.querySelector("article");
         const attributeValue = article.getAttribute('data-current-file');
         let relCurParts = attributeValue.replace(/\\/g, '/').replace(' ', '-').toLowerCase().split('/').slice(0, -1)
 
         let relTgtParts = target.split('/').filter(Boolean);
-        console.log(relTgtParts)
 
         let i = 0;
         while (i < relCurParts.length && i < relTgtParts.length && relCurParts[i] === relTgtParts[i]) {
@@ -1014,8 +1030,6 @@ class ObsidianProcessor {
         }
 
         const relativePath = [...Array(relCurParts.length - i).fill('..'), ...relTgtParts.slice(i)].join('/');
-
-        console.log("Relative path:", relativePath);
 
         return relativePath.replace(/ /g, '-');
     }
