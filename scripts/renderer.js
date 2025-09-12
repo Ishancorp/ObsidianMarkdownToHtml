@@ -991,7 +991,7 @@ class ObsidianProcessor {
     }
 
     getLinkHref(fileName) {
-        let target = (fileLinks[fileName] || fileLinks[fileName + '.md'] || '#file-not-found')
+        let target = (fileLinks[fileName] || fileLinks[fileName + '.md'] || '#file-not-found').toLowerCase()
             .replace(/\\/g, '/')
             .replace(/\.md$/i, '.html');
         
@@ -1467,7 +1467,7 @@ class ObsidianProcessor {
                                 const checkboxTag = `checkbox-${checkboxPrefix}-${filecurElems[j].replace(/\s+/g, "-")}`;
                                 checkboxPrefix += 1;
                                 ret_str += `<input type="checkbox" id="${checkboxTag}" name="${checkboxTag}">\n`;
-                                ret_str += `<label class="checkbox" for="${checkboxTag}">${filecurElems[j].charAt(0).toUpperCase() + filecurElems[j].slice(1)}</label>\n`;
+                                ret_str += `<label class="checkbox" for="${checkboxTag}">${filecurElems[j]}</label>\n`;
                                 ret_str += '<ul class="child">\n';
                             }
                         }
@@ -1503,7 +1503,8 @@ class ObsidianProcessor {
         const searchDict = {};
         const seenValues = new Set();
         
-        for (const [key, value] of Object.entries(fileLinks)) {
+        for (const [key, capsValue] of Object.entries(fileLinks)) {
+            const value = capsValue.toLowerCase()
             if (!seenValues.has(value)) {
                 searchDict[key] = value;
                 seenValues.add(value);
@@ -1554,7 +1555,7 @@ function slugify(text) {
         .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9 \-()†]/g, '') // Keep only alphanumeric, space, hyphen, parentheses, dagger
+        .replace(/[^a-z0-9 \-()†,]/g, '') // Keep only alphanumeric, space, comma, hyphen, parentheses, dagger
         .replace(/\s+/g, '-')            // Replace spaces with hyphens
         .replace(/-+/g, '-')             // Collapse multiple hyphens
         .replace(/^-+/, '')              // Remove leading hyphens

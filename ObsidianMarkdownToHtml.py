@@ -247,17 +247,17 @@ class ObsidianMarkdownToHtml:
             relative_dir = str(Path(relative_path).parent) if Path(relative_path).parent != Path('.') else ""
             
             if extension == "md":
-                output_file_name = self.link_to_filepath.get(file_name, file_name + '.html').replace(" ", "-").lower()
+                output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name + '.html'))
             elif extension == "canvas":
-                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower()[:-5] + ".canvas.html"
+                output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name))[:-5] + ".canvas.html"
             elif extension == "base":
-                output_file_name = self.link_to_filepath.get(file_name, file_name).replace(" ", "-").lower() + ".base.html"
+                output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name)) + ".base.html"
             else:
                 self.copy_non_markdown_file(file)
                 continue
             
             if relative_dir:
-                transformed_dir = "/".join(part.lower().replace(" ", "-") for part in relative_dir.split("/"))
+                transformed_dir = "/".join(self.normalize(part) for part in relative_dir.split("/"))
                 output_path = Path(self.out_directory) / transformed_dir / output_file_name.split("\\")[-1]
             else:
                 output_path = Path(self.out_directory) / output_file_name
@@ -290,7 +290,7 @@ class ObsidianMarkdownToHtml:
             relative_path = file
 
         source_file = Path(self.in_directory) / relative_path
-        export_file = Path(self.out_directory) / relative_path.replace(" ", "-")
+        export_file = Path(self.out_directory) / self.normalize(relative_path)
 
         export_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -298,3 +298,6 @@ class ObsidianMarkdownToHtml:
             shutil.copy(source_file, export_file)
         else:
             print(f"ERROR: Source file not found: {source_file}")
+
+    def normalize(self, s):
+        return s.replace(" ", "-").lower()

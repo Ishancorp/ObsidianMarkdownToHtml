@@ -1,7 +1,6 @@
 from collections import deque
-import json
 from os import listdir, makedirs
-from os.path import isfile, isdir, dirname, exists
+from os.path import isfile, isdir, dirname
 from pathlib import Path
 base_dir = Path(__file__).resolve().parent
 
@@ -43,7 +42,7 @@ class FileManager:
                 
                 if extension == "md":
                     name = file.split('.')[0]
-                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")) + ".html"
                     
                     # Always store the full path (guaranteed unique)
                     full_key = nu_rel_dir.replace("\\", "/")[2:] + name if path != "" else name
@@ -56,7 +55,7 @@ class FileManager:
                     
                 elif extension == "canvas":
                     name = file.split(".")[0] + ".canvas"
-                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")) + ".html"
                     
                     # Always store the full path (guaranteed unique)  
                     full_key = nu_rel_dir.replace("\\", "/")[2:] + name if path != "" else name
@@ -70,7 +69,7 @@ class FileManager:
                     
                 elif extension == "base":
                     name = file.split(".")[0] + ".base"
-                    html_pruned = (nu_rel_dir + name.replace(" ", "-")).lower() + ".html"
+                    html_pruned = (nu_rel_dir + name.replace(" ", "-")) + ".html"
                     
                     # Always store the full path (guaranteed unique)  
                     full_key = nu_rel_dir.replace("\\", "/")[2:] + name if path != "" else name
@@ -82,7 +81,7 @@ class FileManager:
                     basename_tracker[name].append((full_key, html_pruned))
                     
                 else:
-                    file_pruned = (nu_rel_dir + file.replace(" ", "-")).lower()
+                    file_pruned = (nu_rel_dir + file.replace(" ", "-"))
                     
                     # Always store the full path (guaranteed unique)
                     full_key = nu_rel_dir.replace("\\", "/")[2:] + file if path != "" else file
