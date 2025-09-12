@@ -153,14 +153,12 @@ class ObsidianProcessor {
                 return '<div class="error">Invalid base file: No views defined</div>';
             }
             
-            // Extract properties configuration
             const props = {};
             if (data.properties) {
                 for (const key in data.properties) {
                     props[key] = data.properties[key].displayName || key;
                 }
             } else {
-                // Fallback to default properties from first view
                 const firstView = data.views[0];
                 if (firstView && firstView.order) {
                     for (const prop of firstView.order) {
@@ -176,7 +174,6 @@ class ObsidianProcessor {
                 }
             }
 
-            // Get all file data once
             const allFileIds = Object.keys(fileProperties);
             console.log('All file IDs:', allFileIds.length);
             
@@ -201,32 +198,28 @@ class ObsidianProcessor {
                 }
             }
 
-            // If only one view, render without tabs
             if (data.views.length === 1) {
                 return await this.renderSingleView(data.views[0], allLinks, props, data.filters);
             }
 
-            // Multiple views - create tabbed interface
+            const baseId = `base-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             let tabsHtml = '<div class="base-tabs-container">';
             
-            // Tab headers
             tabsHtml += '<div class="base-tab-headers">';
             for (let i = 0; i < data.views.length; i++) {
                 const view = data.views[i];
                 const viewName = view.name || `View ${i + 1}`;
-                const activeClass = i === 0 ? ' active' : '';
-                tabsHtml += `<button class="base-tab-header${activeClass}" onclick="switchBaseTab(event, 'base-tab-${i}')">${this.escapeHtml(viewName)}</button>`;
+                const activeClass = i === 0 ? 'active' : '';
+                tabsHtml += `<button class="base-tab-header bth-${baseId} ${activeClass}" onclick="switchBaseTab(event, '${baseId}-tab-${i}', '${baseId}')">${this.escapeHtml(viewName)}</button>`;
             }
             tabsHtml += '</div>';
 
-            // Tab contents
             tabsHtml += '<div class="base-tab-contents">';
             for (let i = 0; i < data.views.length; i++) {
                 const view = data.views[i];
-                const activeClass = i === 0 ? ' active' : '';
-                tabsHtml += `<div id="base-tab-${i}" class="base-tab-content${activeClass}">`;
+                const activeClass = i === 0 ? 'active' : '';
+                tabsHtml += `<div id="${baseId}-tab-${i}" class="base-tab-content btc-${baseId} ${activeClass}">`;
                 
-                // Render the view content
                 const viewContent = await this.renderSingleView(view, allLinks, props, data.filters);
                 tabsHtml += viewContent;
                 
@@ -246,20 +239,17 @@ class ObsidianProcessor {
     async renderSingleView(viewConfig, allLinks, props, globalFilters) {
         console.log('Processing view:', viewConfig);
         
-        // Apply global filters first
         let filteredLinks = allLinks;
         if (globalFilters) {
             filteredLinks = this.processFilters(allLinks, globalFilters);
         }
         
-        // Apply view-specific filters
         if (viewConfig.filters) {
             filteredLinks = this.processFilters(filteredLinks, viewConfig.filters);
         }
         
         console.log('Filtered links for view:', filteredLinks);
         
-        // Sort the links
         const sortRules = viewConfig.sort || [];
         const sortedLinks = this.sortLinks(filteredLinks, sortRules);
         
@@ -1675,15 +1665,15 @@ document.addEventListener('DOMContentLoaded', renderContent);
 
 
 window.switchBaseTabAdded = true;
-function switchBaseTab(evt, tabId) {
+function switchBaseTab(evt, tabId, baseId) {
     // Hide all tab contents
-    const tabContents = document.getElementsByClassName('base-tab-content');
+    const tabContents = document.getElementsByClassName(`btc-${baseId}`);
     for (let i = 0; i < tabContents.length; i++) {
         tabContents[i].classList.remove('active');
     }
     
     // Remove active class from all tab headers
-    const tabHeaders = document.getElementsByClassName('base-tab-header');
+    const tabHeaders = document.getElementsByClassName(`bth-${baseId}`);
     for (let i = 0; i < tabHeaders.length; i++) {
         tabHeaders[i].classList.remove('active');
     }

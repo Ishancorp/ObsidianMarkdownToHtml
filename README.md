@@ -39,6 +39,7 @@ om2html.compile_webpages()
   - [x] Make edges work
   - [-] Work on zoom
 - [x] Work on base
+  - [x] Work with multiple views
 
 ## License
 
