@@ -161,8 +161,8 @@ class ObsidianMarkdownToHtml:
         <title>{title}</title>
         <link rel="preconnect" href="https://rsms.me/">
         <link rel="preconnect" href="https://rsms.me/inter/inter.css">
-        <link rel="stylesheet" href="{offset}\\style.css">
-        {f'<link rel="stylesheet" href="{offset}\\canvas.css">' if type == "canvas" else ''}
+        <link rel="stylesheet" href="{offset}/style.css">
+        {f'<link rel="stylesheet" href="{offset}/canvas.css">' if type == "canvas" else ''}
         <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
     </head>
     <body>
@@ -183,9 +183,9 @@ class ObsidianMarkdownToHtml:
             <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
             <p>Last updated on {self.get_current_date()}</p>
         </footer>
-        <script src="{offset}\\renderer.js"></script>
-        <script src="{offset}\\searcher.js"></script>
-        {f'<script src="{offset}\\canvas.js"></script>' if type == "canvas" else ''}
+        <script src="{offset}/renderer.js"></script>
+        <script src="{offset}/searcher.js"></script>
+        {f'<script src="{offset}/canvas.js"></script>' if type == "canvas" else ''}
         <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
         <script>
             MathJax = {{
@@ -196,22 +196,69 @@ class ObsidianMarkdownToHtml:
             }};
         </script>
         <script src="https://unpkg.com/lucide@latest"></script>
-        <script type="module">
-            import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+        <script>
+            // Mobile-compatible Mermaid loading
+            (function() {{
+                // Check if we're on a mobile device
+                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                
+                // Load mermaid
+                const script = document.createElement('script');
+                script.type = 'text/javascript';
+                script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+                script.onload = function() {{
+                    mermaid.initialize({{
+                        startOnLoad: false,
+                        theme: "default",
+                        securityLevel: 'loose'  // Needed for some mobile browsers
+                    }});
 
-            mermaid.initialize({{
-                startOnLoad: true,
-                theme: "default"
-            }});
-
-            document.addEventListener("DOMContentLoaded", () => {{
-                // Replace only ```mermaid fences
-                document.body.innerHTML = document.body.innerHTML.replace(
-                    /```mermaid([\\s\\S]*?)```/g,
-                    (match, code) => `<pre class="mermaid">${{code.trim()}}</pre>`
-                );
-                mermaid.run();
-            }});
+                    document.addEventListener("DOMContentLoaded", function() {{
+                        // Replace only ```mermaid fences
+                        const walker = document.createTreeWalker(
+                            document.body,
+                            NodeFilter.SHOW_TEXT,
+                            null,
+                            false
+                        );
+                        
+                        const textNodes = [];
+                        let node;
+                        while (node = walker.nextNode()) {{
+                            textNodes.push(node);
+                        }}
+                        
+                        textNodes.forEach(function(textNode) {{
+                            if (textNode.textContent.includes('```mermaid')) {{
+                                const parent = textNode.parentNode;
+                                const html = parent.innerHTML;
+                                const newHtml = html.replace(
+                                    /```mermaid([\\s\\S]*?)```/g,
+                                    function(match, code) {{
+                                        return '<pre class="mermaid">' + code.trim() + '</pre>';
+                                    }}
+                                );
+                                if (newHtml !== html) {{
+                                    parent.innerHTML = newHtml;
+                                }}
+                            }}
+                        }});
+                        
+                        // Run mermaid after DOM is ready and modified
+                        setTimeout(function() {{
+                            try {{
+                                mermaid.run();
+                            }} catch (e) {{
+                                console.log('Mermaid rendering skipped on mobile:', e);
+                            }}
+                        }}, 100);
+                    }});
+                }};
+                script.onerror = function() {{
+                    console.log('Mermaid failed to load, continuing without it');
+                }};
+                document.head.appendChild(script);
+            }})();
         </script>
     </body>
     </html>"""
