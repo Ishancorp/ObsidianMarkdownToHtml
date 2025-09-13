@@ -246,12 +246,13 @@ class ObsidianMarkdownToHtml:
             relative_path = file[2:] if file.startswith('./') else file
             relative_dir = str(Path(relative_path).parent) if Path(relative_path).parent != Path('.') else ""
             
-            if extension == "md":
-                output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name + '.html'))
-            elif extension == "canvas":
-                output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name))[:-5] + ".canvas.html"
-            elif extension == "base":
-                output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name))[:-5] + ".base.html"
+            if extension in ("md", "canvas", "base"):
+                if self.link_to_filepath.get(file_name, file_name).endswith(extension):
+                    output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name)).rsplit('.', 1)[0] + f".{extension}.html"
+                elif extension in ("base", "canvas"):
+                    output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name)).rsplit('.', 1)[0] + f".{extension}.html"
+                else:
+                    output_file_name = self.normalize(self.link_to_filepath.get(file_name, file_name + '.html'))
             else:
                 self.copy_non_markdown_file(file)
                 continue

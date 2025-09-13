@@ -691,7 +691,7 @@ class ObsidianProcessor {
         contentWithoutFootnotes = contentWithoutFootnotes.replace(/\[\^([^\]]+)\]/g, (match, id) => {
             if (footnotes.hasOwnProperty(id)) {
                 const uniqueId = `${transclusionId}-${id}`;
-                const tooltipContent = this.escapeTooltipContent(footnotes[id]);
+                const tooltipContent = footnotes[id];
                 footnoteCounter++;
                 return `<span class="fn"><a href="#fn-${uniqueId}" class="fn-link" id="fnref-${uniqueId}"><sup>[${id}]</sup></a><span class="fn-tooltip">${tooltipContent}</span></span>`;
             }
@@ -1035,17 +1035,6 @@ class ObsidianProcessor {
         return null;
     }
 
-    escapeTooltipContent(text) {
-        return text.replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#x27;')
-            .replace(/\n/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-    }
-
     getLinkHref(fileName) {
         let target = (fileLinks[fileName] || fileLinks[fileName + '.md'] || '#file-not-found').toLowerCase()
             .replace(/\\/g, '/')
@@ -1260,7 +1249,7 @@ class ObsidianProcessor {
                 inBlockquote = false;
                 const processedLine = line.replace(/\[\^([^\]]+)\]/g, (match, id) => {
                     if (footnotes.hasOwnProperty(id)) {
-                        const tooltipContent = this.escapeTooltipContent(footnotes[id]);
+                        const tooltipContent = footnotes[id];
                         footnoteCounter++;
                         return `<span class="fn"><a href="#fn-${id}" class="fn-link" id="fnref-${id}"><sup>[${id}]</sup></a><span class="fn-tooltip">${tooltipContent}</span></span>`;
                     }
@@ -1608,7 +1597,6 @@ function slugify(text) {
         .toLowerCase()
         .replace(/[^a-z0-9 \-()†,]/g, '') // Keep only alphanumeric, space, comma, hyphen, parentheses, dagger
         .replace(/\s+/g, '-')            // Replace spaces with hyphens
-        .replace(/-+/g, '-')             // Collapse multiple hyphens
         .replace(/^-+/, '')              // Remove leading hyphens
         .replace(/-+$/, '');             // Remove trailing hyphens
 }
@@ -1666,19 +1654,16 @@ document.addEventListener('DOMContentLoaded', renderContent);
 
 window.switchBaseTabAdded = true;
 function switchBaseTab(evt, tabId, baseId) {
-    // Hide all tab contents
     const tabContents = document.getElementsByClassName(`btc-${baseId}`);
     for (let i = 0; i < tabContents.length; i++) {
         tabContents[i].classList.remove('active');
     }
     
-    // Remove active class from all tab headers
     const tabHeaders = document.getElementsByClassName(`bth-${baseId}`);
     for (let i = 0; i < tabHeaders.length; i++) {
         tabHeaders[i].classList.remove('active');
     }
     
-    // Show selected tab and mark header as active
     document.getElementById(tabId).classList.add('active');
     evt.currentTarget.classList.add('active');
 }
