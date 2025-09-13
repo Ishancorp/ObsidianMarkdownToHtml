@@ -700,7 +700,7 @@ class ObsidianProcessor {
 
         let footnotesHtml = '';
         if (Object.keys(footnotes).length > 0) {
-            footnotesHtml = '<div class="transclusion-footnotes"><hr class="footnote-separator"><ol class="footnote-list">';
+            footnotesHtml = '<div class="footnotes transclusion-footnotes"><hr class="footnote-separator"><ol class="footnote-list">';
             for (const [id, text] of Object.entries(footnotes)) {
                 const uniqueId = `${transclusionId}-${id}`;
                 footnotesHtml += `<li id="fn-${uniqueId}">${text} <a href="#fnref-${uniqueId}" class="footnote-backref">↩</a></li>`;
@@ -822,7 +822,7 @@ class ObsidianProcessor {
     processImageTransclusion(imageLink) {
         const imgHref = this.getLinkHref(imageLink);
         if (imgHref !== '#file-not-found') {
-            return `<img src="${imgHref}" alt="${imageLink}" />`;
+            return `<img src="${imgHref}" alt="${imageLink}" />\n`;
         }
         return `<span class="broken-link">![[${imageLink}]]</span>`;
     }
@@ -1264,7 +1264,7 @@ class ObsidianProcessor {
         processedContent = finalLines.join('\n');
 
         if (Object.keys(footnotes).length > 0) {
-            let footnotesHtml = '<div class="footnotes"><hr><ol>';
+            let footnotesHtml = '\n\n<div class="footnotes"><hr><ol>';
             for (const [id, text] of Object.entries(footnotes)) {
                 footnotesHtml += `<li id="fn-${id}">${text} <a href="#fnref-${id}" class="footnote-backref">↩</a></li>`;
             }
