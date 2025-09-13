@@ -620,18 +620,7 @@ footer {
 
 /* Ensure tables display properly in tabs with dark theme */
 .base-tab-content table {
-    width: 100%;
     margin: 0;
-    border-collapse: collapse;
-    border: 1px solid #363636;
-}
-
-.base-tab-content td, 
-.base-tab-content th {
-    text-align: left;
-    border: 1px solid #363636;
-    padding: 0.4em;
-    color: #DADADA;
 }
 
 .base-tab-content th {
@@ -639,80 +628,15 @@ footer {
     font-weight: 600;
 }
 
-/* Cards container styling to match existing cards */
 .base-tab-content .cards-container {
-    display: grid;
     gap: 1rem;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     padding: 0;
-}
-
-.base-tab-content .card {
-    border: 1px solid #363636;
-    border-radius: 8px;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    cursor: pointer;
-    background-color: #242424;
-}
-
-.base-tab-content .card:hover {
-    border-color: #6086ED;
-}
-
-.base-tab-content .card-content {
-    padding: 15px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-}
-
-.base-tab-content .card-title {
-    margin: 0 0 10px 0;
-    font-size: 1.2em;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: #DADADA;
-}
-
-.base-tab-content .card-title a {
-    text-decoration: none;
-    color: #6086ED;
-}
-
-.base-tab-content .card-title a:hover {
-    color: #87B6F6;
-}
-
-.base-tab-content .card-property {
-    margin: 8px 0;
-    font-size: 0.9em;
 }
 
 .base-tab-content .property-label {
     font-weight: 600;
     margin-right: 8px;
     color: #DADADA;
-}
-
-.base-tab-content .property-value {
-    color: #DADADA;
-}
-
-.base-tab-content .card-image {
-    width: 100%;
-    height: 200px;
-    overflow: hidden;
-    background-color: #1E1E1E;
-}
-
-.base-tab-content .card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
 }
 
 /* Info/error messages in tabs */
