@@ -1668,59 +1668,50 @@ async function renderContent() {
 
 document.addEventListener('DOMContentLoaded', renderContent);
 
-// Mobile popover fallback for iOS Safari
-(function() {
-    // Check if popover is supported
-    if (!HTMLElement.prototype.hasOwnProperty('popover')) {
-        console.log('Adding popover fallback for mobile');
-        
-        // Add fallback functionality
-        document.addEventListener('click', function(e) {
-            const button = e.target.closest('[popovertarget]');
-            if (button) {
-                e.preventDefault();
-                const targetId = button.getAttribute('popovertarget');
-                const target = document.getElementById(targetId);
-                const action = button.getAttribute('popovertargetaction') || 'toggle';
+if (!HTMLElement.prototype.hasOwnProperty('popover')) {
+    console.log('Adding popover fallback for mobile');
+    
+    document.addEventListener('click', function(e) {
+        const button = e.target.closest('[popovertarget]');
+        if (button) {
+            e.preventDefault();
+            const targetId = button.getAttribute('popovertarget');
+            const target = document.getElementById(targetId);
+            const action = button.getAttribute('popovertargetaction') || 'toggle';
+            
+            if (target) {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'popover-backdrop';
                 
-                if (target) {
-                    const backdrop = document.createElement('div');
-                    backdrop.className = 'popover-backdrop';
-                    
-                    if (action === 'toggle' || action === 'show') {
-                        if (target.classList.contains('show')) {
-                            // Hide
-                            target.classList.remove('show');
-                            const existingBackdrop = document.querySelector('.popover-backdrop.show');
-                            if (existingBackdrop) {
-                                existingBackdrop.remove();
-                            }
-                        } else {
-                            // Hide any other open popovers
-                            document.querySelectorAll('[popover].show').forEach(function(el) {
-                                el.classList.remove('show');
-                            });
-                            document.querySelectorAll('.popover-backdrop.show').forEach(function(el) {
-                                el.remove();
-                            });
-                            
-                            // Show this one
-                            target.classList.add('show');
-                            backdrop.classList.add('show');
-                            document.body.appendChild(backdrop);
-                            
-                            // Close on backdrop click
-                            backdrop.addEventListener('click', function() {
-                                target.classList.remove('show');
-                                backdrop.remove();
-                            });
+                if (action === 'toggle' || action === 'show') {
+                    if (target.classList.contains('show')) {
+                        target.classList.remove('show');
+                        const existingBackdrop = document.querySelector('.popover-backdrop.show');
+                        if (existingBackdrop) {
+                            existingBackdrop.remove();
                         }
+                    } else {
+                        document.querySelectorAll('[popover].show').forEach(function(el) {
+                            el.classList.remove('show');
+                        });
+                        document.querySelectorAll('.popover-backdrop.show').forEach(function(el) {
+                            el.remove();
+                        });
+                        
+                        target.classList.add('show');
+                        backdrop.classList.add('show');
+                        document.body.appendChild(backdrop);
+                        
+                        backdrop.addEventListener('click', function() {
+                            target.classList.remove('show');
+                            backdrop.remove();
+                        });
                     }
                 }
             }
-        });
-    }
-})();
+        }
+    });
+}
 
 
 
