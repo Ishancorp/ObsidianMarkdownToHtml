@@ -372,6 +372,13 @@ svg.lucide {
 svg.lucide:hover {
     stroke: #6086ed;
 }
+.external-link-icon svg.lucide {
+    height: 1em;
+    width: 1em;
+}
+.external-link-icon svg.lucide:hover {
+    stroke: currentColor;
+}
 
 nav {
     position: -webkit-sticky; /* Safari */

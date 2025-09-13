@@ -196,9 +196,6 @@ class ObsidianMarkdownToHtml:
             }};
         </script>
         <script src="https://unpkg.com/lucide@latest"></script>
-        <script>
-            lucide.createIcons();
-        </script>
         <script type="module">
             import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
 
@@ -214,14 +211,6 @@ class ObsidianMarkdownToHtml:
                     (match, code) => `<pre class="mermaid">${{code.trim()}}</pre>`
                 );
                 mermaid.run();
-            }});
-        </script>
-        <script>
-            document.addEventListener('click', function(e) {{
-                const card = e.target.closest('.card[data-href]');
-                if (card) {{
-                    window.location.href = card.dataset.href;
-                }}
             }});
         </script>
     </body>

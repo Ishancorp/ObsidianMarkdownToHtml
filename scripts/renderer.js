@@ -1618,6 +1618,24 @@ renderer.heading = function(text, level, raw) {
     const escapedText = slugify(text);
     return `<span class="anchor" id="${escapedText}"></span><h${level}>${text}</h${level}>`;
 };
+const originalLink = renderer.link;
+
+// Override the link method to wrap external links
+renderer.link = function(href, title, text) {
+    // Call the original link renderer first
+    const originalOutput = originalLink.call(this, href, title, text);
+    
+    // Check if it's an external link (starts with http:// or https://)
+    const isExternalLink = href && (href.startsWith('http://') || href.startsWith('https://'));
+    
+    if (isExternalLink) {
+        // Wrap external links with a special span
+        return `<span class="external-link-wrapper">${originalOutput}<span class="external-link-icon"><i data-lucide="external-link"></i></span></span>`;
+    }
+    
+    // Return the original output for internal links
+    return originalOutput;
+};
 marked.setOptions({ renderer: renderer });
 
 async function renderContent() {
@@ -1645,6 +1663,7 @@ async function renderContent() {
         console.error('Error processing content:', error);
         article.innerHTML = '<p>Error processing content. Please check the console for details.</p>';
     }
+    lucide.createIcons();
 }
 
 document.addEventListener('DOMContentLoaded', renderContent);
@@ -1667,3 +1686,10 @@ function switchBaseTab(evt, tabId, baseId) {
     document.getElementById(tabId).classList.add('active');
     evt.currentTarget.classList.add('active');
 }
+
+document.addEventListener('click', function(e) {
+    const card = e.target.closest('.card[data-href]');
+    if (card) {
+        window.location.href = card.dataset.href;
+    }
+});
