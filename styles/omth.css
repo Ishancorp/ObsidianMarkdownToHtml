@@ -373,8 +373,9 @@ svg.lucide:hover {
     stroke: #6086ed;
 }
 .external-link-icon svg.lucide {
-    height: 1em;
-    width: 1em;
+    height: 0.75em;
+    width: 0.75em;
+    color: #DADADA;
 }
 .external-link-icon svg.lucide:hover {
     stroke: currentColor;
