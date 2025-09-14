@@ -351,6 +351,7 @@ class ObsidianProcessor {
             console.log('Processed content before marked:', processedContent.substring(0, 500));
             
             const htmlContent = marked.parse(processedContent);
+            console.log('Processed content after marked:', htmlContent);
             const processedHTML = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             
             return [processedHTML, headers];
@@ -1182,14 +1183,20 @@ class ObsidianProcessor {
     processWikilinks(content) {
         return content.replace(/\[\[([^\]]+)\]\]/g, (match, link) => {
             let [pageName, alias] = link.split('|');
-            alias = alias || pageName;
-
-            alias = alias.replace(/#/g, '&nbsp;>&nbsp;');
+            
+            if (!alias) {
+                alias = pageName.replace(/#/g, ' > ');
+            } else {
+                alias = alias.replace(/#/g, '&nbsp;>&nbsp;');
+            }
 
             let section = null;
             if (pageName.includes('#')) {
                 [pageName, section] = pageName.split('#');
-                section = section.toLowerCase().replace(/\s+/g, '-');
+                section = section.toLowerCase()
+                    .replace(/\s+/g, '-')
+                    .replace(/"/g, '%22')
+                    .replace(/'/g, '%27');
             }
 
             let url = this.getLinkHref(pageName);
@@ -1197,7 +1204,7 @@ class ObsidianProcessor {
             if (url === '#file-not-found') {
                 return `<span class="broken-link">${match}</span>`;
             }
-            return `<a href="${url}" class="wikilink">${alias}</a>`;
+            return `<a href="${url}" class="wikilink">${this.escapeHtml(alias)}</a>`;
         });
     }
 
@@ -1249,7 +1256,7 @@ class ObsidianProcessor {
                 inBlockquote = false;
                 const processedLine = line.replace(/\[\^([^\]]+)\]/g, (match, id) => {
                     if (footnotes.hasOwnProperty(id)) {
-                        const tooltipContent = footnotes[id];
+                        const tooltipContent = marked.parse(footnotes[id]).replace(/^<p>|<\/p>$/g, '');
                         footnoteCounter++;
                         return `<span class="fn"><a href="#fn-${id}" class="fn-link" id="fnref-${id}"><sup>[${id}]</sup></a><span class="fn-tooltip">${tooltipContent}</span></span>`;
                     }
@@ -1266,7 +1273,8 @@ class ObsidianProcessor {
         if (Object.keys(footnotes).length > 0) {
             let footnotesHtml = '\n\n<div class="footnotes"><hr><ol>';
             for (const [id, text] of Object.entries(footnotes)) {
-                footnotesHtml += `<li id="fn-${id}">${text} <a href="#fnref-${id}" class="footnote-backref">↩</a></li>`;
+                const processedText = marked.parse(text).replace(/^<p>|<\/p>$/g, '');
+                footnotesHtml += `<li id="fn-${id}">${processedText} <a href="#fnref-${id}" class="footnote-backref">↩</a></li>`;
             }
             footnotesHtml += '</ol></div>';
             processedContent += footnotesHtml;
