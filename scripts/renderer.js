@@ -43,6 +43,8 @@ class ObsidianProcessor {
         content = this.processFootnotes(content);
         
         content = this.processBlockReferences(content);
+
+        content = this.processIndentedLines(content);
         
         return content;
     }
@@ -781,10 +783,10 @@ class ObsidianProcessor {
             if (fileType === 'canvas' || fileType === 'base') {
                 const headerHtml = `<span class="transcl-bar"><span><strong>${section ? `${fileName} <span class="file-link">></span> ${section}` : `${fileName}`}</strong></span> <span class="goto">[[${link}|>>]]</span></span>`;
                 
-                return `\n\n<blockquote class="transclusion">
-    <div class="transclusion-header">${headerHtml}</div>
+                return `<blockquote class="transclusion">
+    <div class="transclusion-header">${headerHtml}</div><br>
     <div class="transclusion-content">${processedContent}</div>
-    </blockquote>\n\n`;
+    </blockquote>`;
             } else {
                 const lines = processedContent.split('\n');
                 const blockquote = lines.map(line => line.trim() ? `> ${line}` : '>').join('\n');
@@ -1374,6 +1376,82 @@ class ObsidianProcessor {
             }
         }
 
+        return processedLines.join('\n');
+    }
+
+    processIndentedLines(content) {
+        const lines = content.split('\n');
+        const processedLines = [];
+        let inCodeBlock = false;
+        let codeBlockIndent = 0;
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            
+            if (line.trim().startsWith('```')) {
+                inCodeBlock = !inCodeBlock;
+                if (inCodeBlock) {
+                    codeBlockIndent = line.length - line.trimStart().length;
+                }
+                processedLines.push(line);
+                continue;
+            }
+            
+            if (inCodeBlock) {
+                processedLines.push(line);
+                continue;
+            }
+            
+            if (line.startsWith('\t') && line.trim() !== '') {
+                let isObsidianCodeBlock = false;
+                for (let j = i - 1; j >= 0; j--) {
+                    const prevLine = lines[j];
+                    if (prevLine.trim() === '') {
+                        continue;
+                    }
+                    if (prevLine.trim().endsWith(':') || prevLine.trim() === '') {
+                        isObsidianCodeBlock = true;
+                    }
+                    break;
+                }
+                
+                if (i === 0 || (i > 0 && lines[i-1].trim() === '')) {
+                    isObsidianCodeBlock = true;
+                }
+                
+                if (isObsidianCodeBlock) {
+                    let codeBlockLines = 1;
+                    for (let k = i + 1; k < lines.length && lines[k].startsWith('\t'); k++) {
+                        codeBlockLines++;
+                    }
+                    
+                    if (codeBlockLines > 1 || line.includes('(') || line.includes('{') || line.includes(';')) {
+                        processedLines.push(line);
+                        continue;
+                    }
+                }
+            }
+            
+            if (line.startsWith('\t') && line.trim() !== '') {
+                let tabCount = 0;
+                for (let char of line) {
+                    if (char === '\t') {
+                        tabCount++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                let wrappedLine = line.substring(tabCount);
+                for(; tabCount > 0; --tabCount){
+                    wrappedLine = `<span class="indent">${wrappedLine}</span>`;
+                }
+                processedLines.push(wrappedLine);
+            } else {
+                processedLines.push(line);
+            }
+        }
+        
         return processedLines.join('\n');
     }
 
