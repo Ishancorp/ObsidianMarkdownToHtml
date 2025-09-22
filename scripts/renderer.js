@@ -41,6 +41,8 @@ class ObsidianProcessor {
         content = this.processWikilinks(content);
         
         content = this.processFootnotes(content);
+
+        console.log(content)
         
         content = this.processBlockReferences(content);
 
@@ -779,18 +781,18 @@ class ObsidianProcessor {
 
             this.processing_files.delete(fileName);
 
+            const transclBar = `<span class="transcl-bar"><span>${section ? `<strong>${fileName}</strong> <span class="file-link">></span> <strong>${section}</strong>` : `<strong>${fileName}</strong>`}</span> <span class="goto">[[${link}|>>]]</span></span>`;
+
             if (fileType === 'canvas' || fileType === 'base') {
-                const headerHtml = `<span class="transcl-bar"><span><strong>${section ? `${fileName} <span class="file-link">></span> ${section}` : `${fileName}`}</strong></span> <span class="goto">[[${link}|>>]]</span></span>`;
-                
                 return `<blockquote class="transclusion">
-    <div class="transclusion-header">${headerHtml}</div><br>
+    <div class="transclusion-header">${transclBar}</div><br>
     <div class="transclusion-content">${processedContent}</div>
     </blockquote>`;
             } else {
                 const lines = processedContent.split('\n');
                 const blockquote = lines.map(line => line.trim() ? `> ${line}` : '>').join('\n');
 
-                let result = `\n\n> <span class="transcl-bar"><span>${section ? `**${fileName}** <span class="file-link">></span> **${section}**` : `**${fileName}**`}</span> <span class="goto">[[${link}|>>]]</span></span><br>\n${blockquote}`;
+                let result = `\n\n> ${transclBar}<br>\n${blockquote}`;
 
                 if (footnotesHtml) {
                     result += `\n>\n> ${footnotesHtml.replace(/\n/g, '\n> ')}`;
@@ -1276,7 +1278,11 @@ class ObsidianProcessor {
                 inBlockquote = false;
                 const processedLine = line.replace(/\[\^([^\]]+)\]/g, (match, id) => {
                     if (footnotes.hasOwnProperty(id)) {
-                        const tooltipContent = marked.parse(footnotes[id]).replace(/^<p>|<\/p>$/g, '');
+                        const tooltipContent = marked.parse(footnotes[id]).replace(/^<p>\s*/, '')
+                            .replace(/\s*<\/p>$/, '') 
+                            .replace(/<\/p>\s*<p>/g, '<br>')
+                            .trim();
+                        console.log(tooltipContent)
                         footnoteCounter++;
                         return `<span class="fn"><a href="#fn-${id}" class="fn-link" id="fnref-${id}"><sup>[${id}]</sup></a><span class="fn-tooltip">${tooltipContent}</span></span>`;
                     }
