@@ -353,7 +353,6 @@ class ObsidianProcessor {
             console.log('Processed content before marked:', processedContent.substring(0, 500));
             
             const htmlContent = marked.parse(processedContent);
-            console.log('Processed content after marked:', htmlContent);
             const processedHTML = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             
             return [processedHTML, headers];
@@ -791,7 +790,7 @@ class ObsidianProcessor {
                 const lines = processedContent.split('\n');
                 const blockquote = lines.map(line => line.trim() ? `> ${line}` : '>').join('\n');
 
-                let result = `\n\n> <span class="transcl-bar"><span>${section ? `**${fileName}** <span class="file-link">></span> **${section}**` : `**${fileName}**`}</span> <span class="goto">[[${link}|>>]]</span></span>\n>\n${blockquote}`;
+                let result = `\n\n> <span class="transcl-bar"><span>${section ? `**${fileName}** <span class="file-link">></span> **${section}**` : `**${fileName}**`}</span> <span class="goto">[[${link}|>>]]</span></span><br>\n${blockquote}`;
 
                 if (footnotesHtml) {
                     result += `\n>\n> ${footnotesHtml.replace(/\n/g, '\n> ')}`;
@@ -1021,7 +1020,7 @@ class ObsidianProcessor {
         let contentStart, contentEndFinal;
         const lastContentLine = lines[contentEnd].trim();
 
-        if (lastContentLine.includes('|')) {
+        if (this.isTableRow(lastContentLine)) {
             [contentStart, contentEndFinal] = this.findTableBoundaries(lines, contentEnd);
         } else if (this.isListItem(lastContentLine)) {
             [contentStart, contentEndFinal] = this.findListBoundaries(lines, contentEnd);
@@ -1094,13 +1093,13 @@ class ObsidianProcessor {
 
         while (start > 0) {
             const prevLine = lines[start - 1].trim();
-            if (!prevLine || !prevLine.includes('|')) break;
+            if (!prevLine || !this.isTableRow(prevLine)) break;
             start--;
         }
 
         while (end < lines.length - 1) {
             const nextLine = lines[end + 1].trim();
-            if (!nextLine || !nextLine.includes('|')) break;
+            if (!nextLine || !this.isTableRow(nextLine)) break;
             end++;
         }
 
@@ -1140,6 +1139,25 @@ class ObsidianProcessor {
         return [start, endLine];
     }
 
+    isTableRow(line) {
+        if (!line || !line.includes('|')) {
+            return false;
+        }
+        
+        const trimmed = line.trim();
+        
+        if (!trimmed.startsWith('|') || !trimmed.endsWith('|')) {
+            return false;
+        }
+        
+        const pipeCount = (trimmed.match(/\|/g) || []).length;
+        if (pipeCount < 2) {
+            return false;
+        }
+        
+        return true;
+    }
+
     findParagraphBoundaries(lines, refLine) {
         let start = refLine;
         let end = refLine;
@@ -1147,7 +1165,7 @@ class ObsidianProcessor {
         while (start > 0) {
             const prevLine = lines[start - 1].trim();
             if (!prevLine || prevLine.startsWith('#') || this.isListItem(prevLine) || 
-                prevLine.startsWith('```') || prevLine.includes('|') || 
+                prevLine.startsWith('```') || this.isTableRow(prevLine) || 
                 prevLine.match(/^\[.*\]:/) || prevLine.match(/^\^[a-zA-Z0-9]{6}$/)) {
                 break;
             }
@@ -1157,7 +1175,7 @@ class ObsidianProcessor {
         while (end < lines.length - 1) {
             const nextLine = lines[end + 1].trim();
             if (!nextLine || nextLine.startsWith('#') || this.isListItem(nextLine) || 
-                nextLine.startsWith('```') || nextLine.includes('|') || 
+                nextLine.startsWith('```') || this.isTableRow(nextLine) || 
                 nextLine.match(/^\[.*\]:/) || nextLine.match(/^\^[a-zA-Z0-9]{6}$/)) {
                 break;
             }
@@ -1299,7 +1317,7 @@ class ObsidianProcessor {
 
                 let contentStart, contentEnd;
 
-                if (lineWithoutRef.trim().includes('|')) {
+                if (this.isTableRow(lineWithoutRef.trim())) {
                     [contentStart, contentEnd] = this.findTableBoundaries(lines, i);
                 } else if (this.isListItem(lineWithoutRef.trim())) {
                     [contentStart, contentEnd] = this.findListBoundaries(lines, i);
@@ -1318,7 +1336,7 @@ class ObsidianProcessor {
                 }
 
                 if (!alreadyProcessed) {
-                    if (lineWithoutRef.trim().includes('|') && contentStart < processedLines.length) {
+                    if (this.isTableRow(lineWithoutRef.trim()) && contentStart < processedLines.length) {
                         processedLines[contentStart] = `<div><span class="anchor" id="^${blockId}"></span></div>\n\n${processedLines[contentStart]}`;
                     }
                     else if (contentStart === processedLines.length) {
@@ -1347,7 +1365,7 @@ class ObsidianProcessor {
                         let contentStart, contentEndFinal;
                         const lastContentLine = lines[contentEnd].trim();
 
-                        if (lastContentLine.includes('|')) {
+                        if (this.isTableRow(lastContentLine)) {
                             [contentStart, contentEndFinal] = this.findTableBoundaries(lines, contentEnd);
                         } else if (this.isListItem(lastContentLine)) {
                             [contentStart, contentEndFinal] = this.findListBoundaries(lines, contentEnd);
