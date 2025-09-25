@@ -676,16 +676,10 @@ class ObsidianProcessor {
         return processedContent;
     }
 
-    generateTransclusionId(fileName) {
-        const timestamp = Date.now().toString(36);
-        const nameHash = fileName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8);
-        return `transcl-${nameHash}-${timestamp}`;
-    }
-
     processTransclusionFootnotes(content, fileName) {
         const footnotes = {};
         let footnoteCounter = 1;
-        const transclusionId = this.generateTransclusionId(fileName);
+        const transclusionId = `transcl-${fileName.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8)}-${Date.now().toString(36)}`;
 
         let contentWithoutFootnotes = content.replace(/^\[\^([^\]]+)\]:\s*(.*)$/gm, (match, id, text) => {
             footnotes[id] = text;
