@@ -155,113 +155,129 @@ class ObsidianMarkdownToHtml:
         """Build HTML page with raw markdown that will be processed by marked.js"""
 
         return f"""<!DOCTYPE html>
-    <html>
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
-        <title>{title}</title>
-        <link rel="preconnect" href="https://rsms.me/">
-        <link rel="preconnect" href="https://rsms.me/inter/inter.css">
-        <link rel="stylesheet" href="{offset}/style.css">
-        {f'<link rel="stylesheet" href="{offset}/canvas.css">' if type == "canvas" else ''}
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
-    </head>
-    <body>
-        <nav>
-            <span>
-                <button popovertarget="navbar" popovertargetaction="toggle"><i data-lucide="align-justify"></i></button>
-                <div id="navbar" popover></div>
-                <button popovertarget="searchbar" popovertargetaction="toggle"><i data-lucide="search"></i></button>
-                <div id="searchbar" popover></div>
-            </span>
-            <p class="top-bar">{(data_current_file.split('.')[0] + '.html' if data_current_file.split('.')[-1] == "md" else data_current_file + '.html').replace("\\", "<span class=\"file-link\"> > </span>")}</p>
-            <button popovertarget="table-of-contents" popovertargetaction="toggle"><i data-lucide="table-of-contents"></i></button>
-            <div id=\"table-of-contents\" style=\"display: none\" popover><div id=\"toc-content\"></div></div>
-        </nav>
-        <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
-        <article data-current-file="{data_current_file}" data-type="{type}"></article>
-        <footer>
-            <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
-            <p>Last updated on {self.get_current_date()}</p>
-        </footer>
-        <script src="{offset}/renderer.js"></script>
-        <script src="{offset}/searcher.js"></script>
-        {f'<script src="{offset}/canvas.js"></script>' if type == "canvas" else ''}
-        <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-        <script>
-            MathJax = {{
-                tex: {{
-                    inlineMath: [['$', '$']],
-                    displayMath: [['$$', '$$']]
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8">
+    <title>{title}</title>
+    <link rel="preconnect" href="https://rsms.me/">
+    <link rel="preconnect" href="https://rsms.me/inter/inter.css">
+    <link rel="stylesheet" href="{offset}/style.css">
+    {f'<link rel="stylesheet" href="{offset}/canvas.css">' if type == "canvas" else ''}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    
+    <script>
+        // Configure MathJax before loading the library
+        window.MathJax = {{
+            tex: {{
+                inlineMath: [['$', '$']],
+                displayMath: [['$$', '$$']],
+                processEscapes: true,
+                processEnvironments: true
+            }},
+            options: {{
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                ignoreHtmlClass: 'tex2jax_ignore',
+                processHtmlClass: 'tex2jax_process'
+            }},
+            startup: {{
+                ready: () => {{
+                    console.log('MathJax is loaded, but not yet initialized');
+                    MathJax.startup.defaultReady();
+                    console.log('MathJax is ready');
                 }}
-            }};
-        </script>
-        <script src="https://unpkg.com/lucide@latest"></script>
-        <script>
-            // Mobile-compatible Mermaid loading
-            (function() {{
-                // Check if we're on a mobile device
-                const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                
-                // Load mermaid
-                const script = document.createElement('script');
-                script.type = 'text/javascript';
-                script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
-                script.onload = function() {{
-                    mermaid.initialize({{
-                        startOnLoad: false,
-                        theme: "default",
-                        securityLevel: 'loose'  // Needed for some mobile browsers
-                    }});
+            }}
+        }};
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+    <nav>
+        <span>
+            <button popovertarget="navbar" popovertargetaction="toggle"><i data-lucide="align-justify"></i></button>
+            <div id="navbar" popover></div>
+            <button popovertarget="searchbar" popovertargetaction="toggle"><i data-lucide="search"></i></button>
+            <div id="searchbar" popover></div>
+        </span>
+        <p class="top-bar">{(data_current_file.split('.')[0] + '.html' if data_current_file.split('.')[-1] == "md" else data_current_file + '.html').replace("\\", "<span class=\"file-link\"> > </span>")}</p>
+        <button popovertarget="table-of-contents" popovertargetaction="toggle"><i data-lucide="table-of-contents"></i></button>
+        <div id=\"table-of-contents\" style=\"display: none\" popover><div id=\"toc-content\"></div></div>
+    </nav>
+    <h1 class="file-title">{title}{'.' + type if type ==  "canvas" or type == "base" else ''}</h1>
+    <article data-current-file="{data_current_file}" data-type="{type}"></article>
+    <footer>
+        <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
+        <p>Last updated on {self.get_current_date()}</p>
+    </footer>
+    <script src="{offset}/renderer.js"></script>
+    <script src="{offset}/searcher.js"></script>
+    {f'<script src="{offset}/canvas.js"></script>' if type == "canvas" else ''}
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        // Mobile-compatible Mermaid loading
+        (function() {{
+            // Check if we're on a mobile device
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            
+            // Load mermaid
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+            script.onload = function() {{
+                mermaid.initialize({{
+                    startOnLoad: false,
+                    theme: "default",
+                    securityLevel: 'loose'  // Needed for some mobile browsers
+                }});
 
-                    document.addEventListener("DOMContentLoaded", function() {{
-                        // Replace only ```mermaid fences
-                        const walker = document.createTreeWalker(
-                            document.body,
-                            NodeFilter.SHOW_TEXT,
-                            null,
-                            false
-                        );
-                        
-                        const textNodes = [];
-                        let node;
-                        while (node = walker.nextNode()) {{
-                            textNodes.push(node);
-                        }}
-                        
-                        textNodes.forEach(function(textNode) {{
-                            if (textNode.textContent.includes('```mermaid')) {{
-                                const parent = textNode.parentNode;
-                                const html = parent.innerHTML;
-                                const newHtml = html.replace(
-                                    /```mermaid([\\s\\S]*?)```/g,
-                                    function(match, code) {{
-                                        return '<pre class="mermaid">' + code.trim() + '</pre>';
-                                    }}
-                                );
-                                if (newHtml !== html) {{
-                                    parent.innerHTML = newHtml;
+                document.addEventListener("DOMContentLoaded", function() {{
+                    // Replace only ```mermaid fences
+                    const walker = document.createTreeWalker(
+                        document.body,
+                        NodeFilter.SHOW_TEXT,
+                        null,
+                        false
+                    );
+                    
+                    const textNodes = [];
+                    let node;
+                    while (node = walker.nextNode()) {{
+                        textNodes.push(node);
+                    }}
+                    
+                    textNodes.forEach(function(textNode) {{
+                        if (textNode.textContent.includes('```mermaid')) {{
+                            const parent = textNode.parentNode;
+                            const html = parent.innerHTML;
+                            const newHtml = html.replace(
+                                /```mermaid([\\s\\S]*?)```/g,
+                                function(match, code) {{
+                                    return '<pre class="mermaid">' + code.trim() + '</pre>';
                                 }}
+                            );
+                            if (newHtml !== html) {{
+                                parent.innerHTML = newHtml;
                             }}
-                        }});
-                        
-                        // Run mermaid after DOM is ready and modified
-                        setTimeout(function() {{
-                            try {{
-                                mermaid.run();
-                            }} catch (e) {{
-                                console.log('Mermaid rendering skipped on mobile:', e);
-                            }}
-                        }}, 100);
+                        }}
                     }});
-                }};
-                script.onerror = function() {{
-                    console.log('Mermaid failed to load, continuing without it');
-                }};
-                document.head.appendChild(script);
-            }})();
-        </script>
-    </body>
-    </html>"""
+                    
+                    // Run mermaid after DOM is ready and modified
+                    setTimeout(function() {{
+                        try {{
+                            mermaid.run();
+                        }} catch (e) {{
+                            console.log('Mermaid rendering skipped on mobile:', e);
+                        }}
+                    }}, 100);
+                }});
+            }};
+            script.onerror = function() {{
+                console.log('Mermaid failed to load, continuing without it');
+            }};
+            document.head.appendChild(script);
+        }})();
+    </script>
+</body>
+</html>"""
 
     def get_current_date(self):
         """Get current date formatted"""

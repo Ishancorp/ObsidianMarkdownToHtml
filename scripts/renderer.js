@@ -355,10 +355,28 @@ class ObsidianProcessor {
             console.log('Processed content before marked:', processedContent.substring(0, 500));
             
             const htmlContent = marked.parse(processedContent);
-            const processedHTML = htmlContent.replace(/<\/p>\s*<p>/g, '</p><br><p>');
+            
+            const htmlWithIndents = this.processIndentMarkers(htmlContent);
+            
+            const processedHTML = htmlWithIndents.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             
             return [processedHTML, headers];
         }
+    }
+
+    processIndentMarkers(htmlContent) {
+        return htmlContent.replace(/OBSIDIAN�INDENT�MARKER�(\d+)�START(.*?)OBSIDIAN�INDENT�MARKER�END/g, (match, indentLevel, content) => {
+            let wrappedContent = content;
+            const level = parseInt(indentLevel);
+            
+            wrappedContent = wrappedContent.trim();
+            
+            for (let i = 0; i < level; i++) {
+                wrappedContent = `<div class="indent">${wrappedContent}</div>`;
+            }
+            
+            return wrappedContent;
+        });
     }
 
     processFilters(links, filters) {
@@ -1427,7 +1445,7 @@ class ObsidianProcessor {
                     if (prevLine.trim() === '') {
                         continue;
                     }
-                    if (prevLine.trim().endsWith(':') || prevLine.trim() === '') {
+                    if (prevLine.trim().endsWith(':')) {
                         isObsidianCodeBlock = true;
                     }
                     break;
@@ -1448,9 +1466,7 @@ class ObsidianProcessor {
                         continue;
                     }
                 }
-            }
-            
-            if (line.startsWith('\t') && line.trim() !== '') {
+                
                 let tabCount = 0;
                 for (let char of line) {
                     if (char === '\t') {
@@ -1460,11 +1476,10 @@ class ObsidianProcessor {
                     }
                 }
                 
-                let wrappedLine = line.substring(tabCount);
-                for(; tabCount > 0; --tabCount){
-                    wrappedLine = `<span class="indent">${wrappedLine}</span>`;
-                }
-                processedLines.push(wrappedLine);
+                const content = line.substring(tabCount);
+                const indentMarker = `OBSIDIAN�INDENT�MARKER�${tabCount}�START`;
+                const endMarker = `OBSIDIAN�INDENT�MARKER�END`;
+                processedLines.push(`${indentMarker}${content}${endMarker}`);
             } else {
                 processedLines.push(line);
             }
@@ -1724,20 +1739,15 @@ renderer.heading = function(text, level, raw) {
 };
 const originalLink = renderer.link;
 
-// Override the link method to wrap external links
 renderer.link = function(href, title, text) {
-    // Call the original link renderer first
     const originalOutput = originalLink.call(this, href, title, text);
     
-    // Check if it's an external link (starts with http:// or https://)
     const isExternalLink = href && (href.startsWith('http://') || href.startsWith('https://'));
-    
+    console.log(text)
     if (isExternalLink) {
-        // Wrap external links with a special span
         return `<span class="external-link-wrapper">${originalOutput}<span class="external-link-icon"><i data-lucide="external-link"></i></span></span>`;
     }
     
-    // Return the original output for internal links
     return originalOutput;
 };
 marked.setOptions({ renderer: renderer });
@@ -1762,15 +1772,39 @@ async function renderContent() {
             document.getElementById('table-of-contents').style.removeProperty('display');
         }
         document.getElementById("navbar").innerHTML = processor.generateFileTreeHTML();
-        article.innerHTML = processedHTML
+        article.innerHTML = processedHTML;
+        
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            try {
+                await window.MathJax.typesetPromise([article]);
+                console.log('MathJax processing completed');
+            } catch (error) {
+                console.error('MathJax processing error:', error);
+            }
+        } else if (window.MathJax && window.MathJax.Hub) {
+            window.MathJax.Hub.Queue(["Typeset", window.MathJax.Hub, article]);
+        }
+        
     } catch (error) {
         console.error('Error processing content:', error);
         article.innerHTML = '<p>Error processing content. Please check the console for details.</p>';
     }
-    lucide.createIcons();
+    
+    if (window.lucide && window.lucide.createIcons) {
+        lucide.createIcons();
+    }
 }
 
-document.addEventListener('DOMContentLoaded', renderContent);
+document.addEventListener('DOMContentLoaded', function() {
+    renderContent();
+    
+    window.reprocessMathJax = function() {
+        if (window.MathJax && window.MathJax.typesetPromise) {
+            return window.MathJax.typesetPromise();
+        }
+        return Promise.resolve();
+    };
+});
 
 if (!HTMLElement.prototype.hasOwnProperty('popover')) {
     console.log('Adding popover fallback for mobile');

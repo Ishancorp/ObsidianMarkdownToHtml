@@ -69,8 +69,10 @@ p {
 .indent {
     margin-left: 0.5em;
     padding-left: 0.5em;
-    text-indent: -0.5em;
     border-left: 1px solid #393939;
+}
+.indent + br {
+    display: none;
 }
 p.indent-1 {
     margin-left: 0.5em;
