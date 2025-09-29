@@ -191,6 +191,9 @@ article[data-type="md"] {
     padding-left: 0.5em;
     padding-right: 0.5em;
 }
+div.math-inline {
+  display: inline;
+}
 
 nav {
     background-color: #1E1E1E;

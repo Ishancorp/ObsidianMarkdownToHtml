@@ -39,6 +39,8 @@ class ObsidianProcessor {
         content = await this.processTransclusions(content, currentFile);
         
         content = this.processWikilinks(content);
+
+        content = this.processMath(content);
         
         content = this.processFootnotes(content);
 
@@ -345,19 +347,16 @@ class ObsidianProcessor {
     async processFile(content, fileType) {
         if (fileType == "base") {
             return [await this.processBase(content), []]
-        } if (fileType == "canvas") {
+        } else if (fileType == "canvas") {
             return [await this.processCanvas(content), []];
-        }
-        else {
+        } else {
             const headers = this.extractHeadersFromContent(content);
             const processedContent = await this.processMarkdown(content);
             
-            console.log('Processed content before marked:', processedContent.substring(0, 500));
-            
             const htmlContent = marked.parse(processedContent);
+            const htmlWithMath = this.restoreMath(htmlContent);
             
-            const htmlWithIndents = this.processIndentMarkers(htmlContent);
-            
+            const htmlWithIndents = this.processIndentMarkers(htmlWithMath);
             const processedHTML = htmlWithIndents.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             
             return [processedHTML, headers];
@@ -1240,6 +1239,42 @@ class ObsidianProcessor {
             }
             return `<a href="${url}" class="wikilink">${this.escapeHtml(alias)}</a>`;
         });
+    }
+
+    processMath(content) {
+        const mathBlocks = [];
+        let mathCounter = 0;
+
+        content = content.replace(/\$\$([^$]+)\$\$/g, (match, math) => {
+            const placeholder = `MATH_BLOCK_${mathCounter++}`;
+            mathBlocks.push({
+                placeholder: placeholder,
+                content: `<div class="math-block">\$\$${math.trim()}\$\$</div>`
+            });
+            return placeholder;
+        });
+
+        content = content.replace(/\$([^$]+)\$/g, (match, math) => {
+            const placeholder = `MATH_INLINE_${mathCounter++}`;
+            mathBlocks.push({
+                placeholder: placeholder,
+                content: `<div class="math-inline">\$${math.trim()}\$</div>`
+            });
+            return placeholder;
+        });
+
+        this.mathBlocks = mathBlocks;
+        return content;
+    }
+
+    restoreMath(content) {
+        if (this.mathBlocks) {
+            for (const block of this.mathBlocks) {
+                content = content.replace(block.placeholder, block.content);
+            }
+            this.mathBlocks = null;
+        }
+        return content;
     }
 
     processFootnotes(content) {
