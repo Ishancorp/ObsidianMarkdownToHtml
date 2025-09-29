@@ -5,6 +5,7 @@ import uuid
 from python_segments.FileManager import FileManager
 import json
 import yaml
+from datetime import datetime
 
 class ObsidianMarkdownToHtml:
     def __init__(self, in_directory, out_directory):
@@ -206,7 +207,7 @@ class ObsidianMarkdownToHtml:
     <article data-current-file="{data_current_file}" data-type="{type}"></article>
     <footer>
         <p>Generated with the <a target="_blank" href="https://github.com/Ishancorp/ObsidianMarkdownToHtml">Obsidian Markdown to HTML script</a></p>
-        <p>Last updated on {self.get_current_date()}</p>
+        <p>Last updated on {datetime.now().strftime("%m/%d/%Y")}</p>
     </footer>
     <script src="{offset}/renderer.js"></script>
     <script src="{offset}/searcher.js"></script>
@@ -278,11 +279,6 @@ class ObsidianMarkdownToHtml:
     </script>
 </body>
 </html>"""
-
-    def get_current_date(self):
-        """Get current date formatted"""
-        from datetime import datetime
-        return datetime.now().strftime("%m/%d/%Y")
 
     def compile_webpages(self):
         """Compile all files (.md, .canvas, .base) to HTML - unified pipeline with client-side processing"""
