@@ -1051,6 +1051,9 @@ class ObsidianProcessor {
     }
 
     getLinkHref(fileName) {
+        if (fileName === ''){
+            return ""
+        }
         let target = (fileLinks[fileName] || fileLinks[fileName + '.md'] || '#file-not-found').toLowerCase()
             .replace(/\\/g, '/')
             .replace(/\.md$/i, '.html');
@@ -1217,7 +1220,9 @@ class ObsidianProcessor {
         return content.replace(/\[\[([^\]]+)\]\]/g, (match, link) => {
             let [pageName, alias] = link.split('|');
             
-            if (!alias) {
+            if (!alias && pageName.startsWith('#')) {
+                alias = pageName.slice(1);
+            } else if (!alias){
                 alias = pageName.replace(/#/g, ' > ');
             } else {
                 alias = alias.replace(/#/g, '&nbsp;>&nbsp;');
