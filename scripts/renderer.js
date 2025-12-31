@@ -1665,7 +1665,7 @@ class ObsidianProcessor {
                                 ret_str += '<li class="parent">\n';
                                 const checkboxTag = `checkbox-${checkboxPrefix}-${filecurElems[j].replace(/\s+/g, "-")}`;
                                 checkboxPrefix += 1;
-                                ret_str += `<input type="checkbox" id="${checkboxTag}" name="${checkboxTag}">\n`;
+                                ret_str += `<input type="checkbox" class="nav-checkbox" id="${checkboxTag}" name="${checkboxTag}">\n`;
                                 ret_str += `<label class="checkbox" for="${checkboxTag}">${filecurElems[j]}</label>\n`;
                                 ret_str += '<ul class="child">\n';
                             }
@@ -1710,7 +1710,9 @@ class ObsidianProcessor {
             }
         }
         
-        let searchHtml = '<input type="text" id="searchInput" onkeyup="searchForArticle()" placeholder="Search..">';
+        let searchHtml = '<div><input type="text" id="searchInput" onkeyup="searchForArticle()" placeholder="Search by name">';
+        searchHtml += '<label class="switch"><input type="checkbox" id="toggleByText" onchange="updatePlaceholder()"><span class="slider"></span></label></div>'
+        
         searchHtml += '<ul id="articles">';
         
         for (const [key, value] of Object.entries(searchDict)) {
@@ -1718,8 +1720,12 @@ class ObsidianProcessor {
             const link = this.getLinkHref(key);
             const displayPath = rightPartLink.substring(1).replace(/\\/g, " > ");
             const fileName = key.split('/').pop();
+            const fileID = this.findFileIdByLink(key.replace(/\//g, "\\"));
+            if(fileID === null){
+                console.log(key)
+            }
             
-            searchHtml += `<li><a searchText="${link}" href="${link}">${fileName}<br><sub class="fileloc">${displayPath}</sub></a></li>`;
+            searchHtml += `<li><a searchText="${link}" searchID="${fileID}" href="${link}">${fileName}<br><sub class="fileloc">${displayPath}</sub></a></li>`;
         }
         
         searchHtml += '</ul>';
@@ -1754,7 +1760,7 @@ function slugify(text) {
         .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
         .trim()
         .toLowerCase()
-        .replace(/[^a-z0-9 \-()†,]/g, '') // Keep only alphanumeric, space, comma, hyphen, parentheses, dagger
+        .replace(/[^a-z0-9 \-(){}†,]/g, '') // Keep only alphanumeric, space, comma, hyphen, parentheses, dagger
         .replace(/\s+/g, '-')            // Replace spaces with hyphens
         .replace(/^-+/, '')              // Remove leading hyphens
         .replace(/-+$/, '');             // Remove trailing hyphens

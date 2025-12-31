@@ -229,6 +229,70 @@ input#searchInput {
 input#searchInput:focus {
     border: 3px solid #555555;
 }
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+    margin-left: 0.75em;
+    margin-bottom: 1em;
+}
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #363636;
+    transition: 0.3s;
+    border-radius: 24px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #DADADA;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+input#toggleByText:checked + .slider {
+    background-color: #6086ED;
+}
+
+input#toggleByText:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.slider:hover {
+    background-color: #4A4A4A;
+}
+
+input#toggleByText:checked + .slider:hover {
+    background-color: #87B6F6;
+}
+input#toggleByText:checked + .slider {
+    background-color: #6086ED;
+}
+
+input#toggleByText:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.slider:hover {
+    background-color: #4A4A4A;
+}
+
+input#toggleByText:checked + .slider:hover {
+    background-color: #87B6F6;
+}
+
 ul#articles {
     list-style-type: none;
     padding: 0;
@@ -404,11 +468,11 @@ span.anchor {
     position: absolute;
 }
 
-input[type='checkbox']:not(:checked) + label + ul {
+input[type='checkbox'].nav-checkbox:not(:checked) + label + ul {
         display: none;
         visibility:hidden;
 }
-input[type="checkbox"] {
+input[type="checkbox"].nav-checkbox {
     appearance: none;
     transform-origin: center;
     margin: 0;
@@ -421,10 +485,10 @@ input[type="checkbox"] {
     bottom: 0.1em;
     position: relative;
 }
-input[type="checkbox"]::before {
+input[type="checkbox"].nav-checkbox::before {
     content: ">";
 }
-input[type="checkbox"]:checked {
+input[type="checkbox"].nav-checkbox:checked {
     transform: rotate(90deg);
     bottom: auto;
     top: 0.4em;
