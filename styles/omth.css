@@ -317,6 +317,19 @@ ul#articles li a {
 ul#articles li a:hover {
     background-color: #2F3852;
 }
+sub.content-preview mark {
+    background-color: #72662D;
+    color: #DADADA;
+}
+div.content-snippet {
+    background-color: #1E1E1E;
+    border-radius: 10px;
+    padding: 5px;
+    padding-left: 0.75em;
+    padding-right: 0.75em;
+    padding-bottom: 0.75em;
+    margin-top: 1em;
+}
 div#navbar {
     border: 0;
     padding: 2ch;
