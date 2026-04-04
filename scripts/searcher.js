@@ -15,14 +15,14 @@ function searchForArticle() {
         return;
     }
     
-    const queryLower = query.toLowerCase();
+    const queryLower = normalize(query);
     const checkbox = document.getElementById('toggleByText');
 
     for (const li of liElements) {
         const a = li.querySelector("a");
-        const searchText = (a.getAttribute("searchText") || "").toLowerCase();
+        const searchText = normalize(a.getAttribute("searchText") || "");
         const searchID = a.getAttribute("searchID");
-        const txtValue = (a.textContent || a.innerText).toLowerCase();
+        const txtValue = normalize(a.textContent || a.innerText);
 
         let matches = false;
         let contentPreview = "";
@@ -35,7 +35,7 @@ function searchForArticle() {
                 for(let i = 0; i < lines.length; i++) {
                     const line = lines[i];
                     
-                    if(line.toLowerCase().includes(queryLower)) {
+                    if(normalize(line).includes(queryLower)) {
                         matches = true;
                         contentPreview = generateSnippetFromLine(line, query);
                         break;
@@ -69,10 +69,16 @@ function escapeRegex(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function normalize(string) {
+    return string.toLowerCase()
+                 .replace(/[\u201C\u201D\u201E\u201F\u275D\u275E]/g, '"')
+                 .replace(/[\u2018\u2019\u201A\u201B\u275B\u275C]/g, "'");
+}
+
 function generateSnippetFromLine(line, searchTerm) {
     let snippet = line.trim();
-    const searchTermLower = searchTerm.toLowerCase();
-    const snippetLower = snippet.toLowerCase();
+    const searchTermLower = normalize(searchTerm);
+    const snippetLower = normalize(snippet);
     const pos = snippetLower.indexOf(searchTermLower);
     
     if(pos === -1) return "";

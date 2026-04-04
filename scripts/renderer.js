@@ -427,6 +427,13 @@ class ObsidianProcessor {
                             } else {
                                 return false;
                             }
+                        } else if (filter.includes('.hasProperty(')) {
+                            const match = filter.match(/^(.+)\.hasProperty\(["'](.+)["']\)$/);
+                            if (match) {
+                                const [, property, value] = match;
+                                const result = fileProps.notes?.[value] ?? false;
+                                return result;
+                            }
                         } else if (filter.includes(' == ')) {
                             const [pre, post] = filter.split(' == ');
                             const expectedValue = post.replace(/^["']|["']$/g, '');
@@ -1263,7 +1270,7 @@ class ObsidianProcessor {
             const placeholder = `MATH_INLINE_${mathCounter++}`;
             mathBlocks.push({
                 placeholder: placeholder,
-                content: `<div class="math-inline">\$${math.trim()}\$</div>`
+                content: `<span class="math-inline">\$${math.trim()}\$</span>`
             });
             return placeholder;
         });
