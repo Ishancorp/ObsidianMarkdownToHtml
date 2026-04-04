@@ -564,8 +564,8 @@ class ObsidianProcessor {
             
             if (!noteValue) return '';
             
-            if (typeof noteValue === 'string' && noteValue.startsWith('"[[') && noteValue.endsWith(']]"')) {
-                const linkContent = noteValue.slice(3, -3);
+            if (typeof noteValue === 'string' && noteValue.startsWith('[[') && noteValue.endsWith(']]')) {
+                const linkContent = noteValue.slice(2, -2);
                 
                 if (linkContent.includes('.')) {
                     const extension = linkContent.split('.').pop().toLowerCase();
