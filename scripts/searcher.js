@@ -44,7 +44,7 @@ function searchForArticle() {
             }
         } else {
             const combined = `${txtValue} ${searchText}`;
-            matches = combined.includes(queryLower);
+            matches = matchesByParts(combined, query);
         }
 
         li.style.display = matches ? "" : "none";
@@ -71,8 +71,28 @@ function escapeRegex(string) {
 
 function normalize(string) {
     return string.toLowerCase()
-                 .replace(/[\u201C\u201D\u201E\u201F\u275D\u275E]/g, '"')
-                 .replace(/[\u2018\u2019\u201A\u201B\u275B\u275C]/g, "'");
+        .replace(/[\u201C\u201D\u201E\u201F\u275D\u275E]/g, '"')
+        .replace(/[\u2018\u2019\u201A\u201B\u275B\u275C]/g, "'")
+        .replace(/[^a-z0-9\s]/g, ' ');
+}
+
+function matchesByParts(text, query) {
+    const queryParts = normalize(query).split(/\s+/).filter(Boolean);
+    const textWords = normalize(text).split(/\s+/).filter(Boolean);
+    let textIndex = 0;
+    for (const part of queryParts) {
+        let found = false;
+        while (textIndex < textWords.length) {
+            if (textWords[textIndex].startsWith(part)) {
+                found = true;
+                textIndex++;
+                break;
+            }
+            textIndex++;
+        }
+        if (!found) return false;
+    }
+    return true;
 }
 
 function generateSnippetFromLine(line, searchTerm) {
