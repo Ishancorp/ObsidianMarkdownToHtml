@@ -39,7 +39,7 @@ class ObsidianMarkdownToHtml:
     def write_renderer(self):
         src_path = (Path(__file__).resolve().parent / "scripts/renderer.js").resolve()
         dst_path = Path(self.out_directory) / 'renderer.js'
-        with open(src_path, "r") as f_in:
+        with open(src_path, "r", encoding='utf-8') as f_in:
             content = f_in.read()
 
         content = content.replace("{/*file_links*/}", json.dumps(self.link_to_filepath))
@@ -49,7 +49,7 @@ class ObsidianMarkdownToHtml:
         content = content.replace("/*in_directory*/0", json.dumps(self.in_directory))
         content = content.replace("/*out_directory*/0", json.dumps(self.out_directory))
 
-        with open(dst_path, "w") as f_out:
+        with open(dst_path, "w", encoding='utf-8') as f_out:
             f_out.write(content)
 
     def create_file_content_mapping(self):

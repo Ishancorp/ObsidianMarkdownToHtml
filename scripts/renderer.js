@@ -35,6 +35,8 @@ class ObsidianProcessor {
         content = this.preprocessHeaders(content);
         
         content = this.fixTableSpacing(content);
+
+        content = this.processCallouts(content);
         
         content = await this.processTransclusions(content, currentFile);
         
@@ -355,8 +357,9 @@ class ObsidianProcessor {
             
             const htmlContent = marked.parse(processedContent);
             const htmlWithMath = this.restoreMath(htmlContent);
+            const htmlWithCallouts = this.restoreCallouts(htmlWithMath); // ← add this
             
-            const htmlWithIndents = this.processIndentMarkers(htmlWithMath);
+            const htmlWithIndents = this.processIndentMarkers(htmlWithCallouts); // ← was htmlWithMath
             const processedHTML = htmlWithIndents.replace(/<\/p>\s*<p>/g, '</p><br><p>');
             
             return [processedHTML, headers];
@@ -1221,6 +1224,119 @@ class ObsidianProcessor {
                 .join("\n");
             return `\n${cleaned}\n${tagLine ?? ""}\n`;
         });
+    }
+
+    processCallouts(content) {
+        const calloutIcons = {
+            note: '📋', tip: '💡', hint: '💡', important: '💡',
+            warning: '⚠️', caution: '⚠️', attention: '⚠️',
+            danger: '🔴', error: '🔴', bug: '🐛',
+            info: 'ℹ️', todo: '✅',
+            question: '❓', help: '❓', faq: '❓',
+            success: '✅', check: '✅', done: '✅',
+            failure: '❌', fail: '❌', missing: '❌',
+            abstract: '📄', summary: '📄', tldr: '📄',
+            quote: '💬', cite: '💬',
+            example: '📌',
+        };
+
+        const calloutClass = {
+            note: 'note',
+            tip: 'tip', hint: 'tip', important: 'tip',
+            warning: 'warning', caution: 'warning', attention: 'warning',
+            danger: 'danger', error: 'danger', bug: 'danger', failure: 'danger', fail: 'danger', missing: 'danger',
+            info: 'info', todo: 'info',
+            question: 'warning', help: 'warning', faq: 'warning',
+            success: 'tip', check: 'tip', done: 'tip',
+            abstract: 'note', summary: 'note', tldr: 'note',
+            quote: 'quote', cite: 'quote',
+            example: 'info',
+        };
+
+        this.calloutBlocks = this.calloutBlocks || [];
+
+        const lines = content.split('\n');
+        const result = [];
+        let i = 0;
+
+        while (i < lines.length) {
+            const line = lines[i];
+
+            const headerMatch = line.match(/^>\s*\[!([\w-]+)\]([+-]?)(.*)$/);
+            if (headerMatch) {
+                const rawType = headerMatch[1].toLowerCase();
+                const foldable = headerMatch[2];
+                const titleOverride = headerMatch[3].trim();
+
+                const icon = calloutIcons[rawType] || 'ℹ️';
+                const cssClass = calloutClass[rawType] || 'note';
+                const defaultTitle = rawType.charAt(0).toUpperCase() + rawType.slice(1);
+                const title = titleOverride || defaultTitle;
+
+                const bodyLines = [];
+                i++;
+                while (i < lines.length && /^>/.test(lines[i])) {
+                    bodyLines.push(lines[i].replace(/^>\s?/, ''));
+                    i++;
+                }
+
+                const isCollapsible = foldable === '+' || foldable === '-';
+                const isCollapsed = foldable === '-';
+                const classAttr = [
+                    'callout',
+                    `callout-${cssClass}`,
+                    isCollapsible ? 'is-collapsible' : '',
+                    isCollapsed ? 'is-collapsed' : '',
+                ].filter(Boolean).join(' ');
+
+                const onclickAttr = isCollapsible
+                    ? ` onclick="this.classList.toggle('is-collapsed')"`
+                    : '';
+
+                const foldChevron = isCollapsible
+                    ? `<span class="callout-fold">▼</span>`
+                    : '';
+
+                // Parse the body markdown now, before storing
+                const bodyMarkdown = bodyLines.join('\n');
+                const bodyParsed = bodyMarkdown.trim()
+                    ? marked.parse(bodyMarkdown)
+                    : '';
+
+                const html =
+                    `<div class="${classAttr}">` +
+                    `<div class="callout-header"${onclickAttr}>` +
+                    `<span class="callout-icon">${icon}</span>` +
+                    `<span class="callout-title">${title}</span>` +
+                    foldChevron +
+                    `</div>` +
+                    (bodyParsed ? `<div class="callout-content">${bodyParsed}</div>` : '') +
+                    `</div>`;
+
+                const placeholder = `CALLOUT_BLOCK_${this.calloutBlocks.length}`;
+                this.calloutBlocks.push({ placeholder, html });
+                result.push(placeholder);
+                continue;
+            }
+
+            result.push(line);
+            i++;
+        }
+
+        return result.join('\n');
+    }
+
+    restoreCallouts(content) {
+        if (this.calloutBlocks) {
+            for (const block of this.calloutBlocks) {
+                content = content.replace(
+                    new RegExp(`<p>\\s*${block.placeholder}\\s*</p>|${block.placeholder}`, 'g'),
+                    block.html
+                );
+            }
+            this.calloutBlocks = null;
+        }
+        return content;
     }
 
     processWikilinks(content) {

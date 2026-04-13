@@ -33,6 +33,7 @@ om2html.compile_webpages()
 - [x] Add footnotes
 - [x] Add search
 - [x] Add LaTeX
+- [x] Add callout support
 - [ ] Add interface
 - [-] Work on canvas
   - [x] Make nodes work
