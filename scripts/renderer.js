@@ -1231,7 +1231,7 @@ class ObsidianProcessor {
             note: '📋', tip: '💡', hint: '💡', important: '💡',
             warning: '⚠️', caution: '⚠️', attention: '⚠️',
             danger: '🔴', error: '🔴', bug: '🐛',
-            info: 'ℹ️', todo: '✅',
+            info: '<i data-lucide="info"></i>', todo: '✅',
             question: '❓', help: '❓', faq: '❓',
             success: '✅', check: '✅', done: '✅',
             failure: '❌', fail: '❌', missing: '❌',
@@ -1298,9 +1298,10 @@ class ObsidianProcessor {
                     : '';
 
                 // Parse the body markdown now, before storing
-                const bodyMarkdown = bodyLines.join('\n');
-                const bodyParsed = bodyMarkdown.trim()
-                    ? marked.parse(bodyMarkdown)
+                let bodyParse = bodyLines.join('\n');
+                bodyParse = this.processWikilinks(bodyParse);
+                bodyParse = bodyParse.trim()
+                    ? marked.parse(bodyParse)
                     : '';
 
                 const html =
@@ -1310,7 +1311,7 @@ class ObsidianProcessor {
                     `<span class="callout-title">${title}</span>` +
                     foldChevron +
                     `</div>` +
-                    (bodyParsed ? `<div class="callout-content">${bodyParsed}</div>` : '') +
+                    (bodyParse ? `<div class="callout-content">${bodyParse}</div>` : '') +
                     `</div>`;
 
                 const placeholder = `CALLOUT_BLOCK_${this.calloutBlocks.length}`;

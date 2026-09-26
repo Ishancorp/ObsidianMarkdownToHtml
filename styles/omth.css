@@ -483,10 +483,9 @@ span.anchor {
 
 /* ── Callouts ───────────────────────────────────────────────── */
 .callout {
-    border-radius: 8px;
+    border-radius: 4px;
     margin: 1em 0;
     overflow: hidden;
-    border: 1px solid;
 }
 .callout-header {
     display: flex;
@@ -497,7 +496,14 @@ span.anchor {
     font-size: 0.95em;
     user-select: none;
 }
-.callout-icon { font-size: 1em; flex-shrink: 0; }
+.callout-icon { 
+    font-size: 1em; 
+    flex-shrink: 0; 
+}
+.callout-icon svg.lucide {
+    height: 1em;
+    width: 1em;
+}
 .callout-title { flex: 1; }
 .callout-fold { font-size: 0.75em; opacity: 0.6; transition: transform 0.2s; }
 .callout.is-collapsible .callout-header { cursor: pointer; }
@@ -522,8 +528,8 @@ span.anchor {
 .callout-danger  { background: rgba(226,75,74,.08); border-color: #e24b4a; }
 .callout-danger  .callout-header { background: rgba(226,75,74,.15); color: #F09595; }
 
-.callout-info    { background: rgba(83,74,183,.08); border-color: #534ab7; }
-.callout-info    .callout-header { background: rgba(83,74,183,.15); color: #AFA9EC; }
+.callout-info    { background: #212532; border-color: #557AF7; }
+.callout-info    .callout-header { background: #212532; color: #557AF7; }
 
 .callout-quote   { background: rgba(136,135,128,.08); border-color: #888780; }
 .callout-quote   .callout-header { background: rgba(136,135,128,.15); color: #B4B2A9; }
