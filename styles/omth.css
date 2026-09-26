@@ -184,6 +184,16 @@ td, th {
     border: 1px solid #363636;
     padding: 0.4em;
 }
+tr.group-header-row td {
+    background: #242424;
+}
+.group-header-label {
+    opacity: 0.6;
+    margin-right: 6px;
+}
+.group-header strong {
+    font-size: 1.05em;
+}
 
 article[data-type="md"] {
     max-width: 700px;
@@ -759,14 +769,8 @@ footer {
     to { opacity: 1; }
 }
 
-/* Ensure tables display properly in tabs with dark theme */
 .base-tab-content table {
     margin: 0;
-}
-
-.base-tab-content th {
-    background-color: #242424;
-    font-weight: 600;
 }
 
 .base-tab-content .cards-container {

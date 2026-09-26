@@ -245,59 +245,79 @@ class ObsidianProcessor {
     }
 
     async renderSingleView(viewConfig, allLinks, props, globalFilters) {
-        console.log('Processing view:', viewConfig);
-        
-        let filteredLinks = allLinks;
-        if (globalFilters) {
-            filteredLinks = this.processFilters(allLinks, globalFilters);
+    let filteredLinks = allLinks;
+    if (globalFilters) filteredLinks = this.processFilters(allLinks, globalFilters);
+    if (viewConfig.filters) filteredLinks = this.processFilters(filteredLinks, viewConfig.filters);
+
+    let sortRules = viewConfig.sort || [];
+    const groupBy = viewConfig.groupBy && viewConfig.groupBy.property ? viewConfig.groupBy : null;
+    if (groupBy) {
+        const rest = sortRules.filter(r => r.property !== groupBy.property);
+        sortRules = [{ property: groupBy.property, direction: groupBy.direction || 'ASC' }, ...rest];
+    }
+
+    const sortedLinks = this.sortLinks(filteredLinks, sortRules);
+    const viewType = viewConfig.type;
+
+    if (viewType === "table") {
+        if (sortedLinks.length === 0) {
+            return '<div class="info">No files match the specified filters</div>';
         }
-        
-        if (viewConfig.filters) {
-            filteredLinks = this.processFilters(filteredLinks, viewConfig.filters);
+
+        let propOrder = Object.keys(props);
+        if (viewConfig.order) {
+            propOrder = viewConfig.order;
         }
-        
-        console.log('Filtered links for view:', filteredLinks);
-        
-        const sortRules = viewConfig.sort || [];
-        const sortedLinks = this.sortLinks(filteredLinks, sortRules);
-        
-        const viewType = viewConfig.type;
-        console.log('Processing view type:', viewType);
-        
-        if (viewType === "table") {
-            if (sortedLinks.length === 0) {
-                return '<div class="info">No files match the specified filters</div>';
-            }
-            
-            let propOrder = Object.keys(props);
-            if (viewConfig.order) {
-                propOrder = viewConfig.order;
-            }
-            
-            let tableHtml = '<table>\n<thead>\n<tr>\n';
-            
-            for (const key of propOrder) {
-                if (props[key]) {
-                    tableHtml += `<th>${this.escapeHtml(props[key])}</th>\n`;
+
+        // Fill in any property referenced by `order`/groupBy that wasn't
+        // explicitly declared under the base's `properties:` block.
+        const effectiveProps = { ...props };
+        for (const key of propOrder) {
+            if (!effectiveProps[key]) effectiveProps[key] = this.formatPropertyLabel(key);
+        }
+        if (groupBy && !effectiveProps[groupBy.property]) {
+            effectiveProps[groupBy.property] = this.formatPropertyLabel(groupBy.property);
+        }
+
+        const visibleProps = propOrder.filter(key => effectiveProps[key]);
+
+        let tableHtml = '<table>\n<thead>\n<tr>\n';
+        for (const key of visibleProps) {
+            tableHtml += `<th>${this.escapeHtml(effectiveProps[key])}</th>\n`;
+        }
+        tableHtml += '</tr>\n</thead>\n<tbody>\n';
+
+        const groupLabel = groupBy ? effectiveProps[groupBy.property] : null;
+        let lastGroupValue;
+        let firstGroup = true;
+
+        for (const link of sortedLinks) {
+            if (groupBy) {
+                let groupValue = this.getSortValue(link, groupBy.property);
+                groupValue = (groupValue === null || groupValue === undefined || groupValue === '')
+                    ? '(No value)' : String(groupValue);
+
+                if (firstGroup || groupValue !== lastGroupValue) {
+                    tableHtml += `<tr class="group-header-row"><td colspan="${visibleProps.length}">` +
+                        `<div class="group-header"><span class="group-header-label">${this.escapeHtml(groupLabel)}</span> ` +
+                        `<strong>${this.escapeHtml(groupValue)}</strong></div></td></tr>\n`;
+                    lastGroupValue = groupValue;
+                    firstGroup = false;
                 }
             }
-            tableHtml += '</tr>\n</thead>\n<tbody>\n';
-            
-            for (const link of sortedLinks) {
-                tableHtml += '<tr>\n';
-                for (const key of propOrder) {
-                    if (props[key]) {
-                        const value = await this.getPropertyValue(link, key);
-                        tableHtml += `<td>${value}</td>\n`;
-                    }
-                }
-                tableHtml += '</tr>\n';
+
+            tableHtml += '<tr>\n';
+            for (const key of visibleProps) {
+                const value = await this.getPropertyValue(link, key);
+                tableHtml += `<td>${value}</td>\n`;
             }
-            
-            tableHtml += '</tbody>\n</table>\n';
-            return tableHtml;
-            
-        } else if (viewType === "cards") {
+            tableHtml += '</tr>\n';
+        }
+
+        tableHtml += '</tbody>\n</table>\n';
+        return tableHtml;
+
+    } else if (viewType === "cards") {
             if (sortedLinks.length === 0) {
                 return '<div class="info">No files match the specified filters</div>';
             }
@@ -842,6 +862,15 @@ class ObsidianProcessor {
         if (fileName.endsWith('.canvas')) return 'canvas';
         if (fileName.endsWith('.base')) return 'base';
         return 'markdown';
+    }
+
+    formatPropertyLabel(prop) {
+        if (prop === 'file.name') return 'Name';
+        if (prop === 'file.folder') return 'Folder';
+        if (prop === 'file.path') return 'Path';
+        if (prop === 'file.ext') return 'Extension';
+        if (prop === 'file.basename') return 'Basename';
+        return prop.replace('note.', '').replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
     }
 
     processImageTransclusion(imageLink) {
