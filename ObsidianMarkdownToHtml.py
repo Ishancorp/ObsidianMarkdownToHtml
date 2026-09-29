@@ -109,7 +109,9 @@ class ObsidianMarkdownToHtml:
                                 prop_set = {}
                                 for line in content[:end_idx + 5].split('\n')[1:-2]:
                                     key, val = line.split(": ")
-                                    prop_set[key] = val[1:-1]
+                                    prop_set[key] = val
+                                    if val[0] == val[-1] and val[0] == "\"":
+                                        prop_set[key] = val[1:-1]
                                 self.file_properties[unique_id]["notes"] = prop_set
                                 content = content[end_idx + 5:]
 

@@ -322,6 +322,11 @@ class ObsidianProcessor {
                 return '<div class="info">No files match the specified filters</div>';
             }
             
+            const ratio = parseFloat(viewConfig.imageAspectRatio);
+            const imageBoxStyle = (isFinite(ratio) && ratio > 0)
+                ? ` style="aspect-ratio: 1 / ${ratio}; height: auto;"`
+                : '';
+            
             let cardsHtml = '<div class="cards-container">\n';
             
             for (const link of sortedLinks) {
@@ -334,11 +339,11 @@ class ObsidianProcessor {
                     const imageValue = await this.getPropertyValue(link, viewConfig.image);
                     if (imageValue && !imageValue.includes('<a href')) {
                         const imageFit = viewConfig.imageFit || 'cover';
-                        cardsHtml += `<div class="card-image">\n`;
+                        cardsHtml += `<div class="card-image"${imageBoxStyle}>\n`;
                         cardsHtml += `<img src="${imageValue}" alt="${this.escapeHtml(link)}" style="object-fit: ${imageFit};" />\n`;
                         cardsHtml += `</div>\n`;
                     } else {
-                        cardsHtml += `<div class="card-image">\n</div>`;
+                        cardsHtml += `<div class="card-image"${imageBoxStyle}>\n</div>\n`;
                     }
                 }
                 
